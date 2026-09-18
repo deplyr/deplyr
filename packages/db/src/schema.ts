@@ -109,7 +109,9 @@ export const servers = pgTable("servers", {
   ipAddress: text("ip_address").notNull(),
   sshCredential: encryptedBytes("ssh_credential").notNull(),
   sshCredentialType: sshCredentialTypeEnum("ssh_credential_type").notNull(),
-  agentTokenHash: text("agent_token_hash").notNull(),
+  // set by the server:install job once it generates the agent's token —
+  // null between "row created" and "install job reached that step".
+  agentTokenHash: text("agent_token_hash"),
   status: serverStatusEnum("status").notNull().default("pending"),
   statusDetail: text("status_detail"),
   dockerInstalled: boolean("docker_installed").notNull().default(false),

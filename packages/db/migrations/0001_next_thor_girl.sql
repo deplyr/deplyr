@@ -1,0 +1,1 @@
+ALTER TABLE "servers" ALTER COLUMN "agent_token_hash" DROP NOT NULL;

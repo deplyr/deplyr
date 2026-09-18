@@ -15,6 +15,7 @@ COPY packages/config packages/config
 COPY packages/shared-types packages/shared-types
 COPY packages/db packages/db
 COPY packages/queue packages/queue
+COPY infra/agent-install.sh infra/agent-install.sh
 
 ENV NODE_ENV=production
 CMD ["bun", "run", "--cwd", "apps/worker", "start"]

@@ -12,6 +12,7 @@
     "@argo/db": "workspace:*",
     "@argo/queue": "workspace:*",
     "@argo/shared-types": "workspace:*",
+    "drizzle-orm": "^0.38.3",
     "hono": "^4.6.14"
   },
   "devDependencies": {

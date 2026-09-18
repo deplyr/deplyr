@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { LayoutDashboard, Server, Boxes, Settings } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { LayoutDashboard, Server, Boxes, Settings, LogOut } from "lucide-react";
+import type { AuthUser } from "@argo/shared-types";
 import { cn } from "@/lib/cn";
 
 const navItems = [
@@ -12,8 +13,17 @@ const navItems = [
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
-export function Sidebar() {
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+export function Sidebar({ user }: { user: AuthUser | null }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  async function handleLogout() {
+    await fetch(`${API_URL}/auth/logout`, { method: "POST", credentials: "include" });
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-surface/40 px-3 py-4">
@@ -27,7 +37,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex flex-col gap-1">
+      <nav className="flex flex-1 flex-col gap-1">
         {navItems.map(({ href, label, icon: Icon }) => {
           const active = pathname === href;
           return (
@@ -47,6 +57,22 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      {user ? (
+        <div className="flex items-center justify-between gap-2 rounded-md px-2.5 py-2">
+          <div className="min-w-0">
+            <p className="truncate text-sm text-foreground">{user.githubLogin}</p>
+            <p className="truncate text-[11px] text-muted">{user.email}</p>
+          </div>
+          <button
+            onClick={handleLogout}
+            title="Log out"
+            className="shrink-0 rounded-md p-1.5 text-muted transition-colors hover:bg-surface-hover hover:text-foreground"
+          >
+            <LogOut className="h-4 w-4" strokeWidth={1.75} />
+          </button>
+        </div>
+      ) : null}
     </aside>
   );
 }

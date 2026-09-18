@@ -3,16 +3,30 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { createBunWebSocket } from "hono/bun";
 import { healthRoute } from "./routes/health";
+import { authRoute } from "./routes/auth";
+import { serversRoute } from "./routes/servers";
 import { agentWsHandler } from "./ws/agent";
+import type { AppEnv } from "./types";
 
 const { upgradeWebSocket, websocket } = createBunWebSocket();
 
-const app = new Hono();
+const app = new Hono<AppEnv>();
 
 app.use("*", logger());
-app.use("*", cors());
+// credentials:true + an explicit origin (not "*") — required for the
+// session cookie to travel with browser requests from the web app, which
+// runs on a different port (see docs/PHASE1_DESIGN.md).
+app.use(
+  "*",
+  cors({
+    origin: process.env.WEB_URL ?? "http://localhost:3000",
+    credentials: true,
+  }),
+);
 
 app.route("/health", healthRoute);
+app.route("/auth", authRoute);
+app.route("/servers", serversRoute);
 
 // Agents dial out to this endpoint and stay connected — see
 // docs/PHASE1_DESIGN.md section 3.
@@ -21,7 +35,7 @@ app.get(
   upgradeWebSocket(() => agentWsHandler()),
 );
 
-// PR2+: app.route("/servers", serversRoute); app.route("/projects", projectsRoute); ...
+// PR3+: app.route("/projects", projectsRoute); ...
 
 const port = Number(process.env.PORT ?? 4000);
 console.log(`[api] listening on :${port}`);

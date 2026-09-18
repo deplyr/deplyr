@@ -28,6 +28,10 @@ services:
     volumes:
       - argo_redis_data:/data
 
+  # Published on its own port: the browser talks to it directly (cookies
+  # aren't port-scoped, so this works fine alongside web on :80 — see
+  # docs/PHASE1_DESIGN.md), and agents on remote managed servers need to
+  # reach it too, from outside this Docker network entirely.
   api:
     build:
       context: ../..
@@ -37,7 +41,14 @@ services:
       DATABASE_URL: postgres://argo:${POSTGRES_PASSWORD}@postgres:5432/argo
       REDIS_URL: redis://redis:6379
       ARGO_MASTER_KEY: ${ARGO_MASTER_KEY}
+      ARGO_SESSION_SECRET: ${ARGO_SESSION_SECRET}
       PORT: 4000
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+      GITHUB_OAUTH_REDIRECT_URI: ${ARGO_PUBLIC_URL}:4000/auth/github/callback
+      WEB_URL: ${ARGO_PUBLIC_URL}
+    ports:
+      - "4000:4000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -53,6 +64,9 @@ services:
       DATABASE_URL: postgres://argo:${POSTGRES_PASSWORD}@postgres:5432/argo
       REDIS_URL: redis://redis:6379
       ARGO_MASTER_KEY: ${ARGO_MASTER_KEY}
+      # Public — this is what a *managed* server's agent dials back to,
+      # from outside this box entirely.
+      ARGO_CONTROL_PLANE_WS: ws://${ARGO_PUBLIC_HOST}:4000/agent/ws
     depends_on:
       postgres:
         condition: service_healthy
@@ -65,7 +79,12 @@ services:
       dockerfile: infra/docker/web.Dockerfile
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: ${ARGO_PUBLIC_URL}
+      # Server-side (Server Components, middleware): stays on the internal
+      # Docker network, never leaves the box.
+      API_URL: http://api:4000
+      # Browser-facing: must be the same public host the browser itself
+      # uses to reach this box.
+      NEXT_PUBLIC_API_URL: ${ARGO_PUBLIC_URL}:4000
     ports:
       - "80:3000"
     depends_on:
