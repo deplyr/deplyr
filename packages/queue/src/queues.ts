@@ -9,11 +9,14 @@ import { getRedisConnection } from "./connection";
  * shape so both sides agree on it from day one.
  */
 
+// BullMQ rejects ":" in queue names, so hyphens rather than the
+// "agent:commands"-style namespacing used for the Redis pub/sub channels
+// in agent-bridge.ts (those aren't BullMQ queues, so ":" is fine there).
 export const QUEUE_NAMES = {
-  serverInstall: "server:install",
-  deployRun: "deploy:run",
-  dbProvision: "db:provision",
-  healthCheck: "health:check",
+  serverInstall: "server-install",
+  deployRun: "deploy-run",
+  dbProvision: "db-provision",
+  healthCheck: "health-check",
 } as const;
 
 export interface ServerInstallJob {

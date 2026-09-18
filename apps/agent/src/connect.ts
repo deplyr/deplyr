@@ -44,7 +44,13 @@ export function connectToControlPlane() {
         return;
       }
       try {
-        await dispatchCommand(parsed.data);
+        await dispatchCommand(parsed.data, (line) => {
+          send(ws, {
+            type: "log",
+            requestId: parsed.data.requestId,
+            line,
+          } satisfies AgentEvent);
+        });
         send(ws, {
           type: "result",
           requestId: parsed.data.requestId,

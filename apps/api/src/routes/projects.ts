@@ -1,17 +1,29 @@
 import { Hono } from "hono";
 import { and, asc, desc, eq } from "drizzle-orm";
-import { db, projects, servers, secrets, encryptSecret, decryptSecret } from "@argo/db";
+import {
+  db,
+  projects,
+  servers,
+  secrets,
+  deploys,
+  deploySteps,
+  encryptSecret,
+  decryptSecret,
+} from "@argo/db";
 import {
   createProjectInputSchema,
   upsertSecretsInputSchema,
+  DEPLOY_STEP_NAMES,
   type SecretSummary,
 } from "@argo/shared-types";
+import { deployRunQueue } from "@argo/queue";
 import { requireAuth } from "../lib/require-auth";
 import { getUserGithubToken } from "../lib/user-github-token";
 import { detectFramework } from "../lib/framework-detect";
 import { uniqueProjectSlug } from "../lib/slug";
 import { getFileContent } from "../lib/github";
 import { parseEnvExampleKeys } from "../lib/parse-env-example";
+import { toDeploySummary } from "../lib/deploy-dto";
 import type { AppEnv } from "../types";
 
 export const projectsRoute = new Hono<AppEnv>();
@@ -191,4 +203,78 @@ projectsRoute.put("/:id/secrets", async (c) => {
   }
 
   return c.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// deploys — one manual "Deploy" button in Phase 1 (no auto-deploy-on-push,
+// no rollback). See docs/PHASE1_DESIGN.md sections 4/5 for the pipeline.
+// ---------------------------------------------------------------------------
+
+projectsRoute.get("/:id/deploys", async (c) => {
+  const project = await getOwnedProject(c.get("userId"), c.req.param("id"));
+  if (!project) return c.json({ error: "not found" }, 404);
+
+  const deployRows = await db
+    .select()
+    .from(deploys)
+    .where(eq(deploys.projectId, project.id))
+    .orderBy(desc(deploys.createdAt));
+
+  const summaries = await Promise.all(
+    deployRows.map(async (deploy) => {
+      const steps = await db
+        .select()
+        .from(deploySteps)
+        .where(eq(deploySteps.deployId, deploy.id))
+        .orderBy(asc(deploySteps.orderIndex));
+      return toDeploySummary(deploy, steps);
+    }),
+  );
+
+  return c.json(summaries);
+});
+
+projectsRoute.post("/:id/deploys", async (c) => {
+  const project = await getOwnedProject(c.get("userId"), c.req.param("id"));
+  if (!project) return c.json({ error: "not found" }, 404);
+
+  if (!project.framework) {
+    return c.json(
+      { error: "this project's framework isn't supported yet — nothing to deploy" },
+      400,
+    );
+  }
+  if (project.status === "deploying") {
+    return c.json({ error: "a deploy is already in progress for this project" }, 409);
+  }
+
+  const [deploy] = await db
+    .insert(deploys)
+    .values({ projectId: project.id, status: "queued" })
+    .returning();
+  if (!deploy) return c.json({ error: "failed to create deploy" }, 500);
+
+  await db.insert(deploySteps).values(
+    DEPLOY_STEP_NAMES.map((name, orderIndex) => ({
+      deployId: deploy.id,
+      name,
+      orderIndex,
+      status: "pending" as const,
+    })),
+  );
+
+  await db
+    .update(projects)
+    .set({ status: "deploying", updatedAt: new Date() })
+    .where(eq(projects.id, project.id));
+
+  await deployRunQueue().add("deploy", { deployId: deploy.id });
+
+  const steps = await db
+    .select()
+    .from(deploySteps)
+    .where(eq(deploySteps.deployId, deploy.id))
+    .orderBy(asc(deploySteps.orderIndex));
+
+  return c.json(toDeploySummary(deploy, steps), 201);
 });

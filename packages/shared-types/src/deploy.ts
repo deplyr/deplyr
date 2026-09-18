@@ -30,3 +30,23 @@ export const deployStatusSchema = z.enum([
   "failed",
 ]);
 export type DeployStatus = z.infer<typeof deployStatusSchema>;
+
+/** What GET /projects/:id/deploys and GET /deploys/:id return. */
+export interface DeployStepSummary {
+  name: DeployStepName;
+  status: DeployStepStatus;
+  log: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+}
+
+export interface DeploySummary {
+  id: string;
+  projectId: string;
+  status: DeployStatus;
+  commitSha: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  createdAt: string;
+  steps: DeployStepSummary[];
+}

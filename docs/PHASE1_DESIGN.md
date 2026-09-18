@@ -337,3 +337,115 @@ than leaving it implicit.
 
 Each PR should leave the app in a runnable (if incomplete) state — no PR
 should depend on a later one to build or boot.
+
+---
+
+## 5. PR5 addendum: deploy pipeline architecture
+
+Written while building PR5, once the shape of the problem was concrete
+enough to pin down. Three decisions here revise or sharpen §1–§4.
+
+### 5.1 Docker containers, not pm2, run the deployed app
+
+§4's PR5 description said "start with pm2." Building it, that turned out
+to be the wrong call, and the user's own later UX walkthrough — which
+names "Docker deployment" as an explicit pipeline stage — confirms the
+right one: **every deployed app runs as its own long-lived Docker
+container**, supervised by `--restart unless-stopped`, not by pm2.
+
+Why the reversal: the agent itself runs *inside* a Docker container (per
+§3's registration flow). For pm2 to manage a host-level process, the agent
+would need to escape its own container's PID namespace — there's no clean
+way to do that without granting it far more host access than "has
+docker.sock" implies. Docker containers sidestep the problem entirely:
+the agent already has docker.sock mounted, so spinning up a sibling
+container for the app is the naturally-available primitive, not an extra
+grant. It also means an app's lifecycle survives an agent restart/upgrade,
+which a pm2 process tree living inside the agent's own container would
+not.
+
+Each pipeline step below is a **separate, individually-logged `docker
+run`/`docker exec` invocation** against a generic `node:20-slim` image with
+the project's cloned source bind-mounted — not a synthesized Dockerfile or
+a multi-stage build. That keeps `install`, `build`, and `start` as three
+genuinely distinct, separately-retryable steps (matching the checklist UI)
+without needing to parse `docker build` output to find step boundaries:
+
+- `install`: `docker run --rm -v <src>:/app -w /app node:20-slim npm install`
+- `build`: same shape, `npm run build`
+- `start`: `docker run -d --name argo-<project-slug> --restart unless-stopped
+  --network host -v <src>:/app -w /app --env-file <src>/.env node:20-slim
+  npm run start`
+
+All app containers (and the agent's own container, and nginx — see below)
+use `--network host`. Every app on a box needs a distinct port either way
+(nginx has to proxy each subdomain somewhere unambiguous), so host
+networking sidesteps Docker's bridge-network-to-host reachability problem
+(`127.0.0.1` inside a bridge-mode container is *itself*, not the host)
+instead of routing around it with `host.docker.internal` gateways. Only
+Postgres containers (PR6) get isolated bridge networking with a published
+port — deliberately, since a database is exactly the thing worth not
+putting on the host network.
+
+Port allocation: the worker picks an unused port in `20000–29999` (checked
+against `projects.appPort` across all projects) on a project's first
+deploy and persists it — re-deploys reuse the same port.
+
+### 5.2 nginx runs as a sibling container the agent writes config into
+
+Same reasoning as above applies to nginx: rather than reaching for a
+host-level nginx via systemd (which the agent, containerized, can't cleanly
+reach), `infra/agent-install.sh` (PR2's script, extended here) now also
+starts a persistent `argo-nginx` container (`nginx:alpine`, `--network
+host`, `--restart unless-stopped`) with a host directory
+(`/var/lib/argo/nginx/conf.d`) bind-mounted into both the agent (which
+writes files there) and nginx (which serves `conf.d/*.conf` via its base
+`nginx.conf`). The `nginx` deploy step writes `<slug>.conf` there and runs
+`docker exec argo-nginx nginx -s reload` — no host nginx installation, no
+systemd, nothing outside Docker's blast radius.
+
+### 5.3 Wildcard SSL is operator-supplied, not obtained by this build
+
+§4 said the control plane "owns one `*.argo.app` cert, obtained once, out
+of band." Obtaining a real one requires a real registered domain with DNS
+under the operator's control — not something this build can do for you.
+So: the `ssl` step looks for `ARGO_WILDCARD_CERT_PEM` /
+`ARGO_WILDCARD_KEY_PEM` on the control plane (worker passes their content
+to the agent as part of the `deploy.ssl` command payload if set). If
+they're set, the agent writes them to `/var/lib/argo/certs/` (idempotent,
+shared across every project on the box) and the nginx config gets an HTTPS
+server block. **If they're not set, the step succeeds with a warning
+logged** ("no wildcard certificate configured — app is reachable over
+HTTP only") rather than blocking the pipeline — Phase 1's "free wildcard
+subdomain" promise is real once an operator points a real domain's
+wildcard DNS at their box and supplies a cert; without that, the honest
+fallback is plain HTTP, not a failed deploy.
+
+### 5.4 api and worker are different processes — a Redis pub/sub bridge connects them
+
+§3 flagged the in-process agent-connection registry as "a Phase 2 concern"
+for scaling to multiple API instances. Building the deploy pipeline surfaced
+that this isn't only a scaling concern: **api and worker are two separate
+processes from day one in this Phase 1 topology**, and the deploy job
+(running in worker) needs to send commands to an agent whose WebSocket
+connection is held in api's process memory, then get results and live log
+lines back — a much more interactive exchange than server:install's
+"fire once, poll the DB for a status flag."
+
+Rather than merging api and worker into one process (undoing the
+separation of concerns §1 argued for) or building a slower DB-polling
+request/response loop, PR5 adds a small Redis pub/sub bridge
+(`packages/queue`'s `agent-bridge.ts`): worker publishes `{serverId,
+command}` on an `agent:commands` channel; api (subscribed once, at
+startup) looks up the connection in its registry and forwards it, or
+publishes an immediate failure if that server isn't connected; api
+publishes every `log`/`result`/`heartbeat` event it receives from an agent
+onto `agent:events`; worker subscribes and correlates by `requestId`.
+Ordinary Redis pub/sub, not BullMQ — there's nothing here worth persisting
+or retrying at the message level, since a dropped connection should fail
+the step, not silently retry into a stale one.
+
+This assumes a single worker instance, same as api assumes a single
+instance for its in-process registry (documented in §3) — multiple workers
+would all receive every event over pub/sub and duplicate step-completion
+logic. Revisit both together if Phase 2 needs horizontal scaling.

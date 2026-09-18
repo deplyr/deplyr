@@ -67,6 +67,11 @@ services:
       # Public — this is what a *managed* server's agent dials back to,
       # from outside this box entirely.
       ARGO_CONTROL_PLANE_WS: ws://${ARGO_PUBLIC_HOST}:4000/agent/ws
+      ARGO_APP_DOMAIN: ${ARGO_APP_DOMAIN}
+      # Optional — see docs/PHASE1_DESIGN.md section 5.3. Deployed apps
+      # are HTTP-only until you set these to a real wildcard cert/key.
+      ARGO_WILDCARD_CERT_PEM: ${ARGO_WILDCARD_CERT_PEM:-}
+      ARGO_WILDCARD_KEY_PEM: ${ARGO_WILDCARD_KEY_PEM:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -85,6 +90,7 @@ services:
       # Browser-facing: must be the same public host the browser itself
       # uses to reach this box.
       NEXT_PUBLIC_API_URL: ${ARGO_PUBLIC_URL}:4000
+      NEXT_PUBLIC_APP_DOMAIN: ${ARGO_APP_DOMAIN}
     ports:
       - "80:3000"
     depends_on:

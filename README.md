@@ -91,7 +91,16 @@ Copy the generated Client ID and Client Secret into `GITHUB_CLIENT_ID` /
    ARGO_PUBLIC_HOST=<the box's public IP, no scheme>
    GITHUB_CLIENT_ID=<from a GitHub OAuth App — see below>
    GITHUB_CLIENT_SECRET=<from the same OAuth App>
+   ARGO_APP_DOMAIN=argo.app
    ```
+   `ARGO_APP_DOMAIN` is what deployed apps' subdomains are built from
+   (`my-app.argo.app`). Leaving it as a placeholder is fine — deploys still
+   work — but nothing will actually resolve unless it's a real domain
+   whose wildcard DNS you point at this box. Two more, optional, unlock
+   real HTTPS for deployed apps once you've done that: `ARGO_WILDCARD_CERT_PEM`
+   and `ARGO_WILDCARD_KEY_PEM` (a wildcard cert/key for that domain, PEM,
+   full chain). Without them, deployed apps are reachable over HTTP only —
+   see `docs/PHASE1_DESIGN.md` section 5.3.
 3. Bring up the stack:
    ```bash
    docker compose -f infra/docker/docker-compose.prod.yml --env-file .env up -d --build

@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
-import type { ProjectSummary, SecretSummary } from "@argo/shared-types";
+import type { ProjectSummary, SecretSummary, DeploySummary } from "@argo/shared-types";
 import { FrameworkBadge } from "@/components/projects/framework-badge";
+import { DeployButton } from "@/components/deploys/deploy-button";
+import { DeployStatusBadge } from "@/components/deploys/deploy-status-badge";
 import { apiFetch } from "@/lib/api";
 
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "argo.app";
@@ -20,6 +22,12 @@ async function getSecrets(id: string): Promise<SecretSummary[]> {
   return res.json();
 }
 
+async function getDeploys(id: string): Promise<DeploySummary[]> {
+  const res = await apiFetch(`/projects/${id}/deploys`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
 export default async function ProjectDetailPage({
   params,
 }: {
@@ -28,7 +36,7 @@ export default async function ProjectDetailPage({
   const { id } = await params;
   const project = await getProject(id);
   if (!project) notFound();
-  const secrets = await getSecrets(id);
+  const [secrets, deploys] = await Promise.all([getSecrets(id), getDeploys(id)]);
   const setCount = secrets.filter((s) => s.hasValue).length;
 
   return (
@@ -68,10 +76,38 @@ export default async function ProjectDetailPage({
 
         {project.framework ? (
           <div className="rounded-lg border border-border bg-surface/40 p-5">
-            <p className="text-sm text-foreground">
-              Argo detected a {project.framework === "nextjs" ? "Next.js" : "Node"}{" "}
-              app. Deploys aren&apos;t wired up yet — that&apos;s next.
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-foreground">Deploy</p>
+              <DeployButton
+                projectId={id}
+                disabled={project.status === "deploying"}
+                disabledReason={
+                  project.status === "deploying"
+                    ? "A deploy is already in progress."
+                    : undefined
+                }
+              />
+            </div>
+
+            {deploys.length > 0 ? (
+              <ul className="mt-4 divide-y divide-border border-t border-border">
+                {deploys.map((deploy) => (
+                  <li key={deploy.id}>
+                    <Link
+                      href={`/projects/${id}/deploys/${deploy.id}`}
+                      className="flex items-center justify-between py-2.5 text-sm transition-colors hover:text-foreground"
+                    >
+                      <span className="text-muted">
+                        {new Date(deploy.createdAt).toLocaleString()}
+                      </span>
+                      <DeployStatusBadge status={deploy.status} />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-3 text-sm text-muted">No deploys yet.</p>
+            )}
           </div>
         ) : (
           <div className="rounded-lg border border-danger/30 bg-danger/5 p-5">

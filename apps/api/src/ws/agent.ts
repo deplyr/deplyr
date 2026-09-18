@@ -2,20 +2,51 @@ import type { WSContext } from "hono/ws";
 import { eq } from "drizzle-orm";
 import { db, servers } from "@argo/db";
 import { agentAuthSchema, agentEventSchema } from "@argo/shared-types";
+import {
+  createSubscriberConnection,
+  subscribeAgentCommands,
+  publishAgentEvent,
+} from "@argo/queue";
 
 /**
  * Agent-facing WebSocket handler, mounted at /agent/ws. Agents always dial
  * out to this endpoint (never the reverse) — see docs/PHASE1_DESIGN.md
  * section 3 for the full protocol design.
  *
- * Kept in-process (single API instance) for Phase 1; moving to Redis
- * pub/sub for multi-instance scaling is a Phase 2 concern.
+ * Kept in-process (single API instance) for Phase 1 — the connection
+ * registry below only exists in this process's memory. Commands arrive
+ * from apps/worker over the Redis bridge (section 5.4), since the job that
+ * wants to send them runs in a different process than the one holding the
+ * socket.
  */
 
 const connectedAgents = new Map<string, WSContext>();
 
 export function getConnectedAgent(serverId: string): WSContext | undefined {
   return connectedAgents.get(serverId);
+}
+
+/** Called once at process startup (see src/index.ts) — routes commands
+ * published by worker to whichever agent socket this process is holding. */
+export function startAgentCommandBridge() {
+  const subscriber = createSubscriberConnection();
+  subscribeAgentCommands(subscriber, async ({ serverId, command }) => {
+    const ws = connectedAgents.get(serverId);
+    if (!ws) {
+      await publishAgentEvent({
+        serverId,
+        event: {
+          type: "result",
+          requestId: command.requestId,
+          status: "failure",
+          detail: "agent is not connected",
+        },
+      });
+      return;
+    }
+    ws.send(JSON.stringify(command));
+  });
+  return subscriber;
 }
 
 export function agentWsHandler() {
@@ -78,16 +109,12 @@ export function agentWsHandler() {
         return;
       }
 
-      switch (event.data.type) {
-        case "heartbeat":
-          // Phase 1: the open connection is itself the liveness signal.
-          // Persisting CPU/RAM/disk history is PR7 (monitoring dashboard).
-          break;
-        case "log":
-        case "result":
-          // No commands are sent yet — that's PR5's deploy pipeline — so
-          // there's nothing in flight for these to correlate against.
-          break;
+      // Fan every event out to worker over the bridge — heartbeat included,
+      // even though nothing persists it yet (that's PR7); worker is the
+      // single place that correlates by requestId, so it stays that way
+      // even for events nothing's currently waiting on.
+      if (serverId) {
+        await publishAgentEvent({ serverId, event: event.data });
       }
     },
 

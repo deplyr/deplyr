@@ -4,6 +4,14 @@
 FROM oven/bun:1-slim AS runner
 WORKDIR /app
 
+# git: for deploy.clone. docker.io: gives us the `docker` CLI so the agent
+# can drive the Docker daemon over the mounted socket (docker.sock) —
+# every deploy step after clone runs as a sibling container. See
+# docs/PHASE1_DESIGN.md section 5.1.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends git docker.io && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY package.json ./
 COPY apps/agent/package.json apps/agent/package.json
 COPY packages/config/package.json packages/config/package.json
