@@ -116,6 +116,12 @@ export const servers = pgTable("servers", {
   statusDetail: text("status_detail"),
   dockerInstalled: boolean("docker_installed").notNull().default(false),
   agentConnectedAt: timestamp("agent_connected_at", { withTimezone: true }),
+  // Latest heartbeat snapshot only — no history table in Phase 1 (see
+  // docs/PHASE1_DESIGN.md PR7 notes).
+  cpuPercent: integer("cpu_percent"),
+  memPercent: integer("mem_percent"),
+  diskPercent: integer("disk_percent"),
+  metricsUpdatedAt: timestamp("metrics_updated_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -197,8 +203,10 @@ export const deploySteps = pgTable("deploy_steps", {
 
 export const notificationChannels = pgTable("notification_channels", {
   id: uuid("id").primaryKey().defaultRandom(),
+  // One channel per project in Phase 1 (single hardcoded Slack rule).
   projectId: uuid("project_id")
     .notNull()
+    .unique()
     .references(() => projects.id, { onDelete: "cascade" }),
   type: channelTypeEnum("type").notNull().default("slack"),
   webhookUrl: encryptedBytes("webhook_url").notNull(),
@@ -211,9 +219,13 @@ export const alertState = pgTable("alert_state", {
     .notNull()
     .unique()
     .references(() => projects.id, { onDelete: "cascade" }),
-  channelId: uuid("channel_id")
-    .notNull()
-    .references(() => notificationChannels.id, { onDelete: "cascade" }),
+  // Null until a channel is configured — the health-check sweep tracks
+  // is_healthy for every live project regardless (the dashboard's
+  // traffic-light status needs it), but only sends a Slack message once
+  // there's somewhere to send it.
+  channelId: uuid("channel_id").references(() => notificationChannels.id, {
+    onDelete: "cascade",
+  }),
   isHealthy: boolean("is_healthy").notNull().default(true),
   lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
   lastAlertSentAt: timestamp("last_alert_sent_at", { withTimezone: true }),

@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import type { ServerSummary } from "@argo/shared-types";
 import { ServerStatusBadge } from "@/components/servers/server-status-badge";
+import { ServerMetrics } from "@/components/servers/server-metrics";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-const POLL_INTERVAL_MS = 2500;
+const INSTALLING_POLL_INTERVAL_MS = 2500;
+const CONNECTED_POLL_INTERVAL_MS = 10_000;
 
 export default function ServerDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -30,8 +32,12 @@ export default function ServerDetailPage() {
       if (cancelled) return;
       setServer(data);
 
+      // Keep polling at a slower cadence once connected too, so the
+      // metrics panel stays live rather than freezing on first load.
       if (data.status === "pending" || data.status === "installing") {
-        timer = setTimeout(poll, POLL_INTERVAL_MS);
+        timer = setTimeout(poll, INSTALLING_POLL_INTERVAL_MS);
+      } else if (data.status === "connected") {
+        timer = setTimeout(poll, CONNECTED_POLL_INTERVAL_MS);
       }
     }
 
@@ -70,9 +76,12 @@ export default function ServerDetailPage() {
 
       <div className="rounded-lg border border-border bg-surface/40 p-5">
         {server.status === "connected" ? (
-          <p className="text-sm text-foreground">
-            Argo is connected to this server and ready to deploy to it.
-          </p>
+          <ServerMetrics
+            cpuPercent={server.cpuPercent}
+            memPercent={server.memPercent}
+            diskPercent={server.diskPercent}
+            metricsUpdatedAt={server.metricsUpdatedAt}
+          />
         ) : (
           <div className="flex items-center gap-3">
             {inProgress ? (

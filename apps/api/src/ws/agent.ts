@@ -109,12 +109,25 @@ export function agentWsHandler() {
         return;
       }
 
-      // Fan every event out to worker over the bridge — heartbeat included,
-      // even though nothing persists it yet (that's PR7); worker is the
-      // single place that correlates by requestId, so it stays that way
-      // even for events nothing's currently waiting on.
+      // Fan every event out to worker over the bridge — log/result are
+      // correlated there against an in-flight command. Heartbeat isn't
+      // correlated to anything, but api already holds the DB connection
+      // and the server id, so it's simplest to persist it right here
+      // rather than round-tripping through worker for a single UPDATE.
       if (serverId) {
         await publishAgentEvent({ serverId, event: event.data });
+
+        if (event.data.type === "heartbeat") {
+          await db
+            .update(servers)
+            .set({
+              cpuPercent: event.data.cpuPercent,
+              memPercent: event.data.memPercent,
+              diskPercent: event.data.diskPercent,
+              metricsUpdatedAt: new Date(),
+            })
+            .where(eq(servers.id, serverId));
+        }
       }
     },
 

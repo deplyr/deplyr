@@ -21,6 +21,10 @@ function toServerDTO(server: typeof servers.$inferSelect) {
     dockerInstalled: server.dockerInstalled,
     agentConnectedAt: server.agentConnectedAt,
     createdAt: server.createdAt,
+    cpuPercent: server.cpuPercent,
+    memPercent: server.memPercent,
+    diskPercent: server.diskPercent,
+    metricsUpdatedAt: server.metricsUpdatedAt,
   };
 }
 

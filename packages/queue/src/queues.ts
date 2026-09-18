@@ -31,9 +31,11 @@ export interface DbProvisionJob {
   projectId: string;
 }
 
-export interface HealthCheckJob {
-  projectId: string;
-}
+// PR1 originally shaped this as a per-project job; PR7 (which actually
+// implements it) does a single repeatable sweep over every live project
+// per run instead — simpler to schedule than N per-project repeatables,
+// and there's nothing project-specific to pass in.
+export type HealthCheckJob = Record<string, never>;
 
 export function serverInstallQueue() {
   return new Queue<ServerInstallJob>(QUEUE_NAMES.serverInstall, {
@@ -57,4 +59,16 @@ export function healthCheckQueue() {
   return new Queue<HealthCheckJob>(QUEUE_NAMES.healthCheck, {
     connection: getRedisConnection(),
   });
+}
+
+const HEALTH_CHECK_INTERVAL_MS = 60_000;
+
+/** Idempotent — BullMQ no-ops re-adding a repeatable job with the same
+ * name/repeat config, so it's safe to call on every worker boot. */
+export async function scheduleHealthCheckSweep(): Promise<void> {
+  await healthCheckQueue().add(
+    "sweep",
+    {},
+    { repeat: { every: HEALTH_CHECK_INTERVAL_MS }, jobId: "health-check-sweep" },
+  );
 }

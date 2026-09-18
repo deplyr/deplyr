@@ -8,14 +8,18 @@ import {
   deploys,
   deploySteps,
   databases,
+  notificationChannels,
+  alertState,
   encryptSecret,
   decryptSecret,
 } from "@argo/db";
 import {
   createProjectInputSchema,
   upsertSecretsInputSchema,
+  setChannelInputSchema,
   DEPLOY_STEP_NAMES,
   type SecretSummary,
+  type NotificationChannelSummary,
 } from "@argo/shared-types";
 import { deployRunQueue, dbProvisionQueue } from "@argo/queue";
 import { requireAuth } from "../lib/require-auth";
@@ -336,4 +340,68 @@ projectsRoute.post("/:id/databases", async (c) => {
   await dbProvisionQueue().add("provision", { projectId: project.id });
 
   return c.json(toDatabaseDTO(database), 201);
+});
+
+// ---------------------------------------------------------------------------
+// notification channel — one Slack webhook per project, Phase 1's only
+// channel type. Never returned once set, same posture as secrets: the
+// list/get endpoint says whether one's configured, not what it is.
+// ---------------------------------------------------------------------------
+
+projectsRoute.get("/:id/channel", async (c) => {
+  const project = await getOwnedProject(c.get("userId"), c.req.param("id"));
+  if (!project) return c.json({ error: "not found" }, 404);
+
+  const [channel] = await db
+    .select()
+    .from(notificationChannels)
+    .where(eq(notificationChannels.projectId, project.id));
+
+  const body: NotificationChannelSummary = { configured: !!channel };
+  return c.json(body);
+});
+
+projectsRoute.put("/:id/channel", async (c) => {
+  const project = await getOwnedProject(c.get("userId"), c.req.param("id"));
+  if (!project) return c.json({ error: "not found" }, 404);
+
+  const parsed = setChannelInputSchema.safeParse(await c.req.json());
+  if (!parsed.success) {
+    return c.json({ error: "invalid input", issues: parsed.error.issues }, 400);
+  }
+
+  await db
+    .insert(notificationChannels)
+    .values({
+      projectId: project.id,
+      type: "slack",
+      webhookUrl: encryptSecret(parsed.data.webhookUrl),
+    })
+    .onConflictDoUpdate({
+      target: notificationChannels.projectId,
+      set: { webhookUrl: encryptSecret(parsed.data.webhookUrl) },
+    });
+
+  const body: NotificationChannelSummary = { configured: true };
+  return c.json(body);
+});
+
+// ---------------------------------------------------------------------------
+// health — the traffic-light status the health-check sweep (PR7, worker)
+// maintains for every live project.
+// ---------------------------------------------------------------------------
+
+projectsRoute.get("/:id/health", async (c) => {
+  const project = await getOwnedProject(c.get("userId"), c.req.param("id"));
+  if (!project) return c.json({ error: "not found" }, 404);
+
+  const [row] = await db
+    .select()
+    .from(alertState)
+    .where(eq(alertState.projectId, project.id));
+
+  return c.json({
+    isHealthy: row?.isHealthy ?? null,
+    lastCheckedAt: row?.lastCheckedAt ?? null,
+  });
 });

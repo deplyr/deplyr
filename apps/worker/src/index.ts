@@ -1,5 +1,5 @@
 import { Worker } from "bullmq";
-import { QUEUE_NAMES, getRedisConnection } from "@argo/queue";
+import { QUEUE_NAMES, getRedisConnection, scheduleHealthCheckSweep } from "@argo/queue";
 import { processServerInstall } from "./jobs/server-install";
 import { processDeployRun } from "./jobs/deploy-run";
 import { processDbProvision } from "./jobs/db-provision";
@@ -13,6 +13,8 @@ const workers = [
   new Worker(QUEUE_NAMES.dbProvision, processDbProvision, { connection }),
   new Worker(QUEUE_NAMES.healthCheck, processHealthCheck, { connection }),
 ];
+
+await scheduleHealthCheckSweep();
 
 console.log(`[worker] running, watching ${workers.length} queues`);
 

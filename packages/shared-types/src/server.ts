@@ -30,4 +30,9 @@ export interface ServerSummary {
   dockerInstalled: boolean;
   agentConnectedAt: string | null;
   createdAt: string;
+  /** Latest heartbeat snapshot — null until the agent's first heartbeat. */
+  cpuPercent: number | null;
+  memPercent: number | null;
+  diskPercent: number | null;
+  metricsUpdatedAt: string | null;
 }

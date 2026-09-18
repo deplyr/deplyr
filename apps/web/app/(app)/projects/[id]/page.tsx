@@ -6,11 +6,15 @@ import type {
   SecretSummary,
   DeploySummary,
   DatabaseSummary,
+  NotificationChannelSummary,
+  HealthSummary,
 } from "@argo/shared-types";
 import { FrameworkBadge } from "@/components/projects/framework-badge";
+import { HealthIndicator } from "@/components/projects/health-indicator";
 import { DeployButton } from "@/components/deploys/deploy-button";
 import { DeployStatusBadge } from "@/components/deploys/deploy-status-badge";
 import { DatabaseCard } from "@/components/databases/database-card";
+import { NotificationCard } from "@/components/notifications/notification-card";
 import { apiFetch } from "@/lib/api";
 
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "argo.app";
@@ -41,6 +45,18 @@ async function getDatabase(id: string): Promise<DatabaseSummary | null> {
   return rows[0] ?? null;
 }
 
+async function getChannel(id: string): Promise<NotificationChannelSummary> {
+  const res = await apiFetch(`/projects/${id}/channel`);
+  if (!res.ok) return { configured: false };
+  return res.json();
+}
+
+async function getHealth(id: string): Promise<HealthSummary> {
+  const res = await apiFetch(`/projects/${id}/health`);
+  if (!res.ok) return { isHealthy: null, lastCheckedAt: null };
+  return res.json();
+}
+
 export default async function ProjectDetailPage({
   params,
 }: {
@@ -49,10 +65,12 @@ export default async function ProjectDetailPage({
   const { id } = await params;
   const project = await getProject(id);
   if (!project) notFound();
-  const [secrets, deploys, database] = await Promise.all([
+  const [secrets, deploys, database, channel, health] = await Promise.all([
     getSecrets(id),
     getDeploys(id),
     getDatabase(id),
+    getChannel(id),
+    getHealth(id),
   ]);
   const setCount = secrets.filter((s) => s.hasValue).length;
 
@@ -64,6 +82,9 @@ export default async function ProjectDetailPage({
           <p className="mt-1 font-mono text-sm text-muted">
             {project.subdomain}.{APP_DOMAIN}
           </p>
+          <div className="mt-2">
+            <HealthIndicator health={health} />
+          </div>
         </div>
         <FrameworkBadge framework={project.framework} />
       </header>
@@ -93,6 +114,10 @@ export default async function ProjectDetailPage({
 
         {project.framework ? (
           <DatabaseCard projectId={id} initial={database} />
+        ) : null}
+
+        {project.framework ? (
+          <NotificationCard projectId={id} initial={channel} />
         ) : null}
 
         {project.framework ? (

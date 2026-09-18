@@ -7,3 +7,4 @@ export * from "./github";
 export * from "./secret";
 export * from "./deploy-commands";
 export * from "./database";
+export * from "./notification";
