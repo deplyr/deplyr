@@ -1,0 +1,28 @@
+# Local development only: Postgres + Redis. Run `bun run infra:up` from the
+# repo root, then run web/api/worker/agent with `bun run dev:<app>` on the
+# host so you get fast reload — the apps themselves aren't containerized
+# here. See docker-compose.prod.yml for the self-hosted control-plane stack.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: argo
+      POSTGRES_PASSWORD: argo
+      POSTGRES_DB: argo
+    ports:
+      - "5432:5432"
+    volumes:
+      - argo_postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - argo_redis_data:/data
+
+volumes:
+  argo_postgres_data:
+  argo_redis_data:

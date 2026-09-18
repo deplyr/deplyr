@@ -1,0 +1,22 @@
+{
+  "name": "argo",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "bun --cwd apps/web dev",
+    "dev:api": "bun --cwd apps/api dev",
+    "dev:worker": "bun --cwd apps/worker dev",
+    "dev:agent": "bun --cwd apps/agent dev",
+    "db:generate": "bun --cwd packages/db generate",
+    "db:migrate": "bun --cwd packages/db migrate",
+    "typecheck": "bun run --filter '*' typecheck",
+    "infra:up": "docker compose -f infra/docker/docker-compose.yml up -d",
+    "infra:down": "docker compose -f infra/docker/docker-compose.yml down"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}

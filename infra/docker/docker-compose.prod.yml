@@ -1,0 +1,76 @@
+# Self-hosted control plane stack — this is what you run on the EC2 box (or
+# any VPS) that hosts Argo itself. Not to be confused with the *managed*
+# servers Argo deploys user apps to. Bring up with:
+#
+#   docker compose -f infra/docker/docker-compose.prod.yml --env-file .env up -d
+#
+# then open the box's public IP on port 80. See the root README for the
+# full setup walkthrough and the required .env values.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: argo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: argo
+    volumes:
+      - argo_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U argo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - argo_redis_data:/data
+
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/docker/api.Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://argo:${POSTGRES_PASSWORD}@postgres:5432/argo
+      REDIS_URL: redis://redis:6379
+      ARGO_MASTER_KEY: ${ARGO_MASTER_KEY}
+      PORT: 4000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: infra/docker/worker.Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://argo:${POSTGRES_PASSWORD}@postgres:5432/argo
+      REDIS_URL: redis://redis:6379
+      ARGO_MASTER_KEY: ${ARGO_MASTER_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  web:
+    build:
+      context: ../..
+      dockerfile: infra/docker/web.Dockerfile
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ${ARGO_PUBLIC_URL}
+    ports:
+      - "80:3000"
+    depends_on:
+      - api
+
+volumes:
+  argo_postgres_data:
+  argo_redis_data:
