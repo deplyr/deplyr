@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { ProjectSummary } from "@argo/shared-types";
+import { ChevronRight } from "lucide-react";
+import type { ProjectSummary, SecretSummary } from "@argo/shared-types";
 import { FrameworkBadge } from "@/components/projects/framework-badge";
 import { apiFetch } from "@/lib/api";
 
@@ -12,6 +14,12 @@ async function getProject(id: string): Promise<ProjectSummary | null> {
   return res.json();
 }
 
+async function getSecrets(id: string): Promise<SecretSummary[]> {
+  const res = await apiFetch(`/projects/${id}/secrets`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
 export default async function ProjectDetailPage({
   params,
 }: {
@@ -20,6 +28,8 @@ export default async function ProjectDetailPage({
   const { id } = await params;
   const project = await getProject(id);
   if (!project) notFound();
+  const secrets = await getSecrets(id);
+  const setCount = secrets.filter((s) => s.hasValue).length;
 
   return (
     <div className="mx-auto max-w-lg px-8 py-10">
@@ -40,6 +50,21 @@ export default async function ProjectDetailPage({
             {project.githubRepo}@{project.githubBranch}
           </p>
         </div>
+
+        <Link
+          href={`/projects/${id}/secrets`}
+          className="flex items-center justify-between rounded-lg border border-border bg-surface/40 p-5 transition-colors hover:bg-surface-hover"
+        >
+          <div>
+            <p className="text-sm font-medium text-foreground">Secrets</p>
+            <p className="mt-0.5 text-sm text-muted">
+              {secrets.length === 0
+                ? "None detected in .env.example"
+                : `${setCount} of ${secrets.length} set`}
+            </p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted" strokeWidth={1.75} />
+        </Link>
 
         {project.framework ? (
           <div className="rounded-lg border border-border bg-surface/40 p-5">

@@ -1,11 +1,17 @@
 import { Hono } from "hono";
-import { and, desc, eq } from "drizzle-orm";
-import { db, projects, servers } from "@argo/db";
-import { createProjectInputSchema } from "@argo/shared-types";
+import { and, asc, desc, eq } from "drizzle-orm";
+import { db, projects, servers, secrets, encryptSecret, decryptSecret } from "@argo/db";
+import {
+  createProjectInputSchema,
+  upsertSecretsInputSchema,
+  type SecretSummary,
+} from "@argo/shared-types";
 import { requireAuth } from "../lib/require-auth";
 import { getUserGithubToken } from "../lib/user-github-token";
 import { detectFramework } from "../lib/framework-detect";
 import { uniqueProjectSlug } from "../lib/slug";
+import { getFileContent } from "../lib/github";
+import { parseEnvExampleKeys } from "../lib/parse-env-example";
 import type { AppEnv } from "../types";
 
 export const projectsRoute = new Hono<AppEnv>();
@@ -35,12 +41,16 @@ projectsRoute.get("/", async (c) => {
   return c.json(rows.map(toProjectDTO));
 });
 
-projectsRoute.get("/:id", async (c) => {
-  const userId = c.get("userId");
+async function getOwnedProject(userId: string, projectId: string) {
   const [project] = await db
     .select()
     .from(projects)
-    .where(and(eq(projects.id, c.req.param("id")), eq(projects.userId, userId)));
+    .where(and(eq(projects.id, projectId), eq(projects.userId, userId)));
+  return project ?? null;
+}
+
+projectsRoute.get("/:id", async (c) => {
+  const project = await getOwnedProject(c.get("userId"), c.req.param("id"));
   if (!project) return c.json({ error: "not found" }, 404);
   return c.json(toProjectDTO(project));
 });
@@ -93,5 +103,92 @@ projectsRoute.post("/", async (c) => {
 
   if (!project) return c.json({ error: "failed to create project" }, 500);
 
+  // Best-effort: a repo without a .env.example (or a transient GitHub
+  // hiccup here) shouldn't fail project creation, which already succeeded.
+  try {
+    const envExample = await getFileContent(
+      token,
+      owner,
+      repo,
+      ".env.example",
+      input.githubBranch,
+    );
+    const keys = envExample ? parseEnvExampleKeys(envExample) : [];
+    if (keys.length > 0) {
+      await db
+        .insert(secrets)
+        .values(
+          keys.map((key) => ({
+            projectId: project.id,
+            key,
+            value: encryptSecret(""),
+            source: "user" as const,
+          })),
+        )
+        .onConflictDoNothing();
+    }
+  } catch {
+    // ignored — see comment above
+  }
+
   return c.json(toProjectDTO(project), 201);
+});
+
+// ---------------------------------------------------------------------------
+// secrets — detected from .env.example at project creation, filled in here.
+// The list endpoint never returns decrypted values; reveal is a separate,
+// explicit, single-key request (see docs/PHASE1_DESIGN.md PR4 notes).
+// ---------------------------------------------------------------------------
+
+projectsRoute.get("/:id/secrets", async (c) => {
+  const project = await getOwnedProject(c.get("userId"), c.req.param("id"));
+  if (!project) return c.json({ error: "not found" }, 404);
+
+  const rows = await db
+    .select()
+    .from(secrets)
+    .where(eq(secrets.projectId, project.id))
+    .orderBy(asc(secrets.key));
+
+  const body: SecretSummary[] = rows.map((row) => ({
+    key: row.key,
+    source: row.source,
+    hasValue: decryptSecret(row.value).length > 0,
+  }));
+  return c.json(body);
+});
+
+projectsRoute.get("/:id/secrets/:key/reveal", async (c) => {
+  const project = await getOwnedProject(c.get("userId"), c.req.param("id"));
+  if (!project) return c.json({ error: "not found" }, 404);
+
+  const [row] = await db
+    .select()
+    .from(secrets)
+    .where(and(eq(secrets.projectId, project.id), eq(secrets.key, c.req.param("key"))));
+  if (!row) return c.json({ error: "not found" }, 404);
+
+  return c.json({ key: row.key, value: decryptSecret(row.value) });
+});
+
+projectsRoute.put("/:id/secrets", async (c) => {
+  const project = await getOwnedProject(c.get("userId"), c.req.param("id"));
+  if (!project) return c.json({ error: "not found" }, 404);
+
+  const parsed = upsertSecretsInputSchema.safeParse(await c.req.json());
+  if (!parsed.success) {
+    return c.json({ error: "invalid input", issues: parsed.error.issues }, 400);
+  }
+
+  for (const { key, value } of parsed.data.secrets) {
+    await db
+      .insert(secrets)
+      .values({ projectId: project.id, key, value: encryptSecret(value), source: "user" })
+      .onConflictDoUpdate({
+        target: [secrets.projectId, secrets.key],
+        set: { value: encryptSecret(value), updatedAt: new Date() },
+      });
+  }
+
+  return c.json({ ok: true });
 });
