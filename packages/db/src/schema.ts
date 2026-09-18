@@ -162,7 +162,9 @@ export const databases = pgTable("databases", {
     .references(() => projects.id, { onDelete: "cascade" }),
   type: databaseTypeEnum("type").notNull().default("postgres"),
   containerName: text("container_name").notNull(),
-  port: integer("port").notNull(),
+  // set by the db:provision job once it allocates one — same pattern as
+  // servers.agent_token_hash and projects.app_port.
+  port: integer("port"),
   connectionSecretKey: text("connection_secret_key").notNull().default("DATABASE_URL"),
   status: databaseStatusEnum("status").notNull().default("provisioning"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

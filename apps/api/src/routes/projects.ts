@@ -7,6 +7,7 @@ import {
   secrets,
   deploys,
   deploySteps,
+  databases,
   encryptSecret,
   decryptSecret,
 } from "@argo/db";
@@ -16,7 +17,7 @@ import {
   DEPLOY_STEP_NAMES,
   type SecretSummary,
 } from "@argo/shared-types";
-import { deployRunQueue } from "@argo/queue";
+import { deployRunQueue, dbProvisionQueue } from "@argo/queue";
 import { requireAuth } from "../lib/require-auth";
 import { getUserGithubToken } from "../lib/user-github-token";
 import { detectFramework } from "../lib/framework-detect";
@@ -277,4 +278,62 @@ projectsRoute.post("/:id/deploys", async (c) => {
     .orderBy(asc(deploySteps.orderIndex));
 
   return c.json(toDeploySummary(deploy, steps), 201);
+});
+
+// ---------------------------------------------------------------------------
+// databases — one Postgres per project in Phase 1. Provisioning writes
+// DATABASE_URL into secrets (source "system") once it succeeds; picking
+// that up means redeploying, same as any other secret change.
+// ---------------------------------------------------------------------------
+
+function toDatabaseDTO(database: typeof databases.$inferSelect) {
+  return {
+    id: database.id,
+    type: database.type,
+    status: database.status,
+    connectionSecretKey: database.connectionSecretKey,
+    createdAt: database.createdAt,
+  };
+}
+
+projectsRoute.get("/:id/databases", async (c) => {
+  const project = await getOwnedProject(c.get("userId"), c.req.param("id"));
+  if (!project) return c.json({ error: "not found" }, 404);
+
+  const rows = await db.select().from(databases).where(eq(databases.projectId, project.id));
+  return c.json(rows.map(toDatabaseDTO));
+});
+
+projectsRoute.post("/:id/databases", async (c) => {
+  const project = await getOwnedProject(c.get("userId"), c.req.param("id"));
+  if (!project) return c.json({ error: "not found" }, 404);
+
+  const [existing] = await db
+    .select()
+    .from(databases)
+    .where(eq(databases.projectId, project.id));
+  if (existing) {
+    return c.json({ error: "this project already has a database" }, 409);
+  }
+
+  const [server] = await db.select().from(servers).where(eq(servers.id, project.serverId));
+  if (!server || server.status !== "connected") {
+    return c.json({ error: "this server isn't connected yet" }, 400);
+  }
+
+  const [database] = await db
+    .insert(databases)
+    .values({
+      projectId: project.id,
+      type: "postgres",
+      containerName: `argo-db-${project.subdomain}`,
+      connectionSecretKey: "DATABASE_URL",
+      status: "provisioning",
+    })
+    .returning();
+  if (!database) return c.json({ error: "failed to create database" }, 500);
+
+  await dbProvisionQueue().add("provision", { projectId: project.id });
+
+  return c.json(toDatabaseDTO(database), 201);
 });

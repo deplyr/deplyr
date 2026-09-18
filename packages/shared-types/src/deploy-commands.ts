@@ -62,3 +62,13 @@ export interface DeployCommandPayloadByStep {
   ssl: DeploySslCommandPayload;
   health_check: DeployHealthCheckCommandPayload;
 }
+
+/** Payload for the "db.provisionPostgres" command — PR6. Not part of the
+ * deploy pipeline above; sent once, from the db:provision job. */
+export interface DbProvisionCommandPayload {
+  containerName: string;
+  port: number;
+  dbName: string;
+  username: string;
+  password: string;
+}

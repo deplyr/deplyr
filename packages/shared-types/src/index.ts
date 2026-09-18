@@ -6,3 +6,4 @@ export * from "./user";
 export * from "./github";
 export * from "./secret";
 export * from "./deploy-commands";
+export * from "./database";

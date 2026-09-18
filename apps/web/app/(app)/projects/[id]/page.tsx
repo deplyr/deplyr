@@ -1,10 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
-import type { ProjectSummary, SecretSummary, DeploySummary } from "@argo/shared-types";
+import type {
+  ProjectSummary,
+  SecretSummary,
+  DeploySummary,
+  DatabaseSummary,
+} from "@argo/shared-types";
 import { FrameworkBadge } from "@/components/projects/framework-badge";
 import { DeployButton } from "@/components/deploys/deploy-button";
 import { DeployStatusBadge } from "@/components/deploys/deploy-status-badge";
+import { DatabaseCard } from "@/components/databases/database-card";
 import { apiFetch } from "@/lib/api";
 
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "argo.app";
@@ -28,6 +34,13 @@ async function getDeploys(id: string): Promise<DeploySummary[]> {
   return res.json();
 }
 
+async function getDatabase(id: string): Promise<DatabaseSummary | null> {
+  const res = await apiFetch(`/projects/${id}/databases`);
+  if (!res.ok) return null;
+  const rows: DatabaseSummary[] = await res.json();
+  return rows[0] ?? null;
+}
+
 export default async function ProjectDetailPage({
   params,
 }: {
@@ -36,7 +49,11 @@ export default async function ProjectDetailPage({
   const { id } = await params;
   const project = await getProject(id);
   if (!project) notFound();
-  const [secrets, deploys] = await Promise.all([getSecrets(id), getDeploys(id)]);
+  const [secrets, deploys, database] = await Promise.all([
+    getSecrets(id),
+    getDeploys(id),
+    getDatabase(id),
+  ]);
   const setCount = secrets.filter((s) => s.hasValue).length;
 
   return (
@@ -73,6 +90,10 @@ export default async function ProjectDetailPage({
           </div>
           <ChevronRight className="h-4 w-4 text-muted" strokeWidth={1.75} />
         </Link>
+
+        {project.framework ? (
+          <DatabaseCard projectId={id} initial={database} />
+        ) : null}
 
         {project.framework ? (
           <div className="rounded-lg border border-border bg-surface/40 p-5">

@@ -7,14 +7,16 @@ import { start } from "./start";
 import { nginx } from "./nginx";
 import { ssl } from "./ssl";
 import { healthCheck } from "./health-check";
+import { provisionPostgres } from "./provision-postgres";
 
 export type CommandHandler = (
   payload: Record<string, unknown>,
   emitLog: (line: string) => void,
 ) => Promise<void>;
 
-/** Deploy-step command handlers, dispatched by name ("deploy.clone",
- * "deploy.install", ...) — see docs/PHASE1_DESIGN.md sections 4 and 5. */
+/** Command handlers, dispatched by name — deploy-step commands
+ * ("deploy.clone", "deploy.install", ...) per docs/PHASE1_DESIGN.md
+ * sections 4 and 5, plus "db.provisionPostgres" (PR6). */
 export const commandHandlers: Partial<Record<string, CommandHandler>> = {
   "deploy.clone": clone,
   "deploy.install": install,
@@ -24,6 +26,7 @@ export const commandHandlers: Partial<Record<string, CommandHandler>> = {
   "deploy.nginx": nginx,
   "deploy.ssl": ssl,
   "deploy.health_check": healthCheck,
+  "db.provisionPostgres": provisionPostgres,
 };
 
 export async function dispatchCommand(
