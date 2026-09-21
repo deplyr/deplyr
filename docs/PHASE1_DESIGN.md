@@ -1,7 +1,7 @@
-# Argo — Phase 1 Design
+# Deplyr — Phase 1 Design
 
 Scope: one stack (Next.js/Node), one server topology (control plane + agent
-can target a single VPS; no multi-server orchestration), free `*.argo.app`
+can target a single VPS; no multi-server orchestration), free `*.deplyr.app`
 subdomain only, one Slack alert rule. See the top-level project brief for
 full context and the explicit non-goals list — nothing below should exceed
 that scope.
@@ -16,7 +16,7 @@ the agent, so one toolchain everywhere keeps Phase 1 simple.
 ## 1. Monorepo structure
 
 ```
-argo/
+deplyr/
 ├── apps/
 │   ├── web/                 # Next.js (App Router) — control plane UI only.
 │   │                         #   Talks to apps/api over HTTP + WebSocket.
@@ -113,7 +113,7 @@ projects
   user_id               uuid fk -> users.id
   server_id             uuid fk -> servers.id
   name                  text not null
-  subdomain             text unique not null        -- "<slug>.argo.app"
+  subdomain             text unique not null        -- "<slug>.deplyr.app"
   github_repo           text not null                -- "owner/repo"
   github_branch         text not null default 'main'
   framework             text                          -- 'nextjs' | 'node' | null until detected
@@ -223,11 +223,11 @@ an entire class of "user has to open a port" support burden.
    - generates a random 256-bit agent token **on the control-plane side**
      (not on the box),
    - starts the agent as a Docker container:
-     `docker run -d --name argo-agent --restart unless-stopped
+     `docker run -d --name deplyr-agent --restart unless-stopped
      -v /var/run/docker.sock:/var/run/docker.sock
-     -e ARGO_TOKEN=<token> -e ARGO_SERVER_ID=<server_id>
-     -e ARGO_CONTROL_PLANE_WS=wss://api.argo.app/agent/ws
-     ghcr.io/argo/agent:latest`
+     -e DEPLYR_TOKEN=<token> -e DEPLYR_SERVER_ID=<server_id>
+     -e DEPLYR_CONTROL_PLANE_WS=wss://api.deplyr.app/agent/ws
+     ghcr.io/deplyr/agent:latest`
    - the agent container is **not** port-published — it never listens for
      inbound traffic. It only opens the outbound WS above.
 3. The worker stores `argon2(token)` in `servers.agent_token_hash` (the raw
@@ -282,7 +282,7 @@ click → live human-readable checklist" work without polling.
 The agent runs with Docker socket access, which is root-equivalent on the
 box. That's accepted as the Phase 1 trust model: the user already handed us
 root SSH once to install it. Worth stating plainly in the UI at
-registration time ("Argo will have full control of this server") rather
+registration time ("Deplyr will have full control of this server") rather
 than leaving it implicit.
 
 ---
@@ -315,10 +315,10 @@ than leaving it implicit.
 
 5. **Deploy pipeline** — the full agent command sequence (clone → install →
    build → write `.env` → `pm2 start` → nginx config for
-   `<subdomain>.argo.app` → reload → health check on `/`), wired through
+   `<subdomain>.deplyr.app` → reload → health check on `/`), wired through
    the §3 protocol; `deploy_steps` rows + live log streaming; manual
    "Deploy" button; the human-readable checklist UI. Wildcard TLS: the
-   control plane owns one `*.argo.app` cert (obtained once, out of band),
+   control plane owns one `*.deplyr.app` cert (obtained once, out of band),
    pushed to the agent at nginx-config time — no per-user ACME flow needed
    yet.
 
@@ -329,7 +329,7 @@ than leaving it implicit.
 
 7. **Monitoring + Slack alerting** — dashboard fed by the heartbeat stream
    from step 2 (CPU/RAM/disk, traffic-light status); repeatable BullMQ job
-   hitting `https://<subdomain>.argo.app/` every N minutes; Slack channel
+   hitting `https://<subdomain>.deplyr.app/` every N minutes; Slack channel
    setup (paste Incoming Webhook URL); hardcoded alert rule (health-check
    fail or process down → Slack message) using `alert_state` to avoid
    re-alerting every interval; deploy history list + "View live logs" link
@@ -373,7 +373,7 @@ without needing to parse `docker build` output to find step boundaries:
 
 - `install`: `docker run --rm -v <src>:/app -w /app node:20-slim npm install`
 - `build`: same shape, `npm run build`
-- `start`: `docker run -d --name argo-<project-slug> --restart unless-stopped
+- `start`: `docker run -d --name deplyr-<project-slug> --restart unless-stopped
   --network host -v <src>:/app -w /app --env-file <src>/.env node:20-slim
   npm run start`
 
@@ -396,23 +396,23 @@ deploy and persists it — re-deploys reuse the same port.
 Same reasoning as above applies to nginx: rather than reaching for a
 host-level nginx via systemd (which the agent, containerized, can't cleanly
 reach), `infra/agent-install.sh` (PR2's script, extended here) now also
-starts a persistent `argo-nginx` container (`nginx:alpine`, `--network
+starts a persistent `deplyr-nginx` container (`nginx:alpine`, `--network
 host`, `--restart unless-stopped`) with a host directory
-(`/var/lib/argo/nginx/conf.d`) bind-mounted into both the agent (which
+(`/var/lib/deplyr/nginx/conf.d`) bind-mounted into both the agent (which
 writes files there) and nginx (which serves `conf.d/*.conf` via its base
 `nginx.conf`). The `nginx` deploy step writes `<slug>.conf` there and runs
-`docker exec argo-nginx nginx -s reload` — no host nginx installation, no
+`docker exec deplyr-nginx nginx -s reload` — no host nginx installation, no
 systemd, nothing outside Docker's blast radius.
 
 ### 5.3 Wildcard SSL is operator-supplied, not obtained by this build
 
-§4 said the control plane "owns one `*.argo.app` cert, obtained once, out
+§4 said the control plane "owns one `*.deplyr.app` cert, obtained once, out
 of band." Obtaining a real one requires a real registered domain with DNS
 under the operator's control — not something this build can do for you.
-So: the `ssl` step looks for `ARGO_WILDCARD_CERT_PEM` /
-`ARGO_WILDCARD_KEY_PEM` on the control plane (worker passes their content
+So: the `ssl` step looks for `DEPLYR_WILDCARD_CERT_PEM` /
+`DEPLYR_WILDCARD_KEY_PEM` on the control plane (worker passes their content
 to the agent as part of the `deploy.ssl` command payload if set). If
-they're set, the agent writes them to `/var/lib/argo/certs/` (idempotent,
+they're set, the agent writes them to `/var/lib/deplyr/certs/` (idempotent,
 shared across every project on the box) and the nginx config gets an HTTPS
 server block. **If they're not set, the step succeeds with a warning
 logged** ("no wildcard certificate configured — app is reachable over

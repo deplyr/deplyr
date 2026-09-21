@@ -1,6 +1,6 @@
 # Self-hosted control plane stack — this is what you run on the EC2 box (or
-# any VPS) that hosts Argo itself. Not to be confused with the *managed*
-# servers Argo deploys user apps to. Bring up with:
+# any VPS) that hosts Deplyr itself. Not to be confused with the *managed*
+# servers Deplyr deploys user apps to. Bring up with:
 #
 #   docker compose -f infra/docker/docker-compose.prod.yml --env-file .env up -d
 #
@@ -17,7 +17,7 @@ services:
     volumes:
       - argo_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U argo"]
+      test: ["CMD-SHELL", "pg_isready -U deplyr"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -40,13 +40,13 @@ services:
     environment:
       DATABASE_URL: postgres://argo:${POSTGRES_PASSWORD}@postgres:5432/argo
       REDIS_URL: redis://redis:6379
-      ARGO_MASTER_KEY: ${ARGO_MASTER_KEY}
-      ARGO_SESSION_SECRET: ${ARGO_SESSION_SECRET}
+      DEPLYR_MASTER_KEY: ${DEPLYR_MASTER_KEY}
+      DEPLYR_SESSION_SECRET: ${DEPLYR_SESSION_SECRET}
       PORT: 4000
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
-      GITHUB_OAUTH_REDIRECT_URI: ${ARGO_PUBLIC_URL}:4000/auth/github/callback
-      WEB_URL: ${ARGO_PUBLIC_URL}
+      GITHUB_OAUTH_REDIRECT_URI: ${DEPLYR_PUBLIC_URL}:4000/auth/github/callback
+      WEB_URL: ${DEPLYR_PUBLIC_URL}
     ports:
       - "4000:4000"
     depends_on:
@@ -63,15 +63,15 @@ services:
     environment:
       DATABASE_URL: postgres://argo:${POSTGRES_PASSWORD}@postgres:5432/argo
       REDIS_URL: redis://redis:6379
-      ARGO_MASTER_KEY: ${ARGO_MASTER_KEY}
+      DEPLYR_MASTER_KEY: ${DEPLYR_MASTER_KEY}
       # Public — this is what a *managed* server's agent dials back to,
       # from outside this box entirely.
-      ARGO_CONTROL_PLANE_WS: ws://${ARGO_PUBLIC_HOST}:4000/agent/ws
-      ARGO_APP_DOMAIN: ${ARGO_APP_DOMAIN}
+      DEPLYR_CONTROL_PLANE_WS: ws://${DEPLYR_PUBLIC_HOST}:4000/agent/ws
+      DEPLYR_APP_DOMAIN: ${DEPLYR_APP_DOMAIN}
       # Optional — see docs/PHASE1_DESIGN.md section 5.3. Deployed apps
       # are HTTP-only until you set these to a real wildcard cert/key.
-      ARGO_WILDCARD_CERT_PEM: ${ARGO_WILDCARD_CERT_PEM:-}
-      ARGO_WILDCARD_KEY_PEM: ${ARGO_WILDCARD_KEY_PEM:-}
+      DEPLYR_WILDCARD_CERT_PEM: ${DEPLYR_WILDCARD_CERT_PEM:-}
+      DEPLYR_WILDCARD_KEY_PEM: ${DEPLYR_WILDCARD_KEY_PEM:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -89,8 +89,8 @@ services:
       API_URL: http://api:4000
       # Browser-facing: must be the same public host the browser itself
       # uses to reach this box.
-      NEXT_PUBLIC_API_URL: ${ARGO_PUBLIC_URL}:4000
-      NEXT_PUBLIC_APP_DOMAIN: ${ARGO_APP_DOMAIN}
+      NEXT_PUBLIC_API_URL: ${DEPLYR_PUBLIC_URL}:4000
+      NEXT_PUBLIC_APP_DOMAIN: ${DEPLYR_APP_DOMAIN}
     ports:
       - "80:3000"
     depends_on:

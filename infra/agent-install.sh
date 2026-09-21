@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Piped over the SSH session opened by the server:install job
 # (apps/worker/src/jobs/server-install.ts, PR2). Runs as root on the
-# user's VPS. Expects ARGO_TOKEN, ARGO_SERVER_ID, and ARGO_CONTROL_PLANE_WS
+# user's VPS. Expects DEPLYR_TOKEN, DEPLYR_SERVER_ID, and DEPLYR_CONTROL_PLANE_WS
 # to already be set in the environment it runs in — see
 # docs/PHASE1_DESIGN.md section 3 for the full registration flow, and
 # section 5 for why this script also stands up a sibling nginx container.
@@ -13,9 +13,9 @@ set -euo pipefail
 # is the one thing here that *does* need inbound 80/443, which is the
 # whole point of it.
 
-: "${ARGO_TOKEN:?ARGO_TOKEN must be set}"
-: "${ARGO_SERVER_ID:?ARGO_SERVER_ID must be set}"
-: "${ARGO_CONTROL_PLANE_WS:?ARGO_CONTROL_PLANE_WS must be set}"
+: "${DEPLYR_TOKEN:?DEPLYR_TOKEN must be set}"
+: "${DEPLYR_SERVER_ID:?DEPLYR_SERVER_ID must be set}"
+: "${DEPLYR_CONTROL_PLANE_WS:?DEPLYR_CONTROL_PLANE_WS must be set}"
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "Installing Docker..."
@@ -31,11 +31,11 @@ systemctl enable --now docker >/dev/null 2>&1 || true
 # daemon against the *host* filesystem even when issued from inside the
 # agent's own container (via the mounted socket), so "same path on both
 # sides" is what makes that work, not a coincidence.
-ARGO_HOME=/var/lib/argo
-mkdir -p "$ARGO_HOME/apps" "$ARGO_HOME/nginx/conf.d" "$ARGO_HOME/certs"
+DEPLYR_HOME=/var/lib/deplyr
+mkdir -p "$DEPLYR_HOME/apps" "$DEPLYR_HOME/nginx/conf.d" "$DEPLYR_HOME/certs"
 
-if [ ! -f "$ARGO_HOME/nginx/nginx.conf" ]; then
-  cat > "$ARGO_HOME/nginx/nginx.conf" <<'EOF'
+if [ ! -f "$DEPLYR_HOME/nginx/nginx.conf" ]; then
+  cat > "$DEPLYR_HOME/nginx/nginx.conf" <<'EOF'
 events {}
 
 http {
@@ -46,29 +46,33 @@ http {
 EOF
 fi
 
-echo "Starting Argo agent..."
-docker rm -f argo-agent >/dev/null 2>&1 || true
+echo "Starting Deplyr agent..."
+docker rm -f deplyr-agent >/dev/null 2>&1 || true
 
+# --network host: the deploy health check probes http://127.0.0.1:<port>, and
+# apps run on the host network — from the default bridge network that address
+# would be the agent container itself, never the app.
 docker run -d \
-  --name argo-agent \
-  --restart unless-stopped \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v "$ARGO_HOME:$ARGO_HOME" \
-  -e ARGO_TOKEN="$ARGO_TOKEN" \
-  -e ARGO_SERVER_ID="$ARGO_SERVER_ID" \
-  -e ARGO_CONTROL_PLANE_WS="$ARGO_CONTROL_PLANE_WS" \
-  ghcr.io/argo-deploy/agent:latest
-
-echo "Starting nginx..."
-docker rm -f argo-nginx >/dev/null 2>&1 || true
-
-docker run -d \
-  --name argo-nginx \
+  --name deplyr-agent \
   --restart unless-stopped \
   --network host \
-  -v "$ARGO_HOME/nginx/nginx.conf:/etc/nginx/nginx.conf:ro" \
-  -v "$ARGO_HOME/nginx/conf.d:/etc/nginx/conf.d" \
-  -v "$ARGO_HOME/certs:$ARGO_HOME/certs:ro" \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "$DEPLYR_HOME:$DEPLYR_HOME" \
+  -e DEPLYR_TOKEN="$DEPLYR_TOKEN" \
+  -e DEPLYR_SERVER_ID="$DEPLYR_SERVER_ID" \
+  -e DEPLYR_CONTROL_PLANE_WS="$DEPLYR_CONTROL_PLANE_WS" \
+  ghcr.io/deplyr-deploy/agent:latest
+
+echo "Starting nginx..."
+docker rm -f deplyr-nginx >/dev/null 2>&1 || true
+
+docker run -d \
+  --name deplyr-nginx \
+  --restart unless-stopped \
+  --network host \
+  -v "$DEPLYR_HOME/nginx/nginx.conf:/etc/nginx/nginx.conf:ro" \
+  -v "$DEPLYR_HOME/nginx/conf.d:/etc/nginx/conf.d" \
+  -v "$DEPLYR_HOME/certs:$DEPLYR_HOME/certs:ro" \
   nginx:alpine
 
-echo "Argo agent and nginx containers started."
+echo "Deplyr agent and nginx containers started."
