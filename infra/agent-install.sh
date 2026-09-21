@@ -61,7 +61,7 @@ docker run -d \
   -e DEPLYR_TOKEN="$DEPLYR_TOKEN" \
   -e DEPLYR_SERVER_ID="$DEPLYR_SERVER_ID" \
   -e DEPLYR_CONTROL_PLANE_WS="$DEPLYR_CONTROL_PLANE_WS" \
-  ghcr.io/deplyr-deploy/agent:latest
+  ghcr.io/deplyr/agent:latest
 
 echo "Starting nginx..."
 docker rm -f deplyr-nginx >/dev/null 2>&1 || true

@@ -1,31 +1,78 @@
 # Deplyr
 
 Open-source, self-hostable platform that takes a project from "code on
-GitHub" to "live on the internet with a database, SSL, monitoring, and
-alerts" — without requiring the user to know what nginx, SSH, or an env
-var is.
+GitHub" to "live on your own server with a database, logs, monitoring and
+alerts" — without needing to know what nginx, SSH or an env var is.
 
-This repo is in **Phase 1**: one stack (Next.js/Node), one server topology
-(a single managed VPS per project, no multi-server orchestration yet), a
-free `*.deplyr.app`-style subdomain, and one hardcoded Slack alert rule. See
-[`docs/PHASE1_DESIGN.md`](./docs/PHASE1_DESIGN.md) for the full design
-(monorepo layout, schema, agent auth) and the sequential PR plan.
+You point Deplyr at a VPS you own (an EC2 instance, a Hetzner box, anything
+running Linux). It installs what it needs over SSH once, then you deploy apps
+from GitHub, spin up Postgres or Redis, watch health and logs, and get told in
+Discord or Slack when something breaks.
 
-## Two different servers — don't mix these up
+> **Status: early alpha.** The control plane and the deploy pipeline are built
+> and tested piece by piece, but the full flow on a real remote Linux server is
+> still being validated. See [Status and known limitations](#status-and-known-limitations)
+> before relying on it.
 
-- **The control plane** is Deplyr itself: the web UI, API, and worker in this
-  repo. You run this once, on your own box (an EC2 instance, any VPS —
-  see "Self-hosting the control plane" below).
-- **A managed server** is a VPS a user registers *through* Deplyr to deploy
-  their own app to. Deplyr SSHes into it once to install a lightweight agent,
-  then never needs SSH again.
+## What it does
+
+**Servers**
+- Register any Linux VPS with an IP and root password or SSH key; Deplyr installs
+  Docker, nginx and a small agent for you.
+- Live CPU, memory, disk and load, with history charts (1h to 7d) and a
+  stale-agent warning.
+
+**Deployments**
+- Deploy from GitHub: **Next.js, NestJS, plain Node**, or anything with a
+  **Dockerfile**.
+- Detects the package manager (npm, pnpm, yarn, bun), the Node version, and
+  monorepo subfolders. Everything it detects is editable per project (install,
+  build and start commands, root folder, health-check path).
+- Secrets are encrypted at rest, available to both the build and the running
+  app, and never written into your source tree or a Docker image layer.
+- Step-by-step deploy progress with per-step logs.
+
+**Databases**
+- Create **PostgreSQL** and **Redis** on a server: choose version, port, memory
+  limit and (for Redis) eviction policy and persistence.
+- Private by default: bound to the server's loopback, reachable only by apps on
+  that server. Credentials are revealed on demand.
+- Health, stats and history charts (Redis hit rate and memory, Postgres
+  connections and cache ratio), plus container logs.
+
+**Visibility**
+- **Activity log** of every action on a server: deploys, database changes,
+  installs, agent connects, secret changes, alerts.
+- **Notifications** to **Discord** and **Slack** for apps going down, deploys
+  finishing, servers going offline and databases failing, with a full delivery
+  history (including failures and why).
+- Live container logs for apps and databases.
+
+## How it works
+
+Two different servers are involved — don't mix them up:
+
+- **The control plane** is Deplyr itself: the web UI, the API and a background
+  worker in this repo. You run it once, on your own box.
+- **A managed server** is a VPS you register *through* Deplyr to run your apps
+  on. Deplyr SSHes in once to install an agent and never needs SSH again: the
+  agent dials **out** to the control plane and stays connected, so managed
+  servers need no open inbound management port.
+
+```
+ Browser ──▶ web (Next.js) ──▶ api (Hono) ◀──WebSocket── agent (on your VPS)
+                                 │  ▲                       │ runs Docker: apps,
+                                 ▼  │                       │ databases, nginx
+                          Postgres  Redis ◀── worker (deploy jobs, alerts)
+```
+
+The design write-up is in [`docs/PHASE1_DESIGN.md`](./docs/PHASE1_DESIGN.md).
 
 ## Local development
 
-Requires [Bun](https://bun.sh) 1.1+ and Docker (for local Postgres/Redis).
+Requires [Bun](https://bun.sh) 1.1+ and Docker (for local Postgres and Redis).
 
-Bun auto-loads `.env` from each app's own directory, so config lives
-per-app rather than in one root file:
+Config lives per app; Bun loads each app's own `.env`:
 
 ```bash
 cp apps/api/.env.example apps/api/.env
@@ -33,113 +80,147 @@ cp apps/worker/.env.example apps/worker/.env
 cp apps/web/.env.local.example apps/web/.env.local
 ```
 
-Fill in `DEPLYR_MASTER_KEY` and `DEPLYR_SESSION_SECRET` (each `openssl rand
--base64 32`) in `apps/api/.env`, and the same `DEPLYR_MASTER_KEY` value again
-in `apps/worker/.env` (both processes read/write the same encrypted
-columns, so the key must match). To test the login flow locally you'll
-also need a GitHub OAuth App — see "GitHub OAuth App setup" below; the
-callback URL for local dev is `http://localhost:4000/auth/github/callback`.
+Generate two secrets (`openssl rand -base64 32` each) and put
+`DEPLYR_MASTER_KEY` and `DEPLYR_SESSION_SECRET` in `apps/api/.env`. Put the
+**same** `DEPLYR_MASTER_KEY` in `apps/worker/.env` — both processes read and
+write the same encrypted columns.
 
 ```bash
 bun install
-bun run infra:up          # starts Postgres + Redis in Docker
-bun run db:migrate         # applies the schema in packages/db
+bun run infra:up           # Postgres + Redis in Docker
+bun run db:migrate         # apply the schema
 
-bun run dev:web            # http://localhost:3000 — control plane UI
-bun run dev:api            # http://localhost:4000 — control plane API
-bun run dev:worker         # BullMQ workers (deploy pipeline, health checks, ...)
+bun run dev:web            # http://localhost:3000  — UI
+bun run dev:api            # http://localhost:4000  — API
+bun run dev:worker         # background jobs
 ```
 
-`bun run dev:agent` runs the agent daemon itself — you generally don't run
-this locally; it's what gets installed on a managed VPS. It will log a
-warning and skip connecting anywhere until `DEPLYR_CONTROL_PLANE_WS`,
-`DEPLYR_SERVER_ID`, and `DEPLYR_TOKEN` are set.
+Open <http://localhost:3000>. On a fresh install you're guided through creating
+the first account and connecting GitHub.
 
-Typecheck everything:
+`bun run dev:agent` runs the agent itself. You normally don't — it's what gets
+installed on a managed server. It skips connecting until `DEPLYR_CONTROL_PLANE_WS`,
+`DEPLYR_SERVER_ID` and `DEPLYR_TOKEN` are set.
 
 ```bash
-bun run typecheck
+bun run typecheck          # every package
+bun test                   # run inside a package (api, db, shared-types)
 ```
 
-## GitHub OAuth App setup
+> Deploying to a server from a Mac is limited: Docker Desktop doesn't expose
+> host networking, which deployed apps use. Use a real Linux server (or VM) as
+> the managed server.
 
-Deplyr uses a single GitHub sign-in for both control-plane login and repo
-access (one authorization covers both). Create one OAuth App per
-environment (one for local dev, one for your self-hosted instance) at
-<https://github.com/settings/developers> → "New OAuth App":
+### Connecting GitHub
 
-- **Homepage URL**: your control plane's public URL (`http://<box IP>` in
-  prod, `http://localhost:3000` locally)
-- **Authorization callback URL**: `<public URL>:4000/auth/github/callback`
-  (`http://localhost:4000/auth/github/callback` locally)
+Deplyr needs a GitHub token to read the repos you deploy. Either:
 
-Copy the generated Client ID and Client Secret into `GITHUB_CLIENT_ID` /
-`GITHUB_CLIENT_SECRET`.
+- **OAuth app** (one-click "Continue with GitHub" for users): create an OAuth
+  App at <https://github.com/settings/developers> and set `GITHUB_CLIENT_ID` and
+  `GITHUB_CLIENT_SECRET`. The callback URL must match `GITHUB_OAUTH_REDIRECT_URI`
+  (`http://localhost:4000/auth/github/callback` locally; you can register several
+  redirect URIs on one app). Scopes requested: `read:user user:email repo`.
+- **Personal access token**: no OAuth app needed. Paste a token with the `repo`
+  scope (or a fine-grained token with read access to Contents and Metadata)
+  in Settings. This is the easiest option for a private self-hosted instance.
 
-## Self-hosting the control plane (e.g. on an EC2 instance)
+### Notifications
 
-1. Provision a small VPS (an EC2 instance works fine — a `t3.small` or
-   larger, Ubuntu 22.04+) and install Docker + the Docker Compose plugin
-   on it.
-2. Copy this repo onto the box (or clone it) and create a `.env` file at
-   the repo root with:
+Add a channel under **Notifications** in the sidebar. You need a webhook URL:
+in Discord, *Channel settings → Integrations → Webhooks → New Webhook*; in Slack,
+an app with *Incoming Webhooks* enabled. Deplyr sends a test message before it
+saves the channel, so a broken webhook is caught immediately. Set `WEB_URL` on
+the API and worker to get "Open in Deplyr" links in messages.
+
+## Configuration
+
+| Variable | App | Purpose |
+|---|---|---|
+| `DATABASE_URL`, `REDIS_URL` | api, worker | Postgres and Redis connections |
+| `DEPLYR_MASTER_KEY` | api, worker | 32-byte base64 key that encrypts stored secrets (must match) |
+| `DEPLYR_SESSION_SECRET` | api | Signs login sessions |
+| `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` / `GITHUB_OAUTH_REDIRECT_URI` | api | Optional GitHub OAuth (see above) |
+| `WEB_URL` | api, worker | Public URL of the web app (CORS, redirects, links in alerts) |
+| `DEPLYR_CONTROL_PLANE_WS` | worker | Public `ws(s)://…/agent/ws` URL agents dial back to |
+| `DEPLYR_APP_DOMAIN` | worker, web | Base domain for deployed apps (`my-app.<domain>`) |
+| `DEPLYR_WILDCARD_CERT_PEM` / `_KEY_PEM` | worker | Optional wildcard certificate for HTTPS on deployed apps |
+| `API_URL`, `NEXT_PUBLIC_API_URL` | web | Server-side and browser URLs of the API |
+
+## Self-hosting the control plane
+
+1. Provision a small VPS (a `t3.small` or larger, Ubuntu 22.04+) and install
+   Docker with the Compose plugin.
+2. Clone this repo onto it and create a `.env` at the repo root:
    ```
-   POSTGRES_PASSWORD=<choose a strong password>
+   POSTGRES_PASSWORD=<strong password>
    DEPLYR_MASTER_KEY=<openssl rand -base64 32>
    DEPLYR_SESSION_SECRET=<openssl rand -base64 32>
    DEPLYR_PUBLIC_URL=http://<the box's public IP>
    DEPLYR_PUBLIC_HOST=<the box's public IP, no scheme>
-   GITHUB_CLIENT_ID=<from a GitHub OAuth App — see below>
-   GITHUB_CLIENT_SECRET=<from the same OAuth App>
-   DEPLYR_APP_DOMAIN=deplyr.app
+   DEPLYR_APP_DOMAIN=<domain whose wildcard DNS points at your managed server>
+   # optional GitHub OAuth:
+   GITHUB_CLIENT_ID=
+   GITHUB_CLIENT_SECRET=
    ```
-   `DEPLYR_APP_DOMAIN` is what deployed apps' subdomains are built from
-   (`my-app.deplyr.app`). Leaving it as a placeholder is fine — deploys still
-   work — but nothing will actually resolve unless it's a real domain
-   whose wildcard DNS you point at this box. Two more, optional, unlock
-   real HTTPS for deployed apps once you've done that: `DEPLYR_WILDCARD_CERT_PEM`
-   and `DEPLYR_WILDCARD_KEY_PEM` (a wildcard cert/key for that domain, PEM,
-   full chain). Without them, deployed apps are reachable over HTTP only —
-   see `docs/PHASE1_DESIGN.md` section 5.3.
-3. Bring up the stack:
+3. Bring it up:
    ```bash
    docker compose -f infra/docker/docker-compose.prod.yml --env-file .env up -d --build
    ```
-4. Open `http://<the box's public IP>` — that's the Deplyr dashboard. Make
-   sure the box's security group / firewall allows inbound traffic on
-   ports **80** (the dashboard) and **4000** (the API — the browser talks
-   to it directly, and it's also what a managed server's agent dials back
-   to from anywhere on the internet).
+4. Open `http://<the box's public IP>`. Allow inbound **80** (the dashboard) and
+   **4000** (the API; the browser talks to it, and agents dial back to it).
 
-This stands up the control plane itself. Registering a *managed* server
-(the VPS your app actually runs on) happens afterward, from inside the UI —
-no SSH required on your end at that point either; Deplyr does it for you
-(see `docs/PHASE1_DESIGN.md` section 3).
+Registering a *managed* server happens afterwards from inside the UI.
 
-**Known Phase 1 limitation:** the control plane itself runs over plain
-HTTP (no TLS) — only the wildcard subdomain your *deployed apps* get uses
-HTTPS. That means the session cookie and the SSH credentials you paste in
-travel unencrypted to your own box. Fine for a quick self-hosted setup on
-a trusted network; putting a reverse proxy with a real cert in front of
-the control plane is a reasonable thing to do yourself before relying on
-this for anything sensitive, and is worth revisiting before Phase 2.
+## Status and known limitations
 
-## Repo layout
+Being upfront, since this is early:
+
+- **Not yet validated end to end on a real remote Linux server.** Each piece —
+  detection, the build plan, database provisioning, stats, logs, notifications —
+  has been exercised against real Docker and real GitHub, but the full path
+  through nginx, SSL and the post-deploy health check on a fresh VPS is the next
+  milestone.
+- **The agent image isn't published yet.** The installer pulls
+  `ghcr.io/deplyr/agent:latest`; until CI publishes it, build it from
+  `infra/docker/agent.Dockerfile` and push it yourself.
+- **HTTPS for deployed apps is operator-supplied.** There's no automatic
+  Let's Encrypt yet; provide a wildcard certificate, or apps are HTTP-only.
+  Custom domains are not built yet.
+- **The control plane itself runs over plain HTTP** by default, so the session
+  cookie and any SSH credentials you paste travel unencrypted. Put a TLS-terminating
+  reverse proxy in front of it before using it for anything sensitive.
+- **Databases are private-only.** There is no public exposure or firewall
+  management yet; connect from your machine over an SSH tunnel.
+- **Your app must listen on `$PORT`.** Deplyr assigns the port and sets it.
+- Existing servers need the agent updated when the agent's commands change.
+
+## Security notes
+
+- Everything sensitive at rest (GitHub tokens, SSH credentials, secret values,
+  database passwords, webhook URLs) is encrypted with AES-256-GCM using
+  `DEPLYR_MASTER_KEY`. **Losing that key means losing those secrets** — back it up.
+- Secret values are never logged; the activity log records *which* secret was
+  touched, not its value.
+- Notification webhooks are restricted to Slack and Discord's real hosts, so a
+  saved URL can't be used to make the server call arbitrary addresses.
+- Databases bind to `127.0.0.1` on the managed server.
+
+## Repository layout
 
 ```
 apps/
   web/      Next.js control-plane UI
-  api/      Hono control-plane API + agent WebSocket endpoint
-  worker/   BullMQ job processors (deploy pipeline, provisioning, alerts)
-  agent/    Bun + Hono daemon installed on managed VPS instances
+  api/      Hono API + the agent WebSocket endpoint
+  worker/   BullMQ processors: deploys, database jobs, health checks, alerts
+  agent/    Bun daemon installed on managed servers
 packages/
-  db/             Drizzle schema, migrations, client
-  shared-types/    Zod schemas shared by every app (agent protocol, DTOs)
-  queue/            BullMQ queue/job definitions shared by api + worker
-  config/            shared tsconfig
+  db/            Drizzle schema, migrations, encryption, audit + notify helpers
+  shared-types/  Zod schemas and pure logic shared by every app
+  queue/         BullMQ queue definitions and the agent RPC bridge
+  config/        shared tsconfig
 infra/
-  agent-install.sh   bootstrap script run over SSH during server registration
-  docker/             Dockerfiles + compose files (dev and self-hosted prod)
+  agent-install.sh   bootstrap script run over SSH on a new server
+  docker/            Dockerfiles and compose files (dev and self-hosted prod)
 docs/
-  PHASE1_DESIGN.md   architecture, schema, agent auth design, PR plan
+  PHASE1_DESIGN.md   architecture, schema, agent auth and pipeline design
 ```

@@ -1,4 +1,4 @@
-# Built and pushed to ghcr.io/deplyr-deploy/agent:latest — this is the image
+# Built and pushed to ghcr.io/deplyr/agent:latest — this is the image
 # infra/agent-install.sh pulls onto a user's managed VPS.
 # Build context is the monorepo root: docker build -f infra/docker/agent.Dockerfile .
 FROM oven/bun:1-slim AS runner

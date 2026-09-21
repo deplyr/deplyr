@@ -11,11 +11,11 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: argo
+      POSTGRES_USER: deplyr
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: argo
+      POSTGRES_DB: deplyr
     volumes:
-      - argo_postgres_data:/var/lib/postgresql/data
+      - deplyr_postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U deplyr"]
       interval: 5s
@@ -26,7 +26,7 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     volumes:
-      - argo_redis_data:/data
+      - deplyr_redis_data:/data
 
   # Published on its own port: the browser talks to it directly (cookies
   # aren't port-scoped, so this works fine alongside web on :80 — see
@@ -38,7 +38,7 @@ services:
       dockerfile: infra/docker/api.Dockerfile
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgres://argo:${POSTGRES_PASSWORD}@postgres:5432/argo
+      DATABASE_URL: postgres://deplyr:${POSTGRES_PASSWORD}@postgres:5432/deplyr
       REDIS_URL: redis://redis:6379
       DEPLYR_MASTER_KEY: ${DEPLYR_MASTER_KEY}
       DEPLYR_SESSION_SECRET: ${DEPLYR_SESSION_SECRET}
@@ -61,13 +61,15 @@ services:
       dockerfile: infra/docker/worker.Dockerfile
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgres://argo:${POSTGRES_PASSWORD}@postgres:5432/argo
+      DATABASE_URL: postgres://deplyr:${POSTGRES_PASSWORD}@postgres:5432/deplyr
       REDIS_URL: redis://redis:6379
       DEPLYR_MASTER_KEY: ${DEPLYR_MASTER_KEY}
       # Public — this is what a *managed* server's agent dials back to,
       # from outside this box entirely.
       DEPLYR_CONTROL_PLANE_WS: ws://${DEPLYR_PUBLIC_HOST}:4000/agent/ws
       DEPLYR_APP_DOMAIN: ${DEPLYR_APP_DOMAIN}
+      # Adds "Open in Deplyr" links to Slack/Discord notifications.
+      WEB_URL: ${DEPLYR_PUBLIC_URL}
       # Optional — see docs/PHASE1_DESIGN.md section 5.3. Deployed apps
       # are HTTP-only until you set these to a real wildcard cert/key.
       DEPLYR_WILDCARD_CERT_PEM: ${DEPLYR_WILDCARD_CERT_PEM:-}
@@ -97,5 +99,5 @@ services:
       - api
 
 volumes:
-  argo_postgres_data:
-  argo_redis_data:
+  deplyr_postgres_data:
+  deplyr_redis_data:
