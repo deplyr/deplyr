@@ -3,20 +3,20 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 /**
  * Single envelope-encryption helper for every sensitive column (GitHub
  * tokens, SSH credentials, secret values, Slack webhook URLs). AES-256-GCM,
- * key from ARGO_MASTER_KEY (32 bytes, base64). One code path so sensitive
+ * key from DEPLYR_MASTER_KEY (32 bytes, base64). One code path so sensitive
  * columns never grow divergent, ad-hoc handling.
  */
 
 function loadMasterKey(): Buffer {
-  const raw = process.env.ARGO_MASTER_KEY;
+  const raw = process.env.DEPLYR_MASTER_KEY;
   if (!raw) {
     throw new Error(
-      "ARGO_MASTER_KEY is not set — required to encrypt/decrypt stored secrets",
+      "DEPLYR_MASTER_KEY is not set — required to encrypt/decrypt stored secrets",
     );
   }
   const key = Buffer.from(raw, "base64");
   if (key.length !== 32) {
-    throw new Error("ARGO_MASTER_KEY must decode to exactly 32 bytes (AES-256)");
+    throw new Error("DEPLYR_MASTER_KEY must decode to exactly 32 bytes (AES-256)");
   }
   return key;
 }

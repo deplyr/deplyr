@@ -35,4 +35,37 @@ export interface ServerSummary {
   memPercent: number | null;
   diskPercent: number | null;
   metricsUpdatedAt: string | null;
+  cpuCores: number | null;
+  memTotalMb: number | null;
+  diskTotalGb: number | null;
+  uptimeSeconds: number | null;
+  loadAvg1: number | null;
+}
+
+export const METRICS_RANGES = ["1h", "6h", "24h", "7d"] as const;
+export const metricsRangeSchema = z.enum(METRICS_RANGES);
+export type MetricsRange = z.infer<typeof metricsRangeSchema>;
+
+/**
+ * One time bucket of the history chart. The plotted line is the bucket
+ * average; `*Max` keeps the worst sample so a 7-day view can't hide a spike
+ * behind smoothing.
+ */
+export interface MetricsPoint {
+  t: string; // ISO timestamp of the bucket start
+  cpu: number;
+  mem: number;
+  disk: number;
+  load: number | null;
+  cpuMax: number;
+  memMax: number;
+  diskMax: number;
+  loadMax: number | null;
+}
+
+/** What GET /servers/:id/metrics returns. */
+export interface ServerMetricsHistory {
+  range: MetricsRange;
+  bucketSeconds: number;
+  points: MetricsPoint[];
 }

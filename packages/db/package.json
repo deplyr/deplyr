@@ -1,5 +1,5 @@
 {
-  "name": "@argo/db",
+  "name": "@deplyr/db",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "drizzle-orm": "^0.38.3",
-    "postgres": "^3.4.5"
+    "postgres": "^3.4.5",
+    "@deplyr/shared-types": "workspace:*"
   },
   "devDependencies": {
     "drizzle-kit": "^0.30.1",

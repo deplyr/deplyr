@@ -9,10 +9,10 @@
       },
     },
     "apps/agent": {
-      "name": "@argo/agent",
+      "name": "@deplyr/agent",
       "version": "0.0.0",
       "dependencies": {
-        "@argo/shared-types": "workspace:*",
+        "@deplyr/shared-types": "workspace:*",
         "hono": "^4.6.14",
       },
       "devDependencies": {
@@ -21,12 +21,12 @@
       },
     },
     "apps/api": {
-      "name": "@argo/api",
+      "name": "@deplyr/api",
       "version": "0.0.0",
       "dependencies": {
-        "@argo/db": "workspace:*",
-        "@argo/queue": "workspace:*",
-        "@argo/shared-types": "workspace:*",
+        "@deplyr/db": "workspace:*",
+        "@deplyr/queue": "workspace:*",
+        "@deplyr/shared-types": "workspace:*",
         "drizzle-orm": "^0.38.3",
         "hono": "^4.6.14",
       },
@@ -36,10 +36,10 @@
       },
     },
     "apps/web": {
-      "name": "@argo/web",
+      "name": "@deplyr/web",
       "version": "0.0.0",
       "dependencies": {
-        "@argo/shared-types": "workspace:*",
+        "@deplyr/shared-types": "workspace:*",
         "lucide-react": "^0.469.0",
         "next": "^15.1.4",
         "react": "^19.0.0",
@@ -56,12 +56,12 @@
       },
     },
     "apps/worker": {
-      "name": "@argo/worker",
+      "name": "@deplyr/worker",
       "version": "0.0.0",
       "dependencies": {
-        "@argo/db": "workspace:*",
-        "@argo/queue": "workspace:*",
-        "@argo/shared-types": "workspace:*",
+        "@deplyr/db": "workspace:*",
+        "@deplyr/queue": "workspace:*",
+        "@deplyr/shared-types": "workspace:*",
         "bullmq": "^5.34.4",
         "drizzle-orm": "^0.38.3",
         "ioredis": "^5.4.2",
@@ -74,13 +74,14 @@
       },
     },
     "packages/config": {
-      "name": "@argo/config",
+      "name": "@deplyr/config",
       "version": "0.0.0",
     },
     "packages/db": {
-      "name": "@argo/db",
+      "name": "@deplyr/db",
       "version": "0.0.0",
       "dependencies": {
+        "@deplyr/shared-types": "workspace:*",
         "drizzle-orm": "^0.38.3",
         "postgres": "^3.4.5",
       },
@@ -91,10 +92,10 @@
       },
     },
     "packages/queue": {
-      "name": "@argo/queue",
+      "name": "@deplyr/queue",
       "version": "0.0.0",
       "dependencies": {
-        "@argo/shared-types": "workspace:*",
+        "@deplyr/shared-types": "workspace:*",
         "bullmq": "^5.34.4",
         "ioredis": "^5.4.2",
       },
@@ -103,7 +104,7 @@
       },
     },
     "packages/shared-types": {
-      "name": "@argo/shared-types",
+      "name": "@deplyr/shared-types",
       "version": "0.0.0",
       "dependencies": {
         "zod": "^3.24.1",
@@ -116,21 +117,21 @@
   "packages": {
     "@alloc/quick-lru": ["@alloc/quick-lru@5.3.0", "", {}, "sha512-U4+70Pc5ZS9osnCBCE5Jha/ciHM+Yp+CNMNC/7HvYbNRk1Ldd+f7qO65W5qfhu/TCv+/ozljlXXe9Nj8419DMA=="],
 
-    "@argo/agent": ["@argo/agent@workspace:apps/agent"],
+    "@deplyr/agent": ["@deplyr/agent@workspace:apps/agent"],
 
-    "@argo/api": ["@argo/api@workspace:apps/api"],
+    "@deplyr/api": ["@deplyr/api@workspace:apps/api"],
 
-    "@argo/config": ["@argo/config@workspace:packages/config"],
+    "@deplyr/config": ["@deplyr/config@workspace:packages/config"],
 
-    "@argo/db": ["@argo/db@workspace:packages/db"],
+    "@deplyr/db": ["@deplyr/db@workspace:packages/db"],
 
-    "@argo/queue": ["@argo/queue@workspace:packages/queue"],
+    "@deplyr/queue": ["@deplyr/queue@workspace:packages/queue"],
 
-    "@argo/shared-types": ["@argo/shared-types@workspace:packages/shared-types"],
+    "@deplyr/shared-types": ["@deplyr/shared-types@workspace:packages/shared-types"],
 
-    "@argo/web": ["@argo/web@workspace:apps/web"],
+    "@deplyr/web": ["@deplyr/web@workspace:apps/web"],
 
-    "@argo/worker": ["@argo/worker@workspace:apps/worker"],
+    "@deplyr/worker": ["@deplyr/worker@workspace:apps/worker"],
 
     "@drizzle-team/brocli": ["@drizzle-team/brocli@0.10.2", "", {}, "sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w=="],
 

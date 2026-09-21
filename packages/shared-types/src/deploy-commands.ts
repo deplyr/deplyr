@@ -13,23 +13,50 @@ export interface DeployCloneCommandPayload {
   srcDir: string;
 }
 
+/**
+ * `workDir` is the app's folder inside the clone (the clone root, or its
+ * `rootDir` subfolder for monorepos). `envFile` lives *outside* the source
+ * tree on purpose: a Dockerfile's `COPY . .` must never be able to bake
+ * secrets into an image layer.
+ */
 export interface DeployInstallCommandPayload {
-  srcDir: string;
-}
-
-export interface DeployBuildCommandPayload {
-  srcDir: string;
+  workDir: string;
+  /** Runtime image for the project (auto mode). */
+  image: string;
+  /** Shell command run in the container; null = skip the step. */
+  command: string | null;
 }
 
 export interface DeployWriteEnvCommandPayload {
-  srcDir: string;
+  envFile: string;
   env: Record<string, string>;
 }
 
+export interface DeployBuildCommandPayload {
+  mode: "auto" | "dockerfile";
+  workDir: string;
+  envFile: string;
+  /** auto mode: runtime image + the build command (null = skip). */
+  image: string;
+  command: string | null;
+  /** dockerfile mode: path relative to workDir, and the tag to build. */
+  dockerfile: string;
+  imageTag: string;
+}
+
 export interface DeployStartCommandPayload {
-  srcDir: string;
+  mode: "auto" | "dockerfile";
+  workDir: string;
+  envFile: string;
   containerName: string;
   port: number;
+  /** auto mode: runtime image + start command. */
+  image: string;
+  command: string;
+  /** dockerfile mode: the image the build step produced. */
+  imageTag: string;
+  /** Extra variables applied after the env file (PORT is always set). */
+  extraEnv: Record<string, string>;
 }
 
 export interface DeployNginxCommandPayload {
@@ -63,12 +90,29 @@ export interface DeployCommandPayloadByStep {
   health_check: DeployHealthCheckCommandPayload;
 }
 
-/** Payload for the "db.provisionPostgres" command — PR6. Not part of the
- * deploy pipeline above; sent once, from the db:provision job. */
-export interface DbProvisionCommandPayload {
+/** Payload for "db.provision" — creates (or re-creates) a database container.
+ * `databaseId` becomes a container label so the agent can find it again when
+ * sampling health. The password is generated control-plane side and travels
+ * only over the agent's authenticated socket. */
+export interface DbProvisionPayload {
+  databaseId: string;
+  type: "postgres" | "redis";
   containerName: string;
+  version: string;
   port: number;
-  dbName: string;
-  username: string;
   password: string;
+  memoryLimitMb: number | null;
+  postgres?: { dbName: string; username: string };
+  redis?: { policy: string; persistence: string };
+}
+
+/** Payload for "db.start" / "db.stop" / "db.restart". */
+export interface DbLifecyclePayload {
+  containerName: string;
+}
+
+/** Payload for "db.remove" — always removes the container; the volume only on request. */
+export interface DbRemovePayload {
+  containerName: string;
+  removeVolume: boolean;
 }

@@ -16,6 +16,7 @@ export const QUEUE_NAMES = {
   serverInstall: "server-install",
   deployRun: "deploy-run",
   dbProvision: "db-provision",
+  dbOps: "db-ops",
   healthCheck: "health-check",
 } as const;
 
@@ -28,7 +29,13 @@ export interface DeployRunJob {
 }
 
 export interface DbProvisionJob {
-  projectId: string;
+  databaseId: string;
+}
+
+/** Everything that acts on an already-provisioned database container. */
+export interface DbOpsJob {
+  databaseId: string;
+  action: "start" | "stop" | "restart" | "remove";
 }
 
 // PR1 originally shaped this as a per-project job; PR7 (which actually
@@ -51,6 +58,12 @@ export function deployRunQueue() {
 
 export function dbProvisionQueue() {
   return new Queue<DbProvisionJob>(QUEUE_NAMES.dbProvision, {
+    connection: getRedisConnection(),
+  });
+}
+
+export function dbOpsQueue() {
+  return new Queue<DbOpsJob>(QUEUE_NAMES.dbOps, {
     connection: getRedisConnection(),
   });
 }

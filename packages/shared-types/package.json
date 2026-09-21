@@ -1,5 +1,5 @@
 {
-  "name": "@argo/shared-types",
+  "name": "@deplyr/shared-types",
   "private": true,
   "version": "0.0.0",
   "type": "module",

@@ -1,5 +1,5 @@
 import IORedis from "ioredis";
-import type { Command, AgentEvent } from "@argo/shared-types";
+import type { Command, AgentEvent } from "@deplyr/shared-types";
 import { getRedisConnection } from "./connection";
 
 /**

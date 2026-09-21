@@ -53,13 +53,34 @@ export const heartbeatEventSchema = z.object({
   cpuPercent: z.number().min(0).max(100),
   memPercent: z.number().min(0).max(100),
   diskPercent: z.number().min(0).max(100),
+  // Optional so agents installed before these existed keep working.
+  loadAvg1: z.number().min(0).optional(),
+  cpuCores: z.number().int().positive().optional(),
+  memTotalMb: z.number().int().nonnegative().optional(),
+  diskTotalGb: z.number().int().nonnegative().optional(),
+  uptimeSeconds: z.number().int().nonnegative().optional(),
 });
 export type HeartbeatEvent = z.infer<typeof heartbeatEventSchema>;
+
+// ---- agent -> control plane: database health + stats (every ~30s) ----
+export const dbStatsEventSchema = z.object({
+  type: z.literal("db_stats"),
+  samples: z.array(
+    z.object({
+      databaseId: z.string().uuid(),
+      up: z.boolean(),
+      latencyMs: z.number().nonnegative().nullable(),
+      stats: z.record(z.string(), z.number().nullable()),
+    }),
+  ),
+});
+export type DbStatsEvent = z.infer<typeof dbStatsEventSchema>;
 
 export const agentEventSchema = z.discriminatedUnion("type", [
   logEventSchema,
   resultEventSchema,
   heartbeatEventSchema,
+  dbStatsEventSchema,
 ]);
 export type AgentEvent = z.infer<typeof agentEventSchema>;
 

@@ -4,8 +4,10 @@ import { z } from "zod";
 export const DEPLOY_STEP_NAMES = [
   "clone",
   "install",
-  "build",
+  // Before build, not after: frameworks bake some variables in at build time
+  // (Next.js NEXT_PUBLIC_*), so they have to exist by then.
   "write_env",
+  "build",
   "start",
   "nginx",
   "ssl",

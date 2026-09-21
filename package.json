@@ -1,5 +1,5 @@
 {
-  "name": "argo",
+  "name": "deplyr",
   "private": true,
   "workspaces": [
     "apps/*",

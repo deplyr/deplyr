@@ -1,5 +1,5 @@
 {
-  "name": "@argo/queue",
+  "name": "@deplyr/queue",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@argo/shared-types": "workspace:*",
+    "@deplyr/shared-types": "workspace:*",
     "bullmq": "^5.34.4",
     "ioredis": "^5.4.2"
   },
