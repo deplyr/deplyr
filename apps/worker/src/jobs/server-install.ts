@@ -1,15 +1,15 @@
 import type { Job } from "bullmq";
 import { randomBytes } from "node:crypto";
 import { and, eq, ne } from "drizzle-orm";
-import { db, servers, decryptSecret } from "@argo/db";
-import type { ServerInstallJob } from "@argo/queue";
+import { db, servers, decryptSecret, recordAudit } from "@deplyr/db";
+import type { ServerInstallJob } from "@deplyr/queue";
 import { sshExec } from "../lib/ssh-exec";
 
 const AGENT_CONNECT_TIMEOUT_MS = 120_000;
 const POLL_INTERVAL_MS = 2_000;
 
 /**
- * SSHes into the user's VPS, installs Docker + the Argo agent, and waits
+ * SSHes into the user's VPS, installs Docker + the Deplyr agent, and waits
  * for the agent to dial back in and authenticate. See
  * docs/PHASE1_DESIGN.md section 3 for the full registration flow — this is
  * the worker side of it; apps/api/src/ws/agent.ts is the other half (it
@@ -23,7 +23,22 @@ export async function processServerInstall(job: Job<ServerInstallJob>) {
     return;
   }
 
+  const audit = (status: "success" | "failure" | "info", summary: string, detail?: string) =>
+    recordAudit({
+      ownerId: server.userId,
+      serverId,
+      actor: "system",
+      action: "server.install",
+      status,
+      summary,
+      detail,
+      resourceType: "server",
+      resourceId: serverId,
+      resourceName: server.name,
+    });
+
   try {
+    await audit("info", `Installing Docker and the Deplyr agent on ${server.name}`);
     await setStatus(serverId, "Connecting via SSH...");
 
     const credentialPlaintext = decryptSecret(server.sshCredential);
@@ -35,12 +50,12 @@ export async function processServerInstall(job: Job<ServerInstallJob>) {
       .set({ agentTokenHash: tokenHash, updatedAt: new Date() })
       .where(eq(servers.id, serverId));
 
-    await setStatus(serverId, "Installing Docker and starting the Argo agent...");
+    await setStatus(serverId, "Installing Docker and starting the Deplyr agent...");
 
     const script = [
-      `export ARGO_TOKEN='${token}'`,
-      `export ARGO_SERVER_ID='${serverId}'`,
-      `export ARGO_CONTROL_PLANE_WS='${requiredEnv("ARGO_CONTROL_PLANE_WS")}'`,
+      `export DEPLYR_TOKEN='${token}'`,
+      `export DEPLYR_SERVER_ID='${serverId}'`,
+      `export DEPLYR_CONTROL_PLANE_WS='${requiredEnv("DEPLYR_CONTROL_PLANE_WS")}'`,
       await readInstallScript(),
     ].join("\n");
 
@@ -51,11 +66,9 @@ export async function processServerInstall(job: Job<ServerInstallJob>) {
     );
 
     if (result.exitCode !== 0) {
-      await setStatus(
-        serverId,
-        `Agent install failed (exit code ${result.exitCode}): ${lastLine(result.output)}`,
-        "error",
-      );
+      const reason = `Agent install failed (exit code ${result.exitCode}): ${lastLine(result.output)}`;
+      await setStatus(serverId, reason, "error");
+      await audit("failure", `Setting up ${server.name} failed`, reason);
       return;
     }
 
@@ -68,15 +81,17 @@ export async function processServerInstall(job: Job<ServerInstallJob>) {
 
     const connected = await waitForConnection(serverId, AGENT_CONNECT_TIMEOUT_MS);
     if (!connected) {
-      await setStatus(
-        serverId,
-        "Timed out waiting for the agent to connect. Check that the server allows outbound HTTPS/WebSocket traffic.",
-        "error",
-      );
+      const reason =
+        "Timed out waiting for the agent to connect. Check that the server allows outbound HTTPS/WebSocket traffic.";
+      await setStatus(serverId, reason, "error");
+      await audit("failure", `${server.name} never connected`, reason);
+    } else {
+      await audit("success", `${server.name} is set up and connected`);
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     await setStatus(serverId, `Could not connect: ${message}`, "error");
+    await audit("failure", `Could not connect to ${server.name}`, message);
   }
 }
 

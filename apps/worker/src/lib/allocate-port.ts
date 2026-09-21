@@ -1,11 +1,8 @@
 import { isNotNull } from "drizzle-orm";
-import { db, projects, databases } from "@argo/db";
+import { db, projects } from "@deplyr/db";
 
 const APP_PORT_RANGE_START = 20000;
 const APP_PORT_RANGE_END = 29999;
-
-const DB_PORT_RANGE_START = 30000;
-const DB_PORT_RANGE_END = 39999;
 
 async function allocateFromRange(
   taken: Set<number | null>,
@@ -28,13 +25,4 @@ export async function allocatePort(): Promise<number> {
     .from(projects)
     .where(isNotNull(projects.appPort));
   return allocateFromRange(new Set(rows.map((r) => r.appPort)), APP_PORT_RANGE_START, APP_PORT_RANGE_END);
-}
-
-/** A disjoint range from allocatePort's — database containers use bridge
- * networking with a published loopback port, not --network host (a
- * deliberate difference, see section 5.1), but ports still have to be
- * unique per box either way. */
-export async function allocateDbPort(): Promise<number> {
-  const rows = await db.select({ port: databases.port }).from(databases);
-  return allocateFromRange(new Set(rows.map((r) => r.port)), DB_PORT_RANGE_START, DB_PORT_RANGE_END);
 }

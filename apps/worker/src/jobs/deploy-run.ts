@@ -1,24 +1,18 @@
 import type { Job } from "bullmq";
 import { and, eq, sql } from "drizzle-orm";
-import { db, deploys, deploySteps, projects, servers, secrets, users, decryptSecret } from "@argo/db";
-import type { DeployRunJob } from "@argo/queue";
+import { db, deploys, deploySteps, projects, servers, secrets, users, decryptSecret, recordAudit, notify } from "@deplyr/db";
+import type { DeployRunJob } from "@deplyr/queue";
 import {
   DEPLOY_STEP_NAMES,
+  resolveBuildPlan,
   type DeployStepName,
-  type DeployCloneCommandPayload,
-  type DeployInstallCommandPayload,
-  type DeployBuildCommandPayload,
-  type DeployWriteEnvCommandPayload,
-  type DeployStartCommandPayload,
-  type DeployNginxCommandPayload,
-  type DeploySslCommandPayload,
-  type DeployHealthCheckCommandPayload,
-} from "@argo/shared-types";
+} from "@deplyr/shared-types";
 import { runAgentCommand } from "../lib/agent-commands";
 import { allocatePort } from "../lib/allocate-port";
+import { buildPayload, type StepContext } from "../lib/deploy-payloads";
 
 /**
- * Runs the full clone -> install -> build -> write_env -> start -> nginx ->
+ * Runs the full clone -> install -> write_env -> build -> start -> nginx ->
  * ssl -> health_check pipeline for one deploy, one step at a time, over the
  * agent-bridge (docs/PHASE1_DESIGN.md section 5.4). Stops at the first
  * failing step — no rollback in Phase 1.
@@ -38,15 +32,57 @@ export async function processDeployRun(job: Job<DeployRunJob>) {
     return;
   }
 
+  const audit = (status: "success" | "failure", summary: string, detail?: string) =>
+    recordAudit({
+      ownerId: project.userId,
+      serverId: project.serverId,
+      actor: "system",
+      action: "deploy.run",
+      status,
+      summary,
+      detail,
+      resourceType: "project",
+      resourceId: project.id,
+      resourceName: project.name,
+    });
+
   const [server] = await db.select().from(servers).where(eq(servers.id, project.serverId));
+
+  // Audit line and channel message for how a deploy ended — same facts, two audiences.
+  const report = async (ok: boolean, summary: string, detail?: string) => {
+    await audit(ok ? "success" : "failure", summary, detail);
+    await notify({
+      ownerId: project.userId,
+      event: ok ? "deploy.succeeded" : "deploy.failed",
+      title: ok ? `Deployed ${project.name}` : summary,
+      message: ok ? `${project.name} is live.` : detail ?? "The deploy did not complete.",
+      fields: [
+        { name: "Project", value: project.name },
+        ...(server ? [{ name: "Server", value: server.name }] : []),
+        { name: "Branch", value: project.githubBranch },
+      ],
+      link: `/projects/${project.id}/deploys/${deploy.id}`,
+      projectId: project.id,
+      projectName: project.name,
+      serverId: project.serverId,
+      serverName: server?.name ?? null,
+    });
+  };
+
   if (!server || server.status !== "connected") {
     await failDeploy(deploy.id, project.id, "server is not connected");
+    await report(false, `Deploy of ${project.name} failed`, "The server isn't connected.");
     return;
   }
 
   const [owner] = await db.select().from(users).where(eq(users.id, project.userId));
   if (!owner) {
     await failDeploy(deploy.id, project.id, "project owner not found");
+    return;
+  }
+  if (!owner.githubAccessToken) {
+    await failDeploy(deploy.id, project.id, "project owner has no GitHub account connected");
+    await report(false, `Deploy of ${project.name} failed`, "GitHub isn't connected — connect it in Settings.");
     return;
   }
   const githubToken = decryptSecret(owner.githubAccessToken);
@@ -67,14 +103,23 @@ export async function processDeployRun(job: Job<DeployRunJob>) {
     if (value.length > 0) env[row.key] = value;
   }
 
+  const plan = resolveBuildPlan(project.framework, project.settings);
+  const appDir = `${process.env.DEPLYR_HOME ?? "/var/lib/deplyr"}/apps/${project.id}`;
+  const srcDir = `${appDir}/src`;
+
   const ctx: StepContext = {
     project,
-    srcDir: `/var/lib/argo/apps/${project.id}/src`,
-    containerName: `argo-${project.subdomain}`,
+    plan,
+    srcDir,
+    workDir: plan.rootDir ? `${srcDir}/${plan.rootDir}` : srcDir,
+    // Outside the source tree on purpose — see DeployInstallCommandPayload.
+    envFile: `${appDir}/app.env`,
+    imageTag: `deplyr-app-${project.subdomain}:latest`,
+    containerName: `deplyr-${project.subdomain}`,
     port,
-    domain: process.env.ARGO_APP_DOMAIN ?? "argo.app",
-    certPem: process.env.ARGO_WILDCARD_CERT_PEM,
-    keyPem: process.env.ARGO_WILDCARD_KEY_PEM,
+    domain: process.env.DEPLYR_APP_DOMAIN ?? "deplyr.app",
+    certPem: process.env.DEPLYR_WILDCARD_CERT_PEM,
+    keyPem: process.env.DEPLYR_WILDCARD_KEY_PEM,
     githubToken,
     env,
   };
@@ -116,6 +161,7 @@ export async function processDeployRun(job: Job<DeployRunJob>) {
         .update(projects)
         .set({ status: "failed", updatedAt: new Date() })
         .where(eq(projects.id, project.id));
+      await report(false, `Deploy of ${project.name} failed at ${stepName.replace(/_/g, " ")}`, message);
       return;
     }
   }
@@ -128,6 +174,7 @@ export async function processDeployRun(job: Job<DeployRunJob>) {
     .update(projects)
     .set({ status: "live", updatedAt: new Date() })
     .where(eq(projects.id, project.id));
+  await report(true, `Deployed ${project.name}`);
 }
 
 async function failDeploy(deployId: string, projectId: string | undefined, reason: string) {
@@ -149,70 +196,4 @@ async function appendStepLog(deployId: string, stepName: DeployStepName, line: s
     .update(deploySteps)
     .set({ log: sql`${deploySteps.log} || ${line + "\n"}` })
     .where(and(eq(deploySteps.deployId, deployId), eq(deploySteps.name, stepName)));
-}
-
-interface StepContext {
-  project: typeof projects.$inferSelect;
-  srcDir: string;
-  containerName: string;
-  port: number;
-  domain: string;
-  certPem: string | undefined;
-  keyPem: string | undefined;
-  githubToken: string;
-  env: Record<string, string>;
-}
-
-function buildPayload(step: DeployStepName, ctx: StepContext): Record<string, unknown> {
-  switch (step) {
-    case "clone": {
-      const payload: DeployCloneCommandPayload = {
-        cloneUrl: `https://x-access-token:${ctx.githubToken}@github.com/${ctx.project.githubRepo}.git`,
-        branch: ctx.project.githubBranch,
-        srcDir: ctx.srcDir,
-      };
-      return payload as unknown as Record<string, unknown>;
-    }
-    case "install": {
-      const payload: DeployInstallCommandPayload = { srcDir: ctx.srcDir };
-      return payload as unknown as Record<string, unknown>;
-    }
-    case "build": {
-      const payload: DeployBuildCommandPayload = { srcDir: ctx.srcDir };
-      return payload as unknown as Record<string, unknown>;
-    }
-    case "write_env": {
-      const payload: DeployWriteEnvCommandPayload = { srcDir: ctx.srcDir, env: ctx.env };
-      return payload as unknown as Record<string, unknown>;
-    }
-    case "start": {
-      const payload: DeployStartCommandPayload = {
-        srcDir: ctx.srcDir,
-        containerName: ctx.containerName,
-        port: ctx.port,
-      };
-      return payload as unknown as Record<string, unknown>;
-    }
-    case "nginx": {
-      const payload: DeployNginxCommandPayload = {
-        slug: ctx.project.subdomain,
-        domain: ctx.domain,
-        port: ctx.port,
-      };
-      return payload as unknown as Record<string, unknown>;
-    }
-    case "ssl": {
-      const payload: DeploySslCommandPayload = {
-        slug: ctx.project.subdomain,
-        domain: ctx.domain,
-        port: ctx.port,
-        ...(ctx.certPem && ctx.keyPem ? { certPem: ctx.certPem, keyPem: ctx.keyPem } : {}),
-      };
-      return payload as unknown as Record<string, unknown>;
-    }
-    case "health_check": {
-      const payload: DeployHealthCheckCommandPayload = { port: ctx.port, path: "/" };
-      return payload as unknown as Record<string, unknown>;
-    }
-  }
 }

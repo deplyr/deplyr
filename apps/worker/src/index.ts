@@ -1,8 +1,9 @@
 import { Worker } from "bullmq";
-import { QUEUE_NAMES, getRedisConnection, scheduleHealthCheckSweep } from "@argo/queue";
+import { QUEUE_NAMES, getRedisConnection, scheduleHealthCheckSweep } from "@deplyr/queue";
 import { processServerInstall } from "./jobs/server-install";
 import { processDeployRun } from "./jobs/deploy-run";
 import { processDbProvision } from "./jobs/db-provision";
+import { processDbOps } from "./jobs/db-ops";
 import { processHealthCheck } from "./jobs/health-check";
 
 const connection = getRedisConnection();
@@ -11,6 +12,7 @@ const workers = [
   new Worker(QUEUE_NAMES.serverInstall, processServerInstall, { connection }),
   new Worker(QUEUE_NAMES.deployRun, processDeployRun, { connection }),
   new Worker(QUEUE_NAMES.dbProvision, processDbProvision, { connection }),
+  new Worker(QUEUE_NAMES.dbOps, processDbOps, { connection }),
   new Worker(QUEUE_NAMES.healthCheck, processHealthCheck, { connection }),
 ];
 

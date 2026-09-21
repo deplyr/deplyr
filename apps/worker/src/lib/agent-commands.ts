@@ -5,8 +5,8 @@ import {
   subscribeAgentEvents,
   publishAgentCommand,
   type AgentEventMessage,
-} from "@argo/queue";
-import type { Command } from "@argo/shared-types";
+} from "@deplyr/queue";
+import type { Command } from "@deplyr/shared-types";
 
 /**
  * Sends one "deploy.<step>" command to an agent over the Redis bridge (see
@@ -32,7 +32,8 @@ function ensureSubscriber() {
   subscriber = createSubscriberConnection();
   subscribeAgentEvents(subscriber, (message: AgentEventMessage) => {
     const { event } = message;
-    if (event.type === "heartbeat") return;
+    // Periodic telemetry, not part of any command's conversation.
+    if (event.type === "heartbeat" || event.type === "db_stats") return;
 
     const entry = pending.get(event.requestId);
     if (!entry) return; // stale, or nobody in this process is waiting on it
