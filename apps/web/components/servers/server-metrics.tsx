@@ -1,3 +1,6 @@
+import { RingGauge } from "@/components/dashboard/ring-gauge";
+import { timeAgo } from "@/lib/time-ago";
+
 export function ServerMetrics({
   cpuPercent,
   memPercent,
@@ -10,23 +13,17 @@ export function ServerMetrics({
   metricsUpdatedAt: string | null;
 }) {
   if (metricsUpdatedAt === null) {
-    return <p className="text-sm text-muted">Waiting for the first metrics report...</p>;
+    return <p className="py-6 text-center text-sm text-muted">Waiting for the first metrics report…</p>;
   }
 
   return (
-    <div className="grid grid-cols-3 gap-4">
-      <Metric label="CPU" value={cpuPercent ?? 0} />
-      <Metric label="Memory" value={memPercent ?? 0} />
-      <Metric label="Disk" value={diskPercent ?? 0} />
-    </div>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: number }) {
-  return (
     <div>
-      <p className="text-xs uppercase tracking-wide text-muted">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-foreground">{value}%</p>
+      <div className="flex justify-around gap-4 py-2">
+        <RingGauge label="cpu" value={cpuPercent} size={104} />
+        <RingGauge label="memory" value={memPercent} size={104} />
+        <RingGauge label="disk" value={diskPercent} size={104} />
+      </div>
+      <p className="mt-5 text-center text-xs text-muted">Updated {timeAgo(metricsUpdatedAt)}</p>
     </div>
   );
 }

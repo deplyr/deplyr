@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft, PartyPopper } from "lucide-react";
-import type { DeploySummary } from "@argo/shared-types";
+import { ArrowRight, CheckCircle2, Loader2, XCircle } from "lucide-react";
+import type { DeploySummary } from "@deplyr/shared-types";
 import { DeployChecklist } from "@/components/deploys/deploy-checklist";
+import { GlassCard } from "@/components/ui/glass-card";
+import { Page, PageHeader } from "@/components/ui/page";
+import { cn } from "@/lib/cn";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const POLL_INTERVAL_MS = 1500;
@@ -47,45 +49,79 @@ export default function DeployDetailPage() {
 
   if (notFound) {
     return (
-      <div className="mx-auto max-w-lg px-8 py-10 text-sm text-muted">Deploy not found.</div>
+      <Page width="narrow">
+        <PageHeader back={{ href: `/projects/${id}`, label: "Back to project" }} title="Deploy not found" />
+      </Page>
     );
   }
 
   if (!deploy) {
     return (
-      <div className="mx-auto max-w-lg px-8 py-10 text-sm text-muted">Loading...</div>
+      <Page width="narrow">
+        <div className="h-64 animate-pulse rounded-2xl bg-white/[0.04]" />
+      </Page>
     );
   }
 
+  const done = deploy.steps.filter((s) => s.status === "success").length;
+  const total = deploy.steps.length || 1;
+  const ok = deploy.status === "success";
+  const failed = deploy.status === "failed";
+
   return (
-    <div className="mx-auto max-w-lg px-8 py-10">
-      <Link
-        href={`/projects/${id}`}
-        className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-        Back to project
-      </Link>
+    <Page width="narrow">
+      <PageHeader back={{ href: `/projects/${id}`, label: "Back to project" }} />
 
-      <header className="mb-6">
-        <h1 className="text-lg font-semibold">Deploy</h1>
-        <p className="mt-1 text-sm text-muted">
-          {deploy.status === "success"
-            ? "Live."
-            : deploy.status === "failed"
-              ? "Failed — see the step below for details."
-              : "In progress..."}
-        </p>
-      </header>
-
-      <DeployChecklist steps={deploy.steps} />
-
-      {deploy.status === "success" ? (
-        <div className="mt-6 flex items-center gap-2 rounded-lg border border-success/30 bg-success/5 px-4 py-3 text-sm text-foreground">
-          <PartyPopper className="h-4 w-4 text-success" strokeWidth={1.75} />
-          Your app is live.
+      <GlassCard className="animate-fade-up" innerClassName="relative overflow-hidden">
+        <div
+          className={cn(
+            "pointer-events-none absolute -left-16 -top-20 h-64 w-64 rounded-full blur-[80px]",
+            ok ? "bg-success/25" : failed ? "bg-danger/25" : "bg-accent/20",
+          )}
+        />
+        <div className="relative p-6 sm:p-8">
+          <div className="flex items-center gap-4">
+            <span
+              className={cn(
+                "flex h-12 w-12 items-center justify-center rounded-2xl",
+                ok ? "bg-success/15 text-success" : failed ? "bg-danger/15 text-danger" : "bg-accent/15 text-accent",
+              )}
+            >
+              {ok ? <CheckCircle2 className="h-6 w-6" /> : failed ? <XCircle className="h-6 w-6" /> : <Loader2 className="h-6 w-6 animate-spin" />}
+            </span>
+            <div>
+              <h1 className="font-mono text-2xl font-semibold tracking-tight">
+                {ok ? "Your app is live" : failed ? "Deploy failed" : "Deploying…"}
+              </h1>
+              <p className="mt-1 text-sm text-muted">
+                {ok
+                  ? "Everything passed. Nice."
+                  : failed
+                    ? "Open the failed step below to see what went wrong."
+                    : `${done} of ${total} steps done`}
+              </p>
+            </div>
+          </div>
+          <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-white/10">
+            <div
+              className={cn("h-full rounded-full transition-all duration-700", failed ? "bg-danger" : ok ? "bg-success" : "bg-accent")}
+              style={{ width: `${(done / total) * 100}%` }}
+            />
+          </div>
         </div>
+      </GlassCard>
+
+      <div className="animate-fade-up" style={{ animationDelay: "70ms" }}>
+        <DeployChecklist steps={deploy.steps} />
+      </div>
+      {ok ? (
+        <a
+          href={`/projects/${id}`}
+          className="inline-flex items-center gap-1.5 text-sm text-accent hover:underline"
+        >
+          Back to project <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.75} />
+        </a>
       ) : null}
-    </div>
+    </Page>
   );
 }

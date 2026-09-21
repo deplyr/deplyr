@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import type { AuthUser } from "@argo/shared-types";
-import { Sidebar } from "@/components/shell/sidebar";
+import type { AuthUser } from "@deplyr/shared-types";
+import { AppShell } from "@/components/shell/app-shell";
+import { AmbientBackground } from "@/components/shell/ambient-background";
 import { apiFetch } from "@/lib/api";
 
 async function getCurrentUser(): Promise<AuthUser | null> {
@@ -13,9 +14,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const user = await getCurrentUser();
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar user={user} />
-      <main className="flex-1 overflow-y-auto">{children}</main>
-    </div>
+    <>
+      <AmbientBackground />
+      <AppShell user={user}>{children}</AppShell>
+    </>
   );
 }

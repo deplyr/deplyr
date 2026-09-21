@@ -1,4 +1,4 @@
-import type { DeployStatus } from "@argo/shared-types";
+import type { DeployStatus } from "@deplyr/shared-types";
 import { Badge } from "@/components/ui/badge";
 
 const STATUS_CONFIG: Record<

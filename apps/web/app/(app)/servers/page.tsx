@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { Server as ServerIcon, Plus } from "lucide-react";
-import type { ServerSummary } from "@argo/shared-types";
+import type { ProjectSummary, ServerSummary } from "@deplyr/shared-types";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Button } from "@/components/ui/button";
-import { ServerStatusBadge } from "@/components/servers/server-status-badge";
+import { buttonClass } from "@/components/ui/button";
+import { Page, PageHeader } from "@/components/ui/page";
+import { ServerCard } from "@/components/servers/server-card";
 import { apiFetch } from "@/lib/api";
 
 async function getServers(): Promise<ServerSummary[]> {
@@ -12,61 +13,69 @@ async function getServers(): Promise<ServerSummary[]> {
   return res.json();
 }
 
+async function getProjects(): Promise<ProjectSummary[]> {
+  const res = await apiFetch("/projects");
+  if (!res.ok) return [];
+  return res.json();
+}
+
 export default async function ServersPage() {
-  const servers = await getServers();
+  const [servers, projects] = await Promise.all([getServers(), getProjects()]);
+  const online = servers.filter((s) => s.status === "connected").length;
 
   return (
-    <div className="mx-auto max-w-5xl px-8 py-10">
-      <header className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold">Servers</h1>
-          <p className="mt-1 text-sm text-muted">
-            VPS instances Argo can deploy to.
-          </p>
-        </div>
-        {servers.length > 0 ? (
-          <Link href="/servers/new">
-            <Button>
-              <Plus className="h-4 w-4" strokeWidth={1.75} />
-              Connect a server
-            </Button>
-          </Link>
-        ) : null}
-      </header>
+    <Page>
+      <PageHeader
+        eyebrow="Servers"
+        title="Your servers"
+        description={
+          servers.length
+            ? `${servers.length} ${servers.length === 1 ? "server" : "servers"} · ${online} online`
+            : "VPS instances Deplyr deploys your apps to."
+        }
+        actions={
+          servers.length > 0 ? (
+            <Link href="/servers/new" className={buttonClass("primary")}>
+              <Plus className="h-4 w-4" strokeWidth={2} />
+              Connect server
+            </Link>
+          ) : null
+        }
+      />
 
       {servers.length === 0 ? (
         <EmptyState
           icon={ServerIcon}
           title="No servers yet"
-          description="Paste a VPS IP and root credentials to get started. Argo handles Docker, the agent install, and health checks for you."
+          description="Paste a VPS IP and root credentials to get started. Deplyr handles Docker, the agent install and health checks for you."
           action={
-            <Link href="/servers/new">
-              <Button>Connect a server</Button>
+            <Link href="/servers/new" className={buttonClass("primary")}>
+              <Plus className="h-4 w-4" strokeWidth={2} />
+              Connect a server
             </Link>
           }
         />
       ) : (
-        <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
-          {servers.map((server) => (
-            <li key={server.id}>
-              <Link
-                href={`/servers/${server.id}`}
-                className="flex items-center justify-between px-4 py-3.5 transition-colors hover:bg-surface-hover"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-foreground">
-                    {server.name}
-                  </p>
-                  <p className="mt-0.5 truncate font-mono text-xs text-muted">
-                    {server.ipAddress}
-                  </p>
-                </div>
-                <ServerStatusBadge status={server.status} />
-              </Link>
-            </li>
+        <div className="grid gap-4 md:grid-cols-2">
+          {servers.map((s, i) => (
+            <ServerCard
+              key={s.id}
+              server={s}
+              projects={projects.filter((p) => p.serverId === s.id)}
+              style={{ animationDelay: `${i * 60}ms` }}
+            />
           ))}
-        </ul>
+          <Link
+            href="/servers/new"
+            className="group flex min-h-[9.5rem] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-white/15 text-muted transition hover:border-accent/50 hover:bg-accent/[0.04] hover:text-accent"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-full border border-current/30 transition group-hover:scale-110">
+              <Plus className="h-4 w-4" strokeWidth={1.75} />
+            </span>
+            <span className="text-sm font-medium">Connect a server</span>
+          </Link>
+        </div>
       )}
-    </div>
+    </Page>
   );
 }

@@ -10,6 +10,15 @@ const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      keyframes: {
+        "fade-up": {
+          "0%": { opacity: "0", transform: "translateY(10px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+      },
+      animation: {
+        "fade-up": "fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both",
+      },
       colors: {
         background: "#09090B",
         surface: "#111113",
@@ -27,6 +36,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: [
+          "var(--font-inter)",
           "ui-sans-serif",
           "system-ui",
           "-apple-system",
@@ -35,6 +45,7 @@ const config: Config = {
           "sans-serif",
         ],
         mono: [
+          "var(--font-mono-jb)",
           "ui-monospace",
           "SFMono-Regular",
           "Menlo",

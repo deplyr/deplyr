@@ -1,15 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import type { SecretSummary } from "@argo/shared-types";
+import type { SecretSummary } from "@deplyr/shared-types";
+import { Eye, KeyRound, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FormError } from "@/components/ui/field";
+import { GlassCard } from "@/components/ui/glass-card";
 import { humanizeKey } from "@/lib/humanize-key";
 import { cn } from "@/lib/cn";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 const inputClass =
-  "w-full rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm text-foreground placeholder:font-sans placeholder:text-muted focus:border-accent focus:outline-none";
+  "w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 font-mono text-sm text-foreground placeholder:font-sans placeholder:text-muted/70 transition focus:border-accent/60 focus:bg-white/[0.06] focus:outline-none focus:ring-4 focus:ring-accent/10";
 
 export function SecretsForm({
   projectId,
@@ -77,16 +80,21 @@ export function SecretsForm({
 
   if (secretsState.length === 0) {
     return (
-      <p className="text-sm text-muted">
-        No secrets detected — Argo looks for a{" "}
-        <code className="font-mono">.env.example</code> file in the repo when
-        the project is created.
-      </p>
+      <GlassCard innerClassName="flex flex-col items-center px-6 py-14 text-center">
+        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10 text-accent">
+          <KeyRound className="h-5 w-5" strokeWidth={1.5} />
+        </span>
+        <p className="mt-4 text-sm font-medium">No secrets detected</p>
+        <p className="mt-1.5 max-w-sm text-xs leading-relaxed text-muted">
+          Deplyr looks for a <code className="font-mono text-foreground">.env.example</code> file in
+          your repo when the project is created.
+        </p>
+      </GlassCard>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <GlassCard innerClassName="space-y-5 p-6 sm:p-8">
       {secretsState.map((secret) => {
         const isRevealed = revealed.has(secret.key);
         const isNewEntry = !secret.hasValue;
@@ -126,7 +134,8 @@ export function SecretsForm({
                   onClick={() => handleReveal(secret.key)}
                   disabled={revealing === secret.key}
                 >
-                  {revealing === secret.key ? "..." : "Reveal"}
+                  {revealing === secret.key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" strokeWidth={1.75} />}
+                  Reveal
                 </Button>
               ) : null}
             </div>
@@ -134,14 +143,15 @@ export function SecretsForm({
         );
       })}
 
-      {error ? <p className="text-sm text-danger">{error}</p> : null}
+      {error ? <FormError>{error}</FormError> : null}
 
-      <div className="flex items-center gap-3 pt-2">
+      <div className="flex items-center gap-3 border-t border-white/[0.07] pt-5">
         <Button type="button" onClick={handleSave} disabled={saving}>
-          {saving ? "Saving..." : "Save changes"}
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          {saving ? "Saving…" : "Save changes"}
         </Button>
-        {justSaved ? <span className="text-xs text-muted">Saved.</span> : null}
+        {justSaved ? <span className="text-xs text-success">Saved — redeploy to apply.</span> : null}
       </div>
-    </div>
+    </GlassCard>
   );
 }

@@ -1,7 +1,6 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import type { SecretSummary } from "@argo/shared-types";
+import type { SecretSummary } from "@deplyr/shared-types";
 import { SecretsForm } from "@/components/secrets/secrets-form";
+import { Page, PageHeader } from "@/components/ui/page";
 import { apiFetch } from "@/lib/api";
 
 async function getSecrets(projectId: string): Promise<SecretSummary[]> {
@@ -19,24 +18,14 @@ export default async function ProjectSecretsPage({
   const secrets = await getSecrets(id);
 
   return (
-    <div className="mx-auto max-w-lg px-8 py-10">
-      <Link
-        href={`/projects/${id}`}
-        className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-        Back to project
-      </Link>
-
-      <header className="mb-8">
-        <h1 className="text-lg font-semibold">Secrets</h1>
-        <p className="mt-1 text-sm text-muted">
-          Values your app needs — injected as environment variables at
-          deploy time.
-        </p>
-      </header>
-
+    <Page width="narrow">
+      <PageHeader
+        back={{ href: `/projects/${id}`, label: "Back to project" }}
+        eyebrow="Secrets"
+        title="Environment variables"
+        description="Values your app needs — encrypted at rest and injected as environment variables at deploy time."
+      />
       <SecretsForm projectId={id} initialSecrets={secrets} />
-    </div>
+    </Page>
   );
 }

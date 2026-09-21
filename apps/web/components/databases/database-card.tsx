@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Database as DatabaseIcon } from "lucide-react";
-import type { DatabaseSummary } from "@argo/shared-types";
+import Link from "next/link";
+import { ArrowUpRight, Database as DatabaseIcon, Loader2 } from "lucide-react";
+import type { DatabaseSummary } from "@deplyr/shared-types";
 import { Button } from "@/components/ui/button";
+import { FormError } from "@/components/ui/field";
+import { GlassCard } from "@/components/ui/glass-card";
+import { Badge } from "@/components/ui/badge";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const POLL_INTERVAL_MS = 2000;
@@ -54,38 +58,59 @@ export function DatabaseCard({
   }
 
   return (
-    <div className="rounded-lg border border-border bg-surface/40 p-5">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <DatabaseIcon className="h-4 w-4 text-muted" strokeWidth={1.75} />
-          <p className="text-sm font-medium text-foreground">Database</p>
+    <GlassCard innerClassName="p-5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 text-accent">
+            <DatabaseIcon className="h-4 w-4" strokeWidth={1.75} />
+          </span>
+          <div>
+            <p className="text-sm font-semibold">Database</p>
+            <p className="text-xs text-muted">Postgres</p>
+          </div>
         </div>
-        {!database ? (
-          <Button variant="secondary" onClick={handleCreate} disabled={creating}>
-            {creating ? "Adding..." : "Add a Postgres database"}
-          </Button>
+        {database ? (
+          <Badge tone={database.status === "running" ? "success" : database.status === "error" ? "danger" : database.status === "stopped" ? "neutral" : "warning"}>
+            {database.status}
+          </Badge>
         ) : null}
       </div>
 
-      {database ? (
-        <div className="mt-3">
-          {database.status === "provisioning" ? (
-            <p className="text-sm text-muted">Provisioning...</p>
-          ) : database.status === "running" ? (
-            <p className="text-sm text-foreground">
-              Connected —{" "}
-              <code className="font-mono text-xs">{database.connectionSecretKey}</code> was
-              written to secrets. Redeploy to pick it up.
-            </p>
-          ) : (
-            <p className="text-sm text-danger">
-              Something went wrong provisioning this database.
-            </p>
-          )}
+      {!database ? (
+        <div className="mt-4">
+          <p className="mb-3 text-xs leading-relaxed text-muted">
+            One click adds a managed Postgres next to your app and wires up the connection string.
+          </p>
+          <Button variant="secondary" onClick={handleCreate} disabled={creating} className="w-full">
+            {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {creating ? "Adding…" : "Add Postgres"}
+          </Button>
         </div>
-      ) : null}
+      ) : database.status === "provisioning" ? (
+        <p className="mt-4 flex items-center gap-2 text-xs text-muted">
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-warning" /> Provisioning — this takes a few seconds.
+        </p>
+      ) : database.status === "running" ? (
+        <>
+          <p className="mt-4 text-xs leading-relaxed text-muted">
+            <code className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-[11px] text-foreground">
+              {database.connectionSecretKey}
+            </code>{" "}
+            was added to your secrets. Redeploy to pick it up.
+          </p>
+          <Link
+            href={`/servers/${database.serverId}/databases/${database.id}`}
+            className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline"
+          >
+            Health, stats &amp; connection
+            <ArrowUpRight className="h-3 w-3" strokeWidth={2} />
+          </Link>
+        </>
+      ) : (
+        <p className="mt-4 text-xs text-danger">Something went wrong provisioning this database.</p>
+      )}
 
-      {error ? <p className="mt-2 text-sm text-danger">{error}</p> : null}
-    </div>
+      {error ? <div className="mt-3"><FormError>{error}</FormError></div> : null}
+    </GlassCard>
   );
 }

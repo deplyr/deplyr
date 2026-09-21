@@ -1,5 +1,5 @@
 {
-  "name": "@argo/web",
+  "name": "@deplyr/web",
   "private": true,
   "version": "0.0.0",
   "scripts": {
@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@argo/shared-types": "workspace:*",
+    "@deplyr/shared-types": "workspace:*",
     "next": "^15.1.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

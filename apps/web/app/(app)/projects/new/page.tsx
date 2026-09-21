@@ -1,20 +1,36 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Check, GitBranch, Github, Globe, Loader2, Lock, Search, Server as ServerIcon } from "lucide-react";
 import type {
   GithubRepoSummary,
   GithubBranchSummary,
   ServerSummary,
   ProjectSummary,
-} from "@argo/shared-types";
-import { Button } from "@/components/ui/button";
+} from "@deplyr/shared-types";
+import { Button, buttonClass } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Field, FormError, inputClass } from "@/components/ui/field";
+import { GlassCard } from "@/components/ui/glass-card";
+import { Page, PageHeader } from "@/components/ui/page";
+import { timeAgo } from "@/lib/time-ago";
+import { cn } from "@/lib/cn";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "deplyr.app";
 
-const inputClass =
-  "w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent focus:outline-none";
+function StepLabel({ n, children }: { n: number; children: React.ReactNode }) {
+  return (
+    <div className="mb-3 flex items-center gap-2.5">
+      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/15 font-mono text-xs font-semibold text-accent">
+        {n}
+      </span>
+      <h2 className="text-sm font-semibold">{children}</h2>
+    </div>
+  );
+}
 
 export default function NewProjectPage() {
   const router = useRouter();
@@ -28,6 +44,8 @@ export default function NewProjectPage() {
   const [branches, setBranches] = useState<GithubBranchSummary[] | null>(null);
   const [branch, setBranch] = useState("");
   const [name, setName] = useState("");
+  const [rootDir, setRootDir] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -35,7 +53,14 @@ export default function NewProjectPage() {
   useEffect(() => {
     fetch(`${API_URL}/servers`, { credentials: "include" })
       .then((r) => r.json())
-      .then((all: ServerSummary[]) => setServers(all.filter((s) => s.status === "connected")));
+      .then((all: ServerSummary[]) => {
+        const connected = all.filter((s) => s.status === "connected");
+        setServers(connected);
+        // Coming from a server card (?server=…), or only one choice: preselect.
+        const wanted = new URLSearchParams(window.location.search).get("server");
+        const preset = connected.find((s) => s.id === wanted) ?? (connected.length === 1 ? connected[0] : undefined);
+        if (preset) setServerId(preset.id);
+      });
 
     fetch(`${API_URL}/github/repos`, { credentials: "include" })
       .then(async (r) => {
@@ -43,7 +68,9 @@ export default function NewProjectPage() {
         return r.json();
       })
       .then(setRepos)
-      .catch(() => setReposError("Could not load your GitHub repos. Try signing in again."));
+      .catch(() =>
+        setReposError("Could not load your GitHub repos. Connect GitHub in Settings and try again."),
+      );
   }, []);
 
   useEffect(() => {
@@ -81,6 +108,7 @@ export default function NewProjectPage() {
         name,
         githubRepo: selectedRepo.fullName,
         githubBranch: branch,
+        ...(rootDir.trim() ? { rootDir: rootDir.trim() } : {}),
       }),
     });
 
@@ -97,137 +125,196 @@ export default function NewProjectPage() {
 
   if (servers && servers.length === 0) {
     return (
-      <div className="mx-auto max-w-lg px-8 py-10">
-        <h1 className="text-lg font-semibold">New project</h1>
-        <p className="mt-2 text-sm text-muted">
-          You need a connected server before you can create a project.
-        </p>
-        <Link href="/servers/new" className="mt-5 inline-block">
-          <Button>Connect a server</Button>
-        </Link>
-      </div>
+      <Page width="narrow">
+        <PageHeader eyebrow="Projects" title="New project" back={{ href: "/projects", label: "All projects" }} />
+        <EmptyState
+          icon={ServerIcon}
+          title="Connect a server first"
+          description="Projects deploy to one of your servers. Add a VPS and it'll be ready in a couple of minutes."
+          action={
+            <Link href="/servers/new" className={buttonClass("primary")}>
+              Connect a server
+            </Link>
+          }
+        />
+      </Page>
     );
   }
 
+  const chosenServer = servers?.find((s) => s.id === serverId);
+  const slug = (name || "your-project").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const ready = Boolean(selectedRepo && serverId && name);
+
   return (
-    <div className="mx-auto max-w-lg px-8 py-10">
-      <header className="mb-8">
-        <h1 className="text-lg font-semibold">New project</h1>
-        <p className="mt-1 text-sm text-muted">
-          Pick a repo and a server. Argo figures out the framework on its own.
-        </p>
-      </header>
+    <Page width="form">
+      <PageHeader
+        eyebrow="Projects"
+        title="New project"
+        description="Pick a server and a repo. Deplyr figures out the framework, package manager and commands on its own — you can adjust them afterwards."
+        back={{ href: "/projects", label: "All projects" }}
+      />
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <Field label="Server">
-          <select
-            required
-            value={serverId}
-            onChange={(e) => setServerId(e.target.value)}
-            className={inputClass}
-          >
-            <option value="" disabled>
-              {servers ? "Select a server" : "Loading..."}
-            </option>
-            {servers?.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} ({s.ipAddress})
-              </option>
-            ))}
-          </select>
-        </Field>
+      <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-5">
+        <GlassCard className="animate-fade-up lg:col-span-3" innerClassName="space-y-8 p-6 sm:p-8">
+          <section>
+            <StepLabel n={1}>Choose a server</StepLabel>
+            {servers === null ? (
+              <p className="text-sm text-muted">Loading…</p>
+            ) : (
+              <div className="grid gap-2.5 sm:grid-cols-2">
+                {servers.map((s) => {
+                  const active = s.id === serverId;
+                  return (
+                    <button
+                      type="button"
+                      key={s.id}
+                      onClick={() => setServerId(s.id)}
+                      className={cn(
+                        "flex items-center gap-3 rounded-xl border p-3.5 text-left transition",
+                        active
+                          ? "border-accent/60 bg-accent/10 ring-4 ring-accent/10"
+                          : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]",
+                      )}
+                    >
+                      <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", active ? "bg-accent/20 text-accent" : "bg-white/[0.05] text-muted")}>
+                        <ServerIcon className="h-4 w-4" strokeWidth={1.75} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">{s.name}</span>
+                        <span className="block truncate font-mono text-[11px] text-muted">{s.ipAddress}</span>
+                      </span>
+                      {active ? <Check className="h-4 w-4 text-accent" strokeWidth={2.5} /> : null}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
 
-        <Field label="Repository">
-          {reposError ? (
-            <p className="text-sm text-danger">{reposError}</p>
-          ) : selectedRepo ? (
-            <div className="flex items-center justify-between rounded-md border border-border bg-surface px-3 py-2 text-sm">
-              <span className="font-mono">{selectedRepo.fullName}</span>
-              <button
-                type="button"
-                onClick={() => setSelectedRepo(null)}
-                className="text-xs text-muted hover:text-foreground"
-              >
-                Change
-              </button>
-            </div>
-          ) : (
-            <div>
-              <input
-                value={repoFilter}
-                onChange={(e) => setRepoFilter(e.target.value)}
-                placeholder={repos ? "Search your repos..." : "Loading your repos..."}
-                className={inputClass}
-              />
-              {repos ? (
-                <div className="mt-2 max-h-48 overflow-y-auto rounded-md border border-border">
-                  {filteredRepos.length === 0 ? (
-                    <p className="px-3 py-2 text-sm text-muted">No repos match.</p>
-                  ) : (
-                    filteredRepos.map((repo) => (
-                      <button
-                        type="button"
-                        key={repo.fullName}
-                        onClick={() => setSelectedRepo(repo)}
-                        className="block w-full px-3 py-2 text-left font-mono text-xs text-foreground transition-colors hover:bg-surface-hover"
-                      >
-                        {repo.fullName}
-                      </button>
-                    ))
-                  )}
+          <section>
+            <StepLabel n={2}>Pick a repository</StepLabel>
+            {reposError ? (
+              <FormError>{reposError}</FormError>
+            ) : selectedRepo ? (
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-accent/40 bg-accent/[0.07] px-4 py-3">
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <Github className="h-4 w-4 shrink-0 text-accent" strokeWidth={1.75} />
+                  <span className="truncate font-mono text-sm">{selectedRepo.fullName}</span>
+                  {selectedRepo.private ? <Lock className="h-3.5 w-3.5 shrink-0 text-muted" strokeWidth={1.75} /> : null}
+                </span>
+                <button type="button" onClick={() => setSelectedRepo(null)} className="text-xs text-muted transition hover:text-foreground">
+                  Change
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" strokeWidth={1.75} />
+                  <input
+                    value={repoFilter}
+                    onChange={(e) => setRepoFilter(e.target.value)}
+                    placeholder={repos ? "Search your repos…" : "Loading your repos…"}
+                    className={cn(inputClass, "pl-10")}
+                  />
                 </div>
-              ) : null}
-            </div>
-          )}
-        </Field>
+                {repos ? (
+                  <ul className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-white/10 bg-black/20 p-1.5">
+                    {filteredRepos.length === 0 ? (
+                      <li className="px-3 py-3 text-sm text-muted">No repos match.</li>
+                    ) : (
+                      filteredRepos.map((repo) => (
+                        <li key={repo.fullName}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedRepo(repo)}
+                            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-white/[0.05]"
+                          >
+                            <Github className="h-4 w-4 shrink-0 text-muted" strokeWidth={1.75} />
+                            <span className="min-w-0 flex-1 truncate font-mono text-xs">{repo.fullName}</span>
+                            {repo.private ? <Lock className="h-3 w-3 shrink-0 text-muted" strokeWidth={1.75} /> : null}
+                            <span className="shrink-0 text-[11px] text-muted">{timeAgo(repo.updatedAt)}</span>
+                          </button>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                ) : null}
+              </div>
+            )}
+          </section>
 
-        {selectedRepo ? (
-          <>
-            <Field label="Branch">
-              <select
-                required
-                value={branch}
-                onChange={(e) => setBranch(e.target.value)}
-                className={inputClass}
-              >
-                {(branches ?? [{ name: selectedRepo.defaultBranch }]).map((b) => (
-                  <option key={b.name} value={b.name}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
+          {selectedRepo ? (
+            <section className="animate-fade-up">
+              <StepLabel n={3}>Details</StepLabel>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Field label="Branch">
+                  <select required value={branch} onChange={(e) => setBranch(e.target.value)} className={inputClass}>
+                    {(branches ?? [{ name: selectedRepo.defaultBranch }]).map((b) => (
+                      <option key={b.name} value={b.name}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Project name">
+                  <input required value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
+                </Field>
+              </div>
+              {showAdvanced ? (
+                <div className="mt-5">
+                  <Field label="Root directory" hint="Only for monorepos: the folder that holds this app, e.g. apps/web. Leave blank otherwise.">
+                    <input value={rootDir} onChange={(e) => setRootDir(e.target.value)} placeholder="(repository root)" spellCheck={false} className={cn(inputClass, "font-mono text-xs")} />
+                  </Field>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setShowAdvanced(true)} className="mt-4 text-xs text-muted transition hover:text-foreground">
+                  Is this in a monorepo subfolder?
+                </button>
+              )}
+            </section>
+          ) : null}
 
-            <Field label="Project name">
-              <input
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className={inputClass}
-              />
-            </Field>
-          </>
-        ) : null}
+          {error ? <FormError>{error}</FormError> : null}
 
-        {error ? <p className="text-sm text-danger">{error}</p> : null}
+          <Button type="submit" disabled={submitting || !ready} className="w-full">
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {submitting ? "Creating…" : "Create project"}
+          </Button>
+        </GlassCard>
 
-        <Button
-          type="submit"
-          disabled={submitting || !selectedRepo || !serverId}
-          className="w-full"
-        >
-          {submitting ? "Creating..." : "Create project"}
-        </Button>
+        {/* live preview */}
+        <aside className="animate-fade-up lg:col-span-2" style={{ animationDelay: "80ms" }}>
+          <div className="lg:sticky lg:top-24">
+            <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-muted">Preview</p>
+            <GlassCard innerClassName="relative overflow-hidden p-6">
+              <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-accent/20 blur-3xl" />
+              <div className="relative">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 font-mono text-lg font-semibold text-accent">
+                  {(name || "?").charAt(0).toUpperCase()}
+                </span>
+                <p className="mt-4 truncate text-base font-semibold">{name || "Your project"}</p>
+                <p className="mt-1 flex items-center gap-1.5 truncate font-mono text-xs text-accent/80">
+                  <Globe className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+                  {slug}.{APP_DOMAIN}
+                </p>
+                <dl className="mt-5 space-y-3 border-t border-white/[0.07] pt-5 text-xs">
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="flex items-center gap-1.5 text-muted"><GitBranch className="h-3.5 w-3.5" strokeWidth={1.75} />Source</dt>
+                    <dd className="truncate font-mono">{selectedRepo ? `${selectedRepo.fullName}@${branch}` : "—"}</dd>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="flex items-center gap-1.5 text-muted"><ServerIcon className="h-3.5 w-3.5" strokeWidth={1.75} />Server</dt>
+                    <dd className="truncate">{chosenServer?.name ?? "—"}</dd>
+                  </div>
+                </dl>
+              </div>
+            </GlassCard>
+            <p className="mt-4 text-xs leading-relaxed text-muted">
+              After creating, you&apos;ll add secrets, an optional database, and hit Deploy.
+            </p>
+          </div>
+        </aside>
       </form>
-    </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-medium text-foreground">{label}</span>
-      {children}
-    </label>
+    </Page>
   );
 }

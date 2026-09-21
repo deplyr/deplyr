@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { DeploySummary } from "@argo/shared-types";
+import { Loader2, Rocket } from "lucide-react";
+import type { DeploySummary } from "@deplyr/shared-types";
 import { Button } from "@/components/ui/button";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -41,9 +42,10 @@ export function DeployButton({
   }
 
   return (
-    <div>
+    <div className="flex flex-col items-end">
       <Button onClick={handleClick} disabled={disabled || loading}>
-        {loading ? "Starting..." : "Deploy"}
+        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" strokeWidth={1.75} />}
+        {loading ? "Starting…" : "Deploy"}
       </Button>
       {disabled && disabledReason ? (
         <p className="mt-2 text-xs text-muted">{disabledReason}</p>

@@ -1,15 +1,23 @@
 "use client";
 
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import type { ServerSummary, SshCredentialType } from "@argo/shared-types";
+import { Container, Loader2, Lock, ShieldCheck, Terminal, Waypoints } from "lucide-react";
+import type { ServerSummary, SshCredentialType } from "@deplyr/shared-types";
 import { Button } from "@/components/ui/button";
+import { Field, FormError, inputClass } from "@/components/ui/field";
+import { GlassCard } from "@/components/ui/glass-card";
+import { Page, PageHeader } from "@/components/ui/page";
 import { cn } from "@/lib/cn";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
-const inputClass =
-  "w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-accent focus:outline-none";
+const steps = [
+  { icon: Terminal, title: "Connects once over SSH", body: "Your credentials are used a single time, then never needed again." },
+  { icon: Container, title: "Installs Docker", body: "Everything your apps and databases run in." },
+  { icon: Waypoints, title: "Installs the Deplyr agent", body: "A small daemon that dials back to Deplyr and stays connected." },
+  { icon: ShieldCheck, title: "Sets up nginx + SSL", body: "Routing and HTTPS for every app you deploy." },
+];
 
 export default function NewServerPage() {
   const router = useRouter();
@@ -44,93 +52,112 @@ export default function NewServerPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg px-8 py-10">
-      <header className="mb-8">
-        <h1 className="text-lg font-semibold">Connect a server</h1>
-        <p className="mt-1 text-sm text-muted">
-          Paste your VPS&apos;s IP and root credentials. Argo connects once
-          over SSH to install everything it needs — you won&apos;t need a
-          terminal after this.
-        </p>
-      </header>
+    <Page width="form">
+      <PageHeader
+        eyebrow="Servers"
+        title="Connect a server"
+        description="Paste your VPS's IP and root credentials. Deplyr sets everything up — you won't need a terminal after this."
+        back={{ href: "/servers", label: "All servers" }}
+      />
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <Field label="Name">
-          <input
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Production"
-            className={inputClass}
-          />
-        </Field>
+      <div className="grid gap-6 lg:grid-cols-5">
+        <GlassCard className="animate-fade-up lg:col-span-3" innerClassName="p-6 sm:p-8">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field label="Name">
+                <input
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Production"
+                  className={inputClass}
+                />
+              </Field>
+              <Field label="IP address">
+                <input
+                  required
+                  value={ipAddress}
+                  onChange={(e) => setIpAddress(e.target.value)}
+                  placeholder="203.0.113.42"
+                  className={cn(inputClass, "font-mono")}
+                />
+              </Field>
+            </div>
 
-        <Field label="IP address">
-          <input
-            required
-            value={ipAddress}
-            onChange={(e) => setIpAddress(e.target.value)}
-            placeholder="203.0.113.42"
-            className={cn(inputClass, "font-mono")}
-          />
-        </Field>
+            <div>
+              <span className="mb-1.5 block text-sm font-medium">Sign in with</span>
+              <div className="grid grid-cols-2 gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-1">
+                {(["password", "private_key"] as const).map((type) => (
+                  <button
+                    type="button"
+                    key={type}
+                    onClick={() => setCredentialType(type)}
+                    className={cn(
+                      "rounded-lg px-3 py-2 text-sm font-medium transition",
+                      credentialType === type
+                        ? "bg-accent text-accent-foreground shadow"
+                        : "text-muted hover:text-foreground",
+                    )}
+                  >
+                    {type === "password" ? "Root password" : "SSH private key"}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        <Field label="Credential type">
-          <div className="flex gap-2">
-            {(["password", "private_key"] as const).map((type) => (
-              <button
-                type="button"
-                key={type}
-                onClick={() => setCredentialType(type)}
-                className={cn(
-                  "flex-1 rounded-md border px-3 py-2 text-sm transition-colors",
-                  credentialType === type
-                    ? "border-accent bg-accent/10 text-foreground"
-                    : "border-border text-muted hover:text-foreground",
-                )}
-              >
-                {type === "password" ? "Root password" : "SSH private key"}
-              </button>
-            ))}
-          </div>
-        </Field>
+            <Field label={credentialType === "password" ? "Root password" : "Private key"}>
+              {credentialType === "password" ? (
+                <input
+                  required
+                  type="password"
+                  value={credential}
+                  onChange={(e) => setCredential(e.target.value)}
+                  className={inputClass}
+                />
+              ) : (
+                <textarea
+                  required
+                  rows={6}
+                  value={credential}
+                  onChange={(e) => setCredential(e.target.value)}
+                  placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
+                  className={cn(inputClass, "font-mono text-xs")}
+                />
+              )}
+            </Field>
 
-        <Field label={credentialType === "password" ? "Root password" : "Private key"}>
-          {credentialType === "password" ? (
-            <input
-              required
-              type="password"
-              value={credential}
-              onChange={(e) => setCredential(e.target.value)}
-              className={inputClass}
-            />
-          ) : (
-            <textarea
-              required
-              rows={6}
-              value={credential}
-              onChange={(e) => setCredential(e.target.value)}
-              placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
-              className={cn(inputClass, "font-mono text-xs")}
-            />
-          )}
-        </Field>
+            <p className="flex items-start gap-2 text-xs leading-relaxed text-muted">
+              <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+              Encrypted at rest with your instance&apos;s master key.
+            </p>
 
-        {error ? <p className="text-sm text-danger">{error}</p> : null}
+            {error ? <FormError>{error}</FormError> : null}
 
-        <Button type="submit" disabled={submitting} className="w-full">
-          {submitting ? "Connecting..." : "Connect server"}
-        </Button>
-      </form>
-    </div>
-  );
-}
+            <Button type="submit" disabled={submitting} className="w-full">
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {submitting ? "Connecting…" : "Connect server"}
+            </Button>
+          </form>
+        </GlassCard>
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-medium text-foreground">{label}</span>
-      {children}
-    </label>
+        <aside className="animate-fade-up space-y-3 lg:col-span-2" style={{ animationDelay: "80ms" }}>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-muted">What happens next</p>
+          {steps.map(({ icon: Icon, title, body }, i) => (
+            <div key={title} className="flex gap-3.5 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
+                <Icon className="h-4 w-4" strokeWidth={1.75} />
+              </span>
+              <div>
+                <p className="text-sm font-medium">
+                  <span className="mr-1.5 font-mono text-xs text-muted">{i + 1}.</span>
+                  {title}
+                </p>
+                <p className="mt-0.5 text-xs leading-relaxed text-muted">{body}</p>
+              </div>
+            </div>
+          ))}
+        </aside>
+      </div>
+    </Page>
   );
 }
