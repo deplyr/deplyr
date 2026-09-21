@@ -2,11 +2,13 @@ import {
   agentAuthSchema,
   commandSchema,
   type AgentEvent,
-} from "@argo/shared-types";
+} from "@deplyr/shared-types";
 import { dispatchCommand } from "./commands";
 import { sampleMetrics } from "./metrics";
+import { sampleDatabases } from "./db-stats";
 
 const HEARTBEAT_INTERVAL_MS = 15_000;
+const DB_STATS_INTERVAL_MS = 30_000;
 const INITIAL_BACKOFF_MS = 1_000;
 const MAX_BACKOFF_MS = 30_000;
 
@@ -17,12 +19,13 @@ const MAX_BACKOFF_MS = 30_000;
  * inbound command dispatch, and reconnect-with-backoff on drop.
  */
 export function connectToControlPlane() {
-  const url = requiredEnv("ARGO_CONTROL_PLANE_WS");
-  const serverId = requiredEnv("ARGO_SERVER_ID");
-  const token = requiredEnv("ARGO_TOKEN");
+  const url = requiredEnv("DEPLYR_CONTROL_PLANE_WS");
+  const serverId = requiredEnv("DEPLYR_SERVER_ID");
+  const token = requiredEnv("DEPLYR_TOKEN");
 
   let backoff = INITIAL_BACKOFF_MS;
   let heartbeatTimer: ReturnType<typeof setInterval> | undefined;
+  let dbStatsTimer: ReturnType<typeof setInterval> | undefined;
 
   function open() {
     const ws = new WebSocket(url);
@@ -35,6 +38,16 @@ export function connectToControlPlane() {
         const metrics = await sampleMetrics();
         send(ws, { type: "heartbeat", ...metrics } satisfies AgentEvent);
       }, HEARTBEAT_INTERVAL_MS);
+
+      // Slower than the heartbeat: each sample shells out to docker per database.
+      dbStatsTimer = setInterval(async () => {
+        try {
+          const samples = await sampleDatabases();
+          if (samples.length > 0) send(ws, { type: "db_stats", samples } satisfies AgentEvent);
+        } catch (err) {
+          console.error("[agent] database sampling failed", err);
+        }
+      }, DB_STATS_INTERVAL_MS);
     });
 
     ws.addEventListener("message", async (evt) => {
@@ -68,6 +81,7 @@ export function connectToControlPlane() {
 
     ws.addEventListener("close", () => {
       if (heartbeatTimer) clearInterval(heartbeatTimer);
+      if (dbStatsTimer) clearInterval(dbStatsTimer);
       console.warn(`[agent] disconnected, retrying in ${backoff}ms`);
       setTimeout(open, backoff);
       backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);

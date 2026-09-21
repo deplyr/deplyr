@@ -1,5 +1,7 @@
 import { readFile, statfs } from "node:fs/promises";
-import type { HeartbeatEvent } from "@argo/shared-types";
+import { cpus } from "node:os";
+import { DEPLYR_HOME } from "./lib/paths";
+import type { HeartbeatEvent } from "@deplyr/shared-types";
 
 /**
  * CPU/RAM/disk sampling for the heartbeat event (see docs/PHASE1_DESIGN.md
@@ -15,12 +17,52 @@ interface CpuSample {
 let previousCpuSample: CpuSample | null = null;
 
 export async function sampleMetrics(): Promise<Omit<HeartbeatEvent, "type">> {
-  const [cpuPercent, memPercent, diskPercent] = await Promise.all([
+  const [cpuPercent, memPercent, diskPercent, extras] = await Promise.all([
     sampleCpuPercent(),
     sampleMemPercent(),
     sampleDiskPercent(),
+    sampleSystemFacts(),
   ]);
-  return { cpuPercent, memPercent, diskPercent };
+  return { cpuPercent, memPercent, diskPercent, ...extras };
+}
+
+// Load average, uptime and capacity — cheap /proc reads. Each is best-effort:
+// a failed read drops just that field instead of failing the heartbeat.
+async function sampleSystemFacts(): Promise<
+  Pick<HeartbeatEvent, "loadAvg1" | "cpuCores" | "memTotalMb" | "diskTotalGb" | "uptimeSeconds">
+> {
+  const out: Pick<
+    HeartbeatEvent,
+    "loadAvg1" | "cpuCores" | "memTotalMb" | "diskTotalGb" | "uptimeSeconds"
+  > = {};
+
+  const cores = cpus().length;
+  if (cores > 0) out.cpuCores = cores;
+
+  try {
+    const load = await readFile("/proc/loadavg", "utf8");
+    const first = Number(load.split(" ")[0]);
+    if (Number.isFinite(first)) out.loadAvg1 = first;
+  } catch {}
+
+  try {
+    const uptime = await readFile("/proc/uptime", "utf8");
+    const seconds = Math.floor(Number(uptime.split(" ")[0]));
+    if (Number.isFinite(seconds)) out.uptimeSeconds = seconds;
+  } catch {}
+
+  try {
+    const meminfo = await readFile("/proc/meminfo", "utf8");
+    const total = meminfo.match(/^MemTotal:\s+(\d+)/m);
+    if (total?.[1]) out.memTotalMb = Math.round(Number(total[1]) / 1024);
+  } catch {}
+
+  try {
+    const stats = await statfs(DEPLYR_HOME);
+    out.diskTotalGb = Math.round((stats.blocks * stats.bsize) / 1024 ** 3);
+  } catch {}
+
+  return out;
 }
 
 // Delta against the previous heartbeat's reading rather than sleeping
@@ -76,7 +118,7 @@ async function sampleMemPercent(): Promise<number> {
 
 async function sampleDiskPercent(): Promise<number> {
   try {
-    const stats = await statfs("/var/lib/argo");
+    const stats = await statfs(DEPLYR_HOME);
     if (stats.blocks === 0) return 0;
     return clampPercent(100 * (1 - stats.bfree / stats.blocks));
   } catch {

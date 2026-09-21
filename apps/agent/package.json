@@ -1,5 +1,5 @@
 {
-  "name": "@argo/agent",
+  "name": "@deplyr/agent",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@argo/shared-types": "workspace:*",
+    "@deplyr/shared-types": "workspace:*",
     "hono": "^4.6.14"
   },
   "devDependencies": {

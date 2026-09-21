@@ -7,7 +7,7 @@ import { connectToControlPlane } from "./connect";
 // section 3 for why it's outbound-only.
 const app = new Hono().get("/healthz", (c) => c.json({ status: "ok" }));
 
-const requiredEnvVars = ["ARGO_CONTROL_PLANE_WS", "ARGO_SERVER_ID", "ARGO_TOKEN"];
+const requiredEnvVars = ["DEPLYR_CONTROL_PLANE_WS", "DEPLYR_SERVER_ID", "DEPLYR_TOKEN"];
 const missing = requiredEnvVars.filter((name) => !process.env[name]);
 
 if (missing.length === 0) {

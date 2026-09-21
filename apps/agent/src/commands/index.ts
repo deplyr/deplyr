@@ -1,4 +1,4 @@
-import type { Command } from "@argo/shared-types";
+import type { Command } from "@deplyr/shared-types";
 import { clone } from "./clone";
 import { install } from "./install";
 import { build } from "./build";
@@ -7,7 +7,9 @@ import { start } from "./start";
 import { nginx } from "./nginx";
 import { ssl } from "./ssl";
 import { healthCheck } from "./health-check";
-import { provisionPostgres } from "./provision-postgres";
+import { dbProvision } from "./db-provision";
+import { dbStart, dbStop, dbRestart, dbRemove } from "./db-lifecycle";
+import { logsContainer } from "./logs";
 
 export type CommandHandler = (
   payload: Record<string, unknown>,
@@ -16,7 +18,7 @@ export type CommandHandler = (
 
 /** Command handlers, dispatched by name — deploy-step commands
  * ("deploy.clone", "deploy.install", ...) per docs/PHASE1_DESIGN.md
- * sections 4 and 5, plus "db.provisionPostgres" (PR6). */
+ * sections 4 and 5, plus the "db.*" database commands. */
 export const commandHandlers: Partial<Record<string, CommandHandler>> = {
   "deploy.clone": clone,
   "deploy.install": install,
@@ -26,7 +28,12 @@ export const commandHandlers: Partial<Record<string, CommandHandler>> = {
   "deploy.nginx": nginx,
   "deploy.ssl": ssl,
   "deploy.health_check": healthCheck,
-  "db.provisionPostgres": provisionPostgres,
+  "db.provision": dbProvision,
+  "db.start": dbStart,
+  "db.stop": dbStop,
+  "db.restart": dbRestart,
+  "db.remove": dbRemove,
+  "logs.container": logsContainer,
 };
 
 export async function dispatchCommand(

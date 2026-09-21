@@ -1,5 +1,5 @@
 import { writeFile } from "node:fs/promises";
-import type { DeployNginxCommandPayload } from "@argo/shared-types";
+import type { DeployNginxCommandPayload } from "@deplyr/shared-types";
 import { runProcess } from "../lib/run-process";
 import { NGINX_CONF_DIR } from "../lib/paths";
 
@@ -27,5 +27,5 @@ export async function nginx(
   await writeFile(`${NGINX_CONF_DIR}/${slug}.conf`, conf, "utf8");
   emitLog(`wrote nginx config for ${serverName}`);
 
-  await runProcess(["docker", "exec", "argo-nginx", "nginx", "-s", "reload"], emitLog);
+  await runProcess(["docker", "exec", "deplyr-nginx", "nginx", "-s", "reload"], emitLog);
 }

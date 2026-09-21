@@ -1,5 +1,5 @@
 import { mkdir, rm } from "node:fs/promises";
-import type { DeployCloneCommandPayload } from "@argo/shared-types";
+import type { DeployCloneCommandPayload } from "@deplyr/shared-types";
 import { runProcess } from "../lib/run-process";
 
 export async function clone(

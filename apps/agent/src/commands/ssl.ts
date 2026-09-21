@@ -1,5 +1,5 @@
 import { writeFile } from "node:fs/promises";
-import type { DeploySslCommandPayload } from "@argo/shared-types";
+import type { DeploySslCommandPayload } from "@deplyr/shared-types";
 import { runProcess } from "../lib/run-process";
 import { NGINX_CONF_DIR, CERT_DIR } from "../lib/paths";
 
@@ -46,5 +46,5 @@ export async function ssl(
   await writeFile(`${NGINX_CONF_DIR}/${slug}-ssl.conf`, conf, "utf8");
   emitLog(`wrote HTTPS config for ${serverName}`);
 
-  await runProcess(["docker", "exec", "argo-nginx", "nginx", "-s", "reload"], emitLog);
+  await runProcess(["docker", "exec", "deplyr-nginx", "nginx", "-s", "reload"], emitLog);
 }

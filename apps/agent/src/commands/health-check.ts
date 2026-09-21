@@ -1,4 +1,4 @@
-import type { DeployHealthCheckCommandPayload } from "@argo/shared-types";
+import type { DeployHealthCheckCommandPayload } from "@deplyr/shared-types";
 
 const MAX_ATTEMPTS = 10;
 const RETRY_DELAY_MS = 2000;
