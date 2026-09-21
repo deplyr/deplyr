@@ -224,3 +224,7 @@ infra/
 docs/
   PHASE1_DESIGN.md   architecture, schema, agent auth and pipeline design
 ```
+
+## License
+
+[MIT](./LICENSE)
