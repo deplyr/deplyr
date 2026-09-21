@@ -1,12 +1,15 @@
 import type { WSContext } from "hono/ws";
 import { eq } from "drizzle-orm";
-import { db, servers } from "@argo/db";
-import { agentAuthSchema, agentEventSchema } from "@argo/shared-types";
+import { db, servers, recordAudit } from "@deplyr/db";
+import { agentAuthSchema, agentEventSchema } from "@deplyr/shared-types";
+import { recordHeartbeat } from "../lib/server-metrics";
+import { recordDbStats } from "../lib/database-metrics";
+import { agentConnected, agentDisconnected, registerConnectionCheck } from "../lib/server-alerts";
 import {
   createSubscriberConnection,
   subscribeAgentCommands,
   publishAgentEvent,
-} from "@argo/queue";
+} from "@deplyr/queue";
 
 /**
  * Agent-facing WebSocket handler, mounted at /agent/ws. Agents always dial
@@ -21,6 +24,7 @@ import {
  */
 
 const connectedAgents = new Map<string, WSContext>();
+registerConnectionCheck((serverId) => connectedAgents.has(serverId));
 
 export function getConnectedAgent(serverId: string): WSContext | undefined {
   return connectedAgents.get(serverId);
@@ -100,6 +104,18 @@ export function agentWsHandler() {
           .where(eq(servers.id, serverId));
 
         console.log(`[agent-ws] server ${serverId} authenticated`);
+        await recordAudit({
+          ownerId: server.userId,
+          serverId: server.id,
+          actor: "agent",
+          action: "server.agent.connected",
+          status: "success",
+          summary: `Agent connected on ${server.name}`,
+          resourceType: "server",
+          resourceId: server.id,
+          resourceName: server.name,
+        });
+        await agentConnected(server.id);
         return;
       }
 
@@ -125,8 +141,19 @@ export function agentWsHandler() {
               memPercent: event.data.memPercent,
               diskPercent: event.data.diskPercent,
               metricsUpdatedAt: new Date(),
+              // Older agents omit these — leave the stored value alone then.
+              ...(event.data.cpuCores !== undefined && { cpuCores: event.data.cpuCores }),
+              ...(event.data.memTotalMb !== undefined && { memTotalMb: event.data.memTotalMb }),
+              ...(event.data.diskTotalGb !== undefined && { diskTotalGb: event.data.diskTotalGb }),
+              ...(event.data.uptimeSeconds !== undefined && { uptimeSeconds: event.data.uptimeSeconds }),
+              ...(event.data.loadAvg1 !== undefined && { loadAvg1: event.data.loadAvg1 }),
             })
             .where(eq(servers.id, serverId));
+          await recordHeartbeat(serverId, event.data);
+        }
+
+        if (event.data.type === "db_stats") {
+          await recordDbStats(serverId, event.data.samples);
         }
       }
     },
@@ -143,6 +170,23 @@ export function agentWsHandler() {
         })
         .where(eq(servers.id, serverId));
       console.warn(`[agent-ws] server ${serverId} disconnected`);
+      agentDisconnected(serverId);
+
+      const [server] = await db.select().from(servers).where(eq(servers.id, serverId));
+      if (server) {
+        await recordAudit({
+          ownerId: server.userId,
+          serverId: server.id,
+          actor: "agent",
+          action: "server.agent.disconnected",
+          status: "failure",
+          summary: `Agent disconnected from ${server.name}`,
+          detail: "Waiting for it to reconnect",
+          resourceType: "server",
+          resourceId: server.id,
+          resourceName: server.name,
+        });
+      }
     },
   };
 }

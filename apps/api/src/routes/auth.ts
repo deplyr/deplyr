@@ -1,13 +1,13 @@
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { db, users, encryptSecret } from "@argo/db";
-import { eq } from "drizzle-orm";
-import type { AuthUser } from "@argo/shared-types";
-import { SESSION_COOKIE, createSessionToken } from "../lib/session";
+import { db, users, encryptSecret } from "@deplyr/db";
+import { eq, ne, and, sql } from "drizzle-orm";
+import { credentialsInputSchema, type AuthUser } from "@deplyr/shared-types";
+import { SESSION_COOKIE, createSessionToken, verifySessionToken } from "../lib/session";
 import { requireAuth } from "../lib/require-auth";
 import type { AppEnv } from "../types";
 
-const STATE_COOKIE = "argo_oauth_state";
+const STATE_COOKIE = "deplyr_oauth_state";
 // One OAuth grant covers both control-plane login and GitHub repo access —
 // see docs/PHASE1_DESIGN.md section 4 (PR2).
 const GITHUB_SCOPES = "read:user user:email repo";
@@ -19,6 +19,17 @@ function requiredEnv(name: string): string {
 }
 
 export const authRoute = new Hono<AppEnv>();
+
+// Tells the UI which sign-in options this instance supports. Cloud has
+// GitHub OAuth configured and always has users; a fresh self-hosted
+// install may have neither, and falls back to the setup flow + PAT.
+authRoute.get("/config", async (c) => {
+  const [row] = await db.select({ count: sql<number>`count(*)::int` }).from(users);
+  return c.json({
+    githubOAuth: Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET),
+    needsSetup: (row?.count ?? 0) === 0,
+  });
+});
 
 authRoute.get("/github/login", (c) => {
   const state = crypto.randomUUID();
@@ -70,7 +81,7 @@ authRoute.get("/github/callback", async (c) => {
   const ghHeaders = {
     Authorization: `Bearer ${accessToken}`,
     Accept: "application/vnd.github+json",
-    "User-Agent": "argo-control-plane",
+    "User-Agent": "deplyr-control-plane",
   };
 
   const [profileRes, emailsRes] = await Promise.all([
@@ -89,23 +100,50 @@ authRoute.get("/github/callback", async (c) => {
   }
 
   const githubId = String(profile.id);
-  const [user] = await db
-    .insert(users)
-    .values({
-      email: primaryEmail.email,
-      githubId,
-      githubLogin: profile.login,
-      githubAccessToken: encryptSecret(accessToken),
-    })
-    .onConflictDoUpdate({
-      target: users.githubId,
-      set: {
-        email: primaryEmail.email,
-        githubLogin: profile.login,
-        githubAccessToken: encryptSecret(accessToken),
-      },
-    })
-    .returning();
+
+  // Already signed in (e.g. an email/password account connecting GitHub):
+  // attach to that account instead of creating a second one.
+  const sessionCookie = getCookie(c, SESSION_COOKIE);
+  const sessionUserId = sessionCookie ? await verifySessionToken(sessionCookie) : null;
+  if (sessionUserId) {
+    const [owner] = await db.select().from(users).where(eq(users.githubId, githubId));
+    if (owner && owner.id !== sessionUserId) {
+      return c.redirect(`${requiredEnv("WEB_URL")}/settings?github=taken`);
+    }
+    await db
+      .update(users)
+      .set({ githubId, githubLogin: profile.login, githubAccessToken: encryptSecret(accessToken) })
+      .where(eq(users.id, sessionUserId));
+    return c.redirect(`${requiredEnv("WEB_URL")}/settings?github=connected`);
+  }
+
+  const encryptedToken = encryptSecret(accessToken);
+  const githubFields = { githubId, githubLogin: profile.login, githubAccessToken: encryptedToken };
+
+  // 1) returning GitHub user, 2) existing password account with the same
+  // *verified* email (link it — GitHub proved the address), 3) brand new.
+  let user: typeof users.$inferSelect | undefined;
+  const [byGithubId] = await db.select().from(users).where(eq(users.githubId, githubId));
+  if (byGithubId) {
+    [user] = await db
+      .update(users)
+      .set({ githubLogin: profile.login, githubAccessToken: encryptedToken })
+      .where(eq(users.id, byGithubId.id))
+      .returning();
+  } else {
+    const [byEmail] = await db.select().from(users).where(eq(users.email, primaryEmail.email));
+    if (byEmail) {
+      if (!primaryEmail.verified) {
+        return c.json({ error: "verify your email on GitHub, then try again" }, 400);
+      }
+      [user] = await db.update(users).set(githubFields).where(eq(users.id, byEmail.id)).returning();
+    } else {
+      [user] = await db
+        .insert(users)
+        .values({ email: primaryEmail.email, ...githubFields })
+        .returning();
+    }
+  }
 
   if (!user) {
     return c.json({ error: "failed to create user" }, 500);
@@ -120,6 +158,119 @@ authRoute.get("/github/callback", async (c) => {
   });
 
   return c.redirect(requiredEnv("WEB_URL"));
+});
+
+authRoute.post("/signup", async (c) => {
+  const parsed = credentialsInputSchema.safeParse(await c.req.json());
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.issues[0]?.message ?? "invalid input" }, 400);
+  }
+  const { email, password } = parsed.data;
+
+  const [existing] = await db.select().from(users).where(eq(users.email, email));
+  if (existing) {
+    return c.json({ error: "an account with that email already exists" }, 409);
+  }
+
+  const passwordHash = await Bun.password.hash(password);
+  const [user] = await db.insert(users).values({ email, passwordHash }).returning();
+  if (!user) {
+    return c.json({ error: "failed to create user" }, 500);
+  }
+
+  const sessionToken = await createSessionToken(user.id);
+  setCookie(c, SESSION_COOKIE, sessionToken, {
+    httpOnly: true,
+    sameSite: "Lax",
+    maxAge: 60 * 60 * 24 * 30,
+    path: "/",
+  });
+
+  const body: AuthUser = { id: user.id, email: user.email, githubLogin: user.githubLogin };
+  return c.json(body, 201);
+});
+
+authRoute.post("/login", async (c) => {
+  const parsed = credentialsInputSchema.safeParse(await c.req.json());
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.issues[0]?.message ?? "invalid input" }, 400);
+  }
+  const { email, password } = parsed.data;
+
+  const [user] = await db.select().from(users).where(eq(users.email, email));
+  if (!user || !user.passwordHash || !(await Bun.password.verify(password, user.passwordHash))) {
+    return c.json({ error: "incorrect email or password" }, 401);
+  }
+
+  const sessionToken = await createSessionToken(user.id);
+  setCookie(c, SESSION_COOKIE, sessionToken, {
+    httpOnly: true,
+    sameSite: "Lax",
+    maxAge: 60 * 60 * 24 * 30,
+    path: "/",
+  });
+
+  const body: AuthUser = { id: user.id, email: user.email, githubLogin: user.githubLogin };
+  return c.json(body);
+});
+
+// Personal-access-token alternative to OAuth — lets a self-hosted instance
+// connect GitHub without registering an OAuth App or having a public
+// callback URL. Classic tokens need `repo`; fine-grained tokens need read
+// access to Contents + Metadata.
+authRoute.post("/github/token", requireAuth, async (c) => {
+  const userId = c.get("userId") as string;
+  const body = (await c.req.json().catch(() => null)) as { token?: string } | null;
+  const token = body?.token?.trim();
+  if (!token) return c.json({ error: "token is required" }, 400);
+
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/vnd.github+json",
+    "User-Agent": "deplyr-control-plane",
+  };
+  const profileRes = await fetch("https://api.github.com/user", { headers });
+  if (profileRes.status === 401) {
+    return c.json({ error: "GitHub rejected this token — check it was copied in full" }, 400);
+  }
+  if (!profileRes.ok) return c.json({ error: "could not reach GitHub" }, 502);
+  const profile = (await profileRes.json()) as { id: number; login: string };
+
+  // Classic tokens report their scopes; fine-grained ones don't, so probe.
+  const scopes = profileRes.headers.get("x-oauth-scopes");
+  if (scopes !== null && !scopes.split(",").map((x) => x.trim()).includes("repo")) {
+    return c.json({ error: "token is missing the `repo` scope" }, 400);
+  }
+  const reposRes = await fetch("https://api.github.com/user/repos?per_page=1", { headers });
+  if (!reposRes.ok) {
+    return c.json({ error: "token can't read repositories — grant Contents (read) access" }, 400);
+  }
+
+  const githubId = String(profile.id);
+  const [owner] = await db
+    .select()
+    .from(users)
+    .where(and(eq(users.githubId, githubId), ne(users.id, userId)));
+
+  await db
+    .update(users)
+    .set({
+      githubLogin: profile.login,
+      githubAccessToken: encryptSecret(token),
+      ...(owner ? {} : { githubId }),
+    })
+    .where(eq(users.id, userId));
+
+  return c.json({ githubLogin: profile.login });
+});
+
+authRoute.delete("/github/token", requireAuth, async (c) => {
+  const userId = c.get("userId") as string;
+  await db
+    .update(users)
+    .set({ githubAccessToken: null, githubLogin: null, githubId: null })
+    .where(eq(users.id, userId));
+  return c.json({ ok: true });
 });
 
 authRoute.get("/me", requireAuth, async (c) => {

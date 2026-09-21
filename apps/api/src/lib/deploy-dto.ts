@@ -1,4 +1,4 @@
-import type { deploys, deploySteps } from "@argo/db";
+import type { deploys, deploySteps } from "@deplyr/db";
 
 export function toDeploySummary(
   deploy: typeof deploys.$inferSelect,

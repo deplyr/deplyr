@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { GithubRepoSummary, GithubBranchSummary } from "@argo/shared-types";
+import type { GithubRepoSummary, GithubBranchSummary } from "@deplyr/shared-types";
 import { requireAuth } from "../lib/require-auth";
 import { getUserGithubToken } from "../lib/user-github-token";
 import { listRepos, listBranches } from "../lib/github";

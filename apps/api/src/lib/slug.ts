@@ -1,5 +1,5 @@
 import { eq, like } from "drizzle-orm";
-import { db, projects } from "@argo/db";
+import { db, projects } from "@deplyr/db";
 
 function baseSlug(input: string): string {
   const slug = input

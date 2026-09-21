@@ -1,5 +1,5 @@
 {
-  "name": "@argo/api",
+  "name": "@deplyr/api",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,9 +9,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@argo/db": "workspace:*",
-    "@argo/queue": "workspace:*",
-    "@argo/shared-types": "workspace:*",
+    "@deplyr/db": "workspace:*",
+    "@deplyr/queue": "workspace:*",
+    "@deplyr/shared-types": "workspace:*",
     "drizzle-orm": "^0.38.3",
     "hono": "^4.6.14"
   },

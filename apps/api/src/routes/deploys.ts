@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { and, asc, eq } from "drizzle-orm";
-import { db, deploys, deploySteps, projects } from "@argo/db";
+import { db, deploys, deploySteps, projects } from "@deplyr/db";
 import { requireAuth } from "../lib/require-auth";
 import { toDeploySummary } from "../lib/deploy-dto";
 import type { AppEnv } from "../types";

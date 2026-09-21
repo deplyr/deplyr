@@ -8,6 +8,11 @@ import { serversRoute } from "./routes/servers";
 import { githubRoute } from "./routes/github";
 import { projectsRoute } from "./routes/projects";
 import { deploysRoute } from "./routes/deploys";
+import { overviewRoute } from "./routes/overview";
+import { databasesRoute, serverDatabasesRoute } from "./routes/databases";
+import { activityRoute, serverActivityRoute } from "./routes/activity";
+import { notificationsRoute } from "./routes/notifications";
+import { logsRoute } from "./routes/logs";
 import { agentWsHandler, startAgentCommandBridge } from "./ws/agent";
 import type { AppEnv } from "./types";
 
@@ -30,9 +35,18 @@ app.use(
 app.route("/health", healthRoute);
 app.route("/auth", authRoute);
 app.route("/servers", serversRoute);
+app.route("/servers", serverDatabasesRoute);
+app.route("/servers", serverActivityRoute);
+app.route("/databases", databasesRoute);
+app.route("/activity", activityRoute);
+app.route("/notifications", notificationsRoute);
+// Mounted at "/": it defines /databases/:id/logs and /projects/:id/logs itself, so
+// it never has to touch the files that own those two prefixes.
+app.route("/", logsRoute);
 app.route("/github", githubRoute);
 app.route("/projects", projectsRoute);
 app.route("/deploys", deploysRoute);
+app.route("/overview", overviewRoute);
 
 // Agents dial out to this endpoint and stay connected — see
 // docs/PHASE1_DESIGN.md section 3.

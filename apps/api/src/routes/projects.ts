@@ -8,23 +8,24 @@ import {
   deploys,
   deploySteps,
   databases,
-  notificationChannels,
   alertState,
   encryptSecret,
   decryptSecret,
-} from "@argo/db";
+  recordAudit,
+} from "@deplyr/db";
 import {
   createProjectInputSchema,
+  updateProjectSettingsInputSchema,
   upsertSecretsInputSchema,
-  setChannelInputSchema,
   DEPLOY_STEP_NAMES,
   type SecretSummary,
-  type NotificationChannelSummary,
-} from "@argo/shared-types";
-import { deployRunQueue, dbProvisionQueue } from "@argo/queue";
+} from "@deplyr/shared-types";
+import { deployRunQueue } from "@deplyr/queue";
+import { createDatabase } from "../lib/create-database";
+import { toDatabaseDTO } from "../lib/database-dto";
 import { requireAuth } from "../lib/require-auth";
 import { getUserGithubToken } from "../lib/user-github-token";
-import { detectFramework } from "../lib/framework-detect";
+import { detectProject } from "../lib/framework-detect";
 import { uniqueProjectSlug } from "../lib/slug";
 import { getFileContent } from "../lib/github";
 import { parseEnvExampleKeys } from "../lib/parse-env-example";
@@ -42,6 +43,8 @@ function toProjectDTO(project: typeof projects.$inferSelect) {
     githubRepo: project.githubRepo,
     githubBranch: project.githubBranch,
     framework: project.framework,
+    settings: project.settings,
+    appPort: project.appPort,
     status: project.status,
     serverId: project.serverId,
     createdAt: project.createdAt,
@@ -95,12 +98,13 @@ projectsRoute.post("/", async (c) => {
   // Validated by createProjectInputSchema's regex, so this split is safe.
   const [owner, repo] = input.githubRepo.split("/") as [string, string];
 
-  let framework: Awaited<ReturnType<typeof detectFramework>>;
+  let detected: Awaited<ReturnType<typeof detectProject>>;
   try {
-    framework = await detectFramework(token, owner, repo, input.githubBranch);
+    detected = await detectProject(token, owner, repo, input.githubBranch, input.rootDir ?? "");
   } catch {
     return c.json({ error: "could not read this repository from GitHub" }, 502);
   }
+  const framework = detected.framework;
 
   const subdomain = await uniqueProjectSlug(input.name);
 
@@ -114,6 +118,9 @@ projectsRoute.post("/", async (c) => {
       githubRepo: input.githubRepo,
       githubBranch: input.githubBranch,
       framework,
+      // What detection found — package manager, Node version, commands —
+      // becomes the project's editable settings.
+      settings: framework ? detected.settings : input.rootDir ? { rootDir: input.rootDir } : {},
       status: "created",
     })
     .returning();
@@ -148,7 +155,89 @@ projectsRoute.post("/", async (c) => {
     // ignored — see comment above
   }
 
+  await recordAudit({
+    ownerId: userId,
+    serverId: project.serverId,
+    action: "project.create",
+    status: "success",
+    summary: `Created project ${project.name}`,
+    detail: `${project.githubRepo}@${project.githubBranch}`,
+    resourceType: "project",
+    resourceId: project.id,
+    resourceName: project.name,
+  });
+
   return c.json(toProjectDTO(project), 201);
+});
+
+// ---------------------------------------------------------------------------
+// build settings — how the project is built and run. Detection proposes; the
+// user can override any of it, and it takes effect on the next deploy.
+// ---------------------------------------------------------------------------
+
+projectsRoute.post("/:id/detect", async (c) => {
+  const userId = c.get("userId");
+  const project = await getOwnedProject(userId, c.req.param("id"));
+  if (!project) return c.json({ error: "not found" }, 404);
+
+  const token = await getUserGithubToken(userId);
+  if (!token) return c.json({ error: "no GitHub token on file — sign in again" }, 400);
+
+  // Optional override so the settings page can preview a different folder
+  // before saving it.
+  const body = (await c.req.json().catch(() => null)) as { rootDir?: unknown } | null;
+  const rootDir = typeof body?.rootDir === "string" ? body.rootDir : (project.settings.rootDir ?? "");
+  if (!updateProjectSettingsInputSchema.shape.settings.shape.rootDir.safeParse(rootDir).success) {
+    return c.json({ error: "root directory must be a plain relative path" }, 400);
+  }
+
+  const [owner, repo] = project.githubRepo.split("/") as [string, string];
+  try {
+    return c.json(await detectProject(token, owner, repo, project.githubBranch, rootDir));
+  } catch {
+    return c.json({ error: "could not read this repository from GitHub" }, 502);
+  }
+});
+
+projectsRoute.put("/:id/settings", async (c) => {
+  const userId = c.get("userId");
+  const project = await getOwnedProject(userId, c.req.param("id"));
+  if (!project) return c.json({ error: "not found" }, 404);
+  if (project.status === "deploying") {
+    return c.json({ error: "a deploy is running — wait for it to finish, then change settings" }, 409);
+  }
+
+  const parsed = updateProjectSettingsInputSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.issues[0]?.message ?? "invalid input", issues: parsed.error.issues }, 400);
+  }
+  const { framework, settings } = parsed.data;
+
+  // Drop keys the user left blank so "use the default" stays distinguishable
+  // from "skip this step" — for the three commands, only "" means skip and
+  // the client sends that deliberately.
+  const cleaned = Object.fromEntries(Object.entries(settings).filter(([, v]) => v !== undefined));
+
+  const [updated] = await db
+    .update(projects)
+    .set({ settings: cleaned, ...(framework ? { framework } : {}), updatedAt: new Date() })
+    .where(eq(projects.id, project.id))
+    .returning();
+  if (!updated) return c.json({ error: "failed to save settings" }, 500);
+
+  await recordAudit({
+    ownerId: userId,
+    serverId: project.serverId,
+    action: "project.settings.update",
+    status: "success",
+    summary: `Changed build settings for ${project.name}`,
+    detail: `Takes effect on the next deploy${framework && framework !== project.framework ? ` · framework ${project.framework ?? "none"} → ${framework}` : ""}`,
+    resourceType: "project",
+    resourceId: project.id,
+    resourceName: project.name,
+  });
+
+  return c.json(toProjectDTO(updated));
 });
 
 // ---------------------------------------------------------------------------
@@ -185,6 +274,17 @@ projectsRoute.get("/:id/secrets/:key/reveal", async (c) => {
     .where(and(eq(secrets.projectId, project.id), eq(secrets.key, c.req.param("key"))));
   if (!row) return c.json({ error: "not found" }, 404);
 
+  await recordAudit({
+    ownerId: c.get("userId"),
+    serverId: project.serverId,
+    action: "secret.reveal",
+    status: "info",
+    summary: `Revealed secret ${row.key} of ${project.name}`,
+    resourceType: "project",
+    resourceId: project.id,
+    resourceName: project.name,
+  });
+
   return c.json({ key: row.key, value: decryptSecret(row.value) });
 });
 
@@ -206,6 +306,20 @@ projectsRoute.put("/:id/secrets", async (c) => {
         set: { value: encryptSecret(value), updatedAt: new Date() },
       });
   }
+
+  // Which secrets, never their values.
+  const keys = parsed.data.secrets.map((x) => x.key);
+  await recordAudit({
+    ownerId: c.get("userId"),
+    serverId: project.serverId,
+    action: "secret.update",
+    status: "success",
+    summary: `Updated ${keys.length} secret${keys.length === 1 ? "" : "s"} for ${project.name}`,
+    detail: keys.join(", "),
+    resourceType: "project",
+    resourceId: project.id,
+    resourceName: project.name,
+  });
 
   return c.json({ ok: true });
 });
@@ -275,6 +389,17 @@ projectsRoute.post("/:id/deploys", async (c) => {
 
   await deployRunQueue().add("deploy", { deployId: deploy.id });
 
+  await recordAudit({
+    ownerId: c.get("userId"),
+    serverId: project.serverId,
+    action: "deploy.start",
+    status: "info",
+    summary: `Started a deploy of ${project.name}`,
+    resourceType: "project",
+    resourceId: project.id,
+    resourceName: project.name,
+  });
+
   const steps = await db
     .select()
     .from(deploySteps)
@@ -290,16 +415,6 @@ projectsRoute.post("/:id/deploys", async (c) => {
 // that up means redeploying, same as any other secret change.
 // ---------------------------------------------------------------------------
 
-function toDatabaseDTO(database: typeof databases.$inferSelect) {
-  return {
-    id: database.id,
-    type: database.type,
-    status: database.status,
-    connectionSecretKey: database.connectionSecretKey,
-    createdAt: database.createdAt,
-  };
-}
-
 projectsRoute.get("/:id/databases", async (c) => {
   const project = await getOwnedProject(c.get("userId"), c.req.param("id"));
   if (!project) return c.json({ error: "not found" }, 404);
@@ -312,6 +427,9 @@ projectsRoute.post("/:id/databases", async (c) => {
   const project = await getOwnedProject(c.get("userId"), c.req.param("id"));
   if (!project) return c.json({ error: "not found" }, 404);
 
+  // The one-click button on the project page keeps its original contract:
+  // one linked Postgres per project. More than that is managed from the
+  // server's Databases tab.
   const [existing] = await db
     .select()
     .from(databases)
@@ -321,69 +439,21 @@ projectsRoute.post("/:id/databases", async (c) => {
   }
 
   const [server] = await db.select().from(servers).where(eq(servers.id, project.serverId));
-  if (!server || server.status !== "connected") {
-    return c.json({ error: "this server isn't connected yet" }, 400);
-  }
+  if (!server) return c.json({ error: "server not found" }, 404);
 
-  const [database] = await db
-    .insert(databases)
-    .values({
-      projectId: project.id,
+  const result = await createDatabase({
+    server,
+    projectId: project.id,
+    input: {
       type: "postgres",
-      containerName: `argo-db-${project.subdomain}`,
-      connectionSecretKey: "DATABASE_URL",
-      status: "provisioning",
-    })
-    .returning();
-  if (!database) return c.json({ error: "failed to create database" }, 500);
+      name: `${project.subdomain}-db`,
+      version: "16",
+      postgres: { dbName: "app", username: "app" },
+    },
+  });
+  if (!result.ok) return c.json({ error: result.error }, result.status);
 
-  await dbProvisionQueue().add("provision", { projectId: project.id });
-
-  return c.json(toDatabaseDTO(database), 201);
-});
-
-// ---------------------------------------------------------------------------
-// notification channel — one Slack webhook per project, Phase 1's only
-// channel type. Never returned once set, same posture as secrets: the
-// list/get endpoint says whether one's configured, not what it is.
-// ---------------------------------------------------------------------------
-
-projectsRoute.get("/:id/channel", async (c) => {
-  const project = await getOwnedProject(c.get("userId"), c.req.param("id"));
-  if (!project) return c.json({ error: "not found" }, 404);
-
-  const [channel] = await db
-    .select()
-    .from(notificationChannels)
-    .where(eq(notificationChannels.projectId, project.id));
-
-  const body: NotificationChannelSummary = { configured: !!channel };
-  return c.json(body);
-});
-
-projectsRoute.put("/:id/channel", async (c) => {
-  const project = await getOwnedProject(c.get("userId"), c.req.param("id"));
-  if (!project) return c.json({ error: "not found" }, 404);
-
-  const parsed = setChannelInputSchema.safeParse(await c.req.json());
-  if (!parsed.success) {
-    return c.json({ error: "invalid input", issues: parsed.error.issues }, 400);
-  }
-
-  await db
-    .insert(notificationChannels)
-    .values({
-      projectId: project.id,
-      type: "slack",
-      webhookUrl: encryptSecret(parsed.data.webhookUrl),
-    })
-    .onConflictDoUpdate({
-      target: notificationChannels.projectId,
-      set: { webhookUrl: encryptSecret(parsed.data.webhookUrl) },
-    });
-
-  const body: NotificationChannelSummary = { configured: true };
-  return c.json(body);
+  return c.json(toDatabaseDTO(result.database), 201);
 });
 
 // ---------------------------------------------------------------------------

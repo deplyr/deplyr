@@ -4,7 +4,7 @@ function githubHeaders(accessToken: string) {
   return {
     Authorization: `Bearer ${accessToken}`,
     Accept: "application/vnd.github+json",
-    "User-Agent": "argo-control-plane",
+    "User-Agent": "deplyr-control-plane",
   };
 }
 
@@ -60,4 +60,30 @@ export async function getFileContent(
   const body = (await res.json()) as { content?: string; encoding?: string };
   if (!body.content || body.encoding !== "base64") return null;
   return Buffer.from(body.content, "base64").toString("utf8");
+}
+
+export interface GithubDirEntry {
+  name: string;
+  type: "file" | "dir" | "symlink" | "submodule";
+}
+
+/** Entries of a directory at a ref ("" = repo root), or null if it isn't one. */
+export async function listDirectory(
+  accessToken: string,
+  owner: string,
+  repo: string,
+  path: string,
+  ref: string,
+): Promise<GithubDirEntry[] | null> {
+  const clean = path.replace(/^\/+|\/+$/g, "");
+  const res = await fetch(
+    `${GITHUB_API}/repos/${owner}/${repo}/contents${clean ? `/${clean}` : ""}?ref=${encodeURIComponent(ref)}`,
+    { headers: githubHeaders(accessToken) },
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`GitHub directory listing failed: ${res.status}`);
+
+  const body = (await res.json()) as unknown;
+  // A file path returns a single object instead of an array.
+  return Array.isArray(body) ? (body as GithubDirEntry[]) : null;
 }

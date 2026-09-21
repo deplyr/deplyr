@@ -1,9 +1,10 @@
 import { Hono } from "hono";
 import { and, desc, eq } from "drizzle-orm";
-import { db, servers, encryptSecret } from "@argo/db";
-import { registerServerInputSchema } from "@argo/shared-types";
-import { serverInstallQueue } from "@argo/queue";
+import { db, servers, encryptSecret, recordAudit } from "@deplyr/db";
+import { metricsRangeSchema, registerServerInputSchema } from "@deplyr/shared-types";
+import { serverInstallQueue } from "@deplyr/queue";
 import { requireAuth } from "../lib/require-auth";
+import { getMetricsHistory } from "../lib/server-metrics";
 import type { AppEnv } from "../types";
 
 export const serversRoute = new Hono<AppEnv>();
@@ -25,6 +26,11 @@ function toServerDTO(server: typeof servers.$inferSelect) {
     memPercent: server.memPercent,
     diskPercent: server.diskPercent,
     metricsUpdatedAt: server.metricsUpdatedAt,
+    cpuCores: server.cpuCores,
+    memTotalMb: server.memTotalMb,
+    diskTotalGb: server.diskTotalGb,
+    uptimeSeconds: server.uptimeSeconds,
+    loadAvg1: server.loadAvg1,
   };
 }
 
@@ -46,6 +52,20 @@ serversRoute.get("/:id", async (c) => {
     .where(and(eq(servers.id, c.req.param("id")), eq(servers.userId, userId)));
   if (!server) return c.json({ error: "not found" }, 404);
   return c.json(toServerDTO(server));
+});
+
+serversRoute.get("/:id/metrics", async (c) => {
+  const userId = c.get("userId");
+  const range = metricsRangeSchema.safeParse(c.req.query("range") ?? "1h");
+  if (!range.success) return c.json({ error: "invalid range" }, 400);
+
+  const [server] = await db
+    .select({ id: servers.id })
+    .from(servers)
+    .where(and(eq(servers.id, c.req.param("id")), eq(servers.userId, userId)));
+  if (!server) return c.json({ error: "not found" }, 404);
+
+  return c.json(await getMetricsHistory(server.id, range.data));
 });
 
 serversRoute.post("/", async (c) => {
@@ -71,6 +91,18 @@ serversRoute.post("/", async (c) => {
   if (!server) return c.json({ error: "failed to create server" }, 500);
 
   await serverInstallQueue().add("install", { serverId: server.id });
+
+  await recordAudit({
+    ownerId: userId,
+    serverId: server.id,
+    action: "server.register",
+    status: "success",
+    summary: `Registered server ${server.name}`,
+    detail: server.ipAddress,
+    resourceType: "server",
+    resourceId: server.id,
+    resourceName: server.name,
+  });
 
   return c.json(toServerDTO(server), 201);
 });
