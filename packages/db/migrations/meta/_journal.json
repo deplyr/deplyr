@@ -71,6 +71,20 @@
       "when": 1790018166146,
       "tag": "0009_acoustic_firebird",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790088627380,
+      "tag": "0010_lazy_landau",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790089001156,
+      "tag": "0011_smart_mother_askani",
+      "breakpoints": true
     }
   ]
 }

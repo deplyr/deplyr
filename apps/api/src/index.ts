@@ -12,6 +12,7 @@ import { overviewRoute } from "./routes/overview";
 import { databasesRoute, serverDatabasesRoute } from "./routes/databases";
 import { activityRoute, serverActivityRoute } from "./routes/activity";
 import { notificationsRoute } from "./routes/notifications";
+import { domainsRoute } from "./routes/domains";
 import { logsRoute } from "./routes/logs";
 import { agentWsHandler, startAgentCommandBridge } from "./ws/agent";
 import type { AppEnv } from "./types";
@@ -40,6 +41,7 @@ app.route("/servers", serverActivityRoute);
 app.route("/databases", databasesRoute);
 app.route("/activity", activityRoute);
 app.route("/notifications", notificationsRoute);
+app.route("/projects", domainsRoute);
 // Mounted at "/": it defines /databases/:id/logs and /projects/:id/logs itself, so
 // it never has to touch the files that own those two prefixes.
 app.route("/", logsRoute);

@@ -4,12 +4,17 @@
 FROM oven/bun:1-slim AS runner
 WORKDIR /app
 
-# git: for deploy.clone. docker.io: gives us the `docker` CLI so the agent
-# can drive the Docker daemon over the mounted socket (docker.sock) —
-# every deploy step after clone runs as a sibling container. See
-# docs/PHASE1_DESIGN.md section 5.1.
+# git: for deploy.clone. docker-cli: the `docker` binary the agent shells
+# out to for every deploy/database/domain step, talking to the daemon over
+# the mounted socket (docker.sock) — every such step runs as a sibling
+# container. See docs/PHASE1_DESIGN.md section 5.1.
+#
+# docker-cli, not docker.io: on Debian 13 (trixie), docker.io only pulls in
+# dockerd (the daemon) — the client binary was split into its own package.
+# We never run a daemon in this container (the host's is used, via the
+# mounted socket), so docker-cli is both correct and smaller.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends git docker.io && \
+    apt-get install -y --no-install-recommends git docker-cli && \
     rm -rf /var/lib/apt/lists/*
 
 COPY package.json ./

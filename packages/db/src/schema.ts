@@ -99,6 +99,21 @@ export const deployStepStatusEnum = pgEnum("deploy_step_status", [
 export const channelTypeEnum = pgEnum("channel_type", ["slack", "discord"]);
 export const notificationStatusEnum = pgEnum("notification_status", ["sent", "failed"]);
 
+export const domainStatusEnum = pgEnum("domain_status", [
+  "pending_dns", // waiting on the user to create the DNS record
+  "provisioning", // DNS looks right, nginx + certificate are being set up
+  "active",
+  "error",
+  "removing",
+]);
+export const domainSslStatusEnum = pgEnum("domain_ssl_status", [
+  "none",
+  "provisioning",
+  "active",
+  "renewing",
+  "error",
+]);
+
 // ---------------------------------------------------------------------------
 // tables
 // ---------------------------------------------------------------------------
@@ -185,6 +200,14 @@ export const projects = pgTable("projects", {
   settings: jsonb("settings").$type<ProjectSettings>().notNull().default({}),
   appPort: integer("app_port"),
   status: projectStatusEnum("status").notNull().default("created"),
+  // Live status of the default <subdomain>.<appDomain> address — set by the
+  // deploy pipeline's ssl step, which is the only thing that knows whether an
+  // operator-supplied wildcard cert was actually configured for it. Distinct
+  // from a deploy's historical "ssl" step outcome: this reflects the *current*
+  // state, which a later cert change or a DNS-only redeploy can update without
+  // a full deploy.
+  defaultDomainHttps: boolean("default_domain_https").notNull().default(false),
+  defaultDomainCheckedAt: timestamp("default_domain_checked_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -366,6 +389,29 @@ export const alertState = pgTable("alert_state", {
 // changes, installs, alerts. Names are copied in (resource_name, summary) so a
 // line like "Deleted database ui-cache" still reads correctly after the row it
 // describes is gone. Never holds secret values, only which secret was touched.
+// A custom domain pointed at a project, on top of its free <subdomain>.<appDomain>.
+// Verification is a DNS lookup done from the control plane (same public DNS
+// everyone sees); provisioning (nginx block + ACME certificate) happens on the
+// agent, once DNS resolves where we expect.
+export const domains = pgTable(
+  "domains",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    projectId: uuid("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    hostname: text("hostname").notNull().unique(),
+    status: domainStatusEnum("status").notNull().default("pending_dns"),
+    statusDetail: text("status_detail"),
+    sslStatus: domainSslStatusEnum("ssl_status").notNull().default("none"),
+    sslStatusDetail: text("ssl_status_detail"),
+    certExpiresAt: timestamp("cert_expires_at", { withTimezone: true }),
+    lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("domains_project_idx").on(table.projectId)],
+);
+
 export const auditEvents = pgTable(
   "audit_events",
   {
@@ -414,6 +460,7 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   server: one(servers, { fields: [projects.serverId], references: [servers.id] }),
   secrets: many(secrets),
   databases: many(databases),
+  domains: many(domains),
   deploys: many(deploys),
   notificationChannels: many(notificationChannels),
   alertState: one(alertState, {
@@ -456,4 +503,8 @@ export const alertStateRelations = relations(alertState, ({ one }) => ({
     fields: [alertState.channelId],
     references: [notificationChannels.id],
   }),
+}));
+
+export const domainsRelations = relations(domains, ({ one }) => ({
+  project: one(projects, { fields: [domains.projectId], references: [projects.id] }),
 }));

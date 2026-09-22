@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ExternalLink, GitBranch, History, KeyRound, LayoutDashboard, Loader2, ScrollText, Server as ServerIcon, Settings2, type LucideIcon } from "lucide-react";
+import { ExternalLink, GitBranch, Globe, History, KeyRound, LayoutDashboard, Loader2, Lock, ScrollText, Server as ServerIcon, Settings2, Unlock, type LucideIcon } from "lucide-react";
 import { DeployButton } from "@/components/deploys/deploy-button";
 import { FrameworkBadge } from "@/components/projects/framework-badge";
 import { HealthIndicator } from "@/components/projects/health-indicator";
@@ -38,6 +38,7 @@ export function ProjectShell({ children }: { children: React.ReactNode }) {
   const tabs: Tab[] = [
     { slug: "", label: "Overview", icon: LayoutDashboard },
     { slug: "/deployments", label: "Deployments", icon: History, count: deploys.length, also: ["/deploys"] },
+    { slug: "/domains", label: "Domains", icon: Globe },
     { slug: "/secrets", label: "Environment", icon: KeyRound, count: secrets.length || undefined, attention: unset > 0 },
     { slug: "/logs", label: "Logs", icon: ScrollText },
     { slug: "/settings", label: "Settings", icon: Settings2 },
@@ -78,6 +79,16 @@ export function ProjectShell({ children }: { children: React.ReactNode }) {
                 <Badge tone={projectTone[project.status]}>{project.status}</Badge>
                 <FrameworkBadge framework={project.framework} />
                 <HealthIndicator health={health} />
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium",
+                    project.defaultDomainHttps ? "border-success/25 bg-success/10 text-success" : "border-white/10 bg-white/[0.05] text-muted",
+                  )}
+                  title={project.defaultDomainHttps ? "HTTPS is on for the default address" : "No wildcard certificate configured — HTTP only"}
+                >
+                  {project.defaultDomainHttps ? <Lock className="h-3 w-3" strokeWidth={1.75} /> : <Unlock className="h-3 w-3" strokeWidth={1.75} />}
+                  {project.defaultDomainHttps ? "HTTPS" : "HTTP"}
+                </span>
                 <a
                   href={`https://github.com/${project.githubRepo}/tree/${project.githubBranch}`}
                   target="_blank"

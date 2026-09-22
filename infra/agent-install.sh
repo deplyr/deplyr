@@ -32,7 +32,8 @@ systemctl enable --now docker >/dev/null 2>&1 || true
 # agent's own container (via the mounted socket), so "same path on both
 # sides" is what makes that work, not a coincidence.
 DEPLYR_HOME=/var/lib/deplyr
-mkdir -p "$DEPLYR_HOME/apps" "$DEPLYR_HOME/nginx/conf.d" "$DEPLYR_HOME/certs"
+mkdir -p "$DEPLYR_HOME/apps" "$DEPLYR_HOME/nginx/conf.d" "$DEPLYR_HOME/certs" \
+  "$DEPLYR_HOME/certbot" "$DEPLYR_HOME/acme-webroot"
 
 if [ ! -f "$DEPLYR_HOME/nginx/nginx.conf" ]; then
   cat > "$DEPLYR_HOME/nginx/nginx.conf" <<'EOF'
@@ -73,6 +74,8 @@ docker run -d \
   -v "$DEPLYR_HOME/nginx/nginx.conf:/etc/nginx/nginx.conf:ro" \
   -v "$DEPLYR_HOME/nginx/conf.d:/etc/nginx/conf.d" \
   -v "$DEPLYR_HOME/certs:$DEPLYR_HOME/certs:ro" \
+  -v "$DEPLYR_HOME/certbot:$DEPLYR_HOME/certbot:ro" \
+  -v "$DEPLYR_HOME/acme-webroot:$DEPLYR_HOME/acme-webroot:ro" \
   nginx:alpine
 
 echo "Deplyr agent and nginx containers started."

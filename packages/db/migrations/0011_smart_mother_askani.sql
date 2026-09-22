@@ -1,0 +1,1 @@
+ALTER TYPE "public"."domain_status" ADD VALUE 'removing';

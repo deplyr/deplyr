@@ -45,6 +45,8 @@ function toProjectDTO(project: typeof projects.$inferSelect) {
     framework: project.framework,
     settings: project.settings,
     appPort: project.appPort,
+    defaultDomainHttps: project.defaultDomainHttps,
+    defaultDomainCheckedAt: project.defaultDomainCheckedAt ? project.defaultDomainCheckedAt.toISOString() : null,
     status: project.status,
     serverId: project.serverId,
     createdAt: project.createdAt,

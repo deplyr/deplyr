@@ -57,7 +57,7 @@ export function connectToControlPlane() {
         return;
       }
       try {
-        await dispatchCommand(parsed.data, (line) => {
+        const detail = await dispatchCommand(parsed.data, (line) => {
           send(ws, {
             type: "log",
             requestId: parsed.data.requestId,
@@ -68,6 +68,7 @@ export function connectToControlPlane() {
           type: "result",
           requestId: parsed.data.requestId,
           status: "success",
+          ...(detail ? { detail } : {}),
         } satisfies AgentEvent);
       } catch (err) {
         send(ws, {

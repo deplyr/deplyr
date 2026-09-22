@@ -20,7 +20,7 @@ import type { Command } from "@deplyr/shared-types";
 
 interface PendingRequest {
   onLog: (line: string) => void;
-  resolve: () => void;
+  resolve: (detail: string | undefined) => void;
   reject: (err: Error) => void;
 }
 
@@ -45,7 +45,7 @@ function ensureSubscriber() {
 
     pending.delete(event.requestId);
     if (event.status === "success") {
-      entry.resolve();
+      entry.resolve(event.detail);
     } else {
       entry.reject(new Error(event.detail ?? "command failed"));
     }
@@ -62,7 +62,7 @@ export interface RunAgentCommandOptions {
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes — a build can be slow
 
-export async function runAgentCommand(options: RunAgentCommandOptions): Promise<void> {
+export async function runAgentCommand(options: RunAgentCommandOptions): Promise<string | undefined> {
   ensureSubscriber();
   const requestId = randomUUID();
   const command: Command = {
@@ -72,7 +72,7 @@ export async function runAgentCommand(options: RunAgentCommandOptions): Promise<
     payload: options.payload,
   };
 
-  return new Promise<void>((resolve, reject) => {
+  return new Promise<string | undefined>((resolve, reject) => {
     const timeout = setTimeout(() => {
       pending.delete(requestId);
       reject(new Error(`command "${options.name}" timed out`));
@@ -80,9 +80,9 @@ export async function runAgentCommand(options: RunAgentCommandOptions): Promise<
 
     pending.set(requestId, {
       onLog: options.onLog,
-      resolve: () => {
+      resolve: (detail) => {
         clearTimeout(timeout);
-        resolve();
+        resolve(detail);
       },
       reject: (err) => {
         clearTimeout(timeout);

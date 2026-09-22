@@ -18,6 +18,9 @@ export const QUEUE_NAMES = {
   dbProvision: "db-provision",
   dbOps: "db-ops",
   healthCheck: "health-check",
+  domainVerify: "domain-verify",
+  domainRemove: "domain-remove",
+  domainRenew: "domain-renew",
 } as const;
 
 export interface ServerInstallJob {
@@ -37,6 +40,21 @@ export interface DbOpsJob {
   databaseId: string;
   action: "start" | "stop" | "restart" | "remove";
 }
+
+/** Checks DNS, then (once it matches) configures nginx and requests a
+ * certificate — one job re-enqueues itself for the next stage rather than
+ * chaining queues, so a domain's whole history stays in one place to poll. */
+export interface DomainVerifyJob {
+  domainId: string;
+}
+
+export interface DomainRemoveJob {
+  domainId: string;
+}
+
+/** No payload: one sweep renews every domain on every server, per-server,
+ * via a single `domain.renewAll` agent call each (see PR-domains). */
+export type DomainRenewJob = Record<string, never>;
 
 // PR1 originally shaped this as a per-project job; PR7 (which actually
 // implements it) does a single repeatable sweep over every live project
@@ -74,7 +92,31 @@ export function healthCheckQueue() {
   });
 }
 
+export function domainVerifyQueue() {
+  return new Queue<DomainVerifyJob>(QUEUE_NAMES.domainVerify, {
+    connection: getRedisConnection(),
+  });
+}
+
+export function domainRemoveQueue() {
+  return new Queue<DomainRemoveJob>(QUEUE_NAMES.domainRemove, {
+    connection: getRedisConnection(),
+  });
+}
+
+export function domainRenewQueue() {
+  return new Queue<DomainRenewJob>(QUEUE_NAMES.domainRenew, {
+    connection: getRedisConnection(),
+  });
+}
+
 const HEALTH_CHECK_INTERVAL_MS = 60_000;
+// Certificates are valid ~90 days; renewal is attempted well before that, so
+// a day's cadence gives huge margin without needing to be exact.
+const DOMAIN_RENEW_INTERVAL_MS = 24 * 60 * 60 * 1000;
+// A domain waiting on the user to create a DNS record is re-checked on this
+// cadence until it resolves — no user action re-triggers it otherwise.
+export const DOMAIN_VERIFY_RETRY_MS = 2 * 60 * 1000;
 
 /** Idempotent — BullMQ no-ops re-adding a repeatable job with the same
  * name/repeat config, so it's safe to call on every worker boot. */
@@ -83,5 +125,13 @@ export async function scheduleHealthCheckSweep(): Promise<void> {
     "sweep",
     {},
     { repeat: { every: HEALTH_CHECK_INTERVAL_MS }, jobId: "health-check-sweep" },
+  );
+}
+
+export async function scheduleDomainRenewalSweep(): Promise<void> {
+  await domainRenewQueue().add(
+    "sweep",
+    {},
+    { repeat: { every: DOMAIN_RENEW_INTERVAL_MS }, jobId: "domain-renew-sweep" },
   );
 }

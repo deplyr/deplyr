@@ -82,6 +82,9 @@ export interface ProjectSummary {
   settings: ProjectSettings;
   /** The port the app listens on, on its server (null until the first deploy assigns one). */
   appPort: number | null;
+  /** Live HTTPS status of the free <subdomain>.<appDomain> address. */
+  defaultDomainHttps: boolean;
+  defaultDomainCheckedAt: string | null;
   status: ProjectStatus;
   serverId: string;
   createdAt: string;

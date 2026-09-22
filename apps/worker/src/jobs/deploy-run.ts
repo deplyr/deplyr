@@ -136,7 +136,7 @@ export async function processDeployRun(job: Job<DeployRunJob>) {
       .where(and(eq(deploySteps.deployId, deploy.id), eq(deploySteps.name, stepName)));
 
     try {
-      await runAgentCommand({
+      const detail = await runAgentCommand({
         serverId: server.id,
         name: `deploy.${stepName}`,
         payload: buildPayload(stepName, ctx),
@@ -146,6 +146,16 @@ export async function processDeployRun(job: Job<DeployRunJob>) {
         .update(deploySteps)
         .set({ status: "success", finishedAt: new Date() })
         .where(and(eq(deploySteps.deployId, deploy.id), eq(deploySteps.name, stepName)));
+
+      // The ssl step is the only thing that knows whether an operator-supplied
+      // wildcard cert actually got configured for this project's own address —
+      // record that as live state, not just this one deploy's history.
+      if (stepName === "ssl") {
+        await db
+          .update(projects)
+          .set({ defaultDomainHttps: detail === "https", defaultDomainCheckedAt: new Date() })
+          .where(eq(projects.id, project.id));
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       await appendStepLog(deploy.id, stepName, `error: ${message}`);

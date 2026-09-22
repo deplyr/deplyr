@@ -12,14 +12,14 @@ import { NGINX_CONF_DIR, CERT_DIR } from "../lib/paths";
 export async function ssl(
   payload: Record<string, unknown>,
   emitLog: (line: string) => void,
-): Promise<void> {
+): Promise<string> {
   const { slug, domain, port, certPem, keyPem } = payload as unknown as DeploySslCommandPayload;
 
   if (!certPem || !keyPem) {
     emitLog(
       "no wildcard certificate configured on the control plane — app is reachable over HTTP only",
     );
-    return;
+    return "http_only";
   }
 
   await writeFile(`${CERT_DIR}/wildcard.crt`, certPem, "utf8");
@@ -47,4 +47,5 @@ export async function ssl(
   emitLog(`wrote HTTPS config for ${serverName}`);
 
   await runProcess(["docker", "exec", "deplyr-nginx", "nginx", "-s", "reload"], emitLog);
+  return "https";
 }

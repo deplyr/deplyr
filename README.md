@@ -32,6 +32,13 @@ Discord or Slack when something breaks.
   app, and never written into your source tree or a Docker image layer.
 - Step-by-step deploy progress with per-step logs.
 
+**Domains**
+- Every project gets a free `<name>.<your-domain>` address.
+- Add your own domain: Deplyr shows the DNS record to create, verifies it
+  automatically, and issues a real Let's Encrypt certificate for it — no
+  wildcard certificate needed for custom domains, and certificates renew
+  themselves.
+
 **Databases**
 - Create **PostgreSQL** and **Redis** on a server: choose version, port, memory
   limit and (for Redis) eviction policy and persistence.
@@ -180,12 +187,19 @@ Being upfront, since this is early:
   has been exercised against real Docker and real GitHub, but the full path
   through nginx, SSL and the post-deploy health check on a fresh VPS is the next
   milestone.
-- **The agent image isn't published yet.** The installer pulls
-  `ghcr.io/deplyr/agent:latest`; until CI publishes it, build it from
-  `infra/docker/agent.Dockerfile` and push it yourself.
-- **HTTPS for deployed apps is operator-supplied.** There's no automatic
-  Let's Encrypt yet; provide a wildcard certificate, or apps are HTTP-only.
-  Custom domains are not built yet.
+- **The agent image needs publishing before first use, and after any change
+  to `apps/agent`, `packages/shared-types` or `packages/config`.** There's no
+  CI for this on purpose (publishing on every push to `main` would be
+  wasteful) — run `infra/publish-agent.sh` yourself when the agent is ready
+  to ship. It builds a multi-arch (amd64 + arm64) image from
+  `infra/docker/agent.Dockerfile` and pushes it to `ghcr.io/deplyr/agent`;
+  `infra/publish-agent.sh --no-push` builds locally first if you want to try
+  it before pushing. Requires `docker login ghcr.io` with a token that has
+  `write:packages`, and the `ghcr.io/deplyr/agent` package needs to be made
+  public once (its GitHub Packages page → Package settings).
+- **The free `*.deplyr.app`-style address is HTTP-only unless you supply a
+  wildcard certificate.** Custom domains (any project can add its own) get a
+  real certificate automatically via Let's Encrypt.
 - **The control plane itself runs over plain HTTP** by default, so the session
   cookie and any SSH credentials you paste travel unencrypted. Put a TLS-terminating
   reverse proxy in front of it before using it for anything sensitive.

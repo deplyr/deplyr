@@ -10,11 +10,15 @@ import { healthCheck } from "./health-check";
 import { dbProvision } from "./db-provision";
 import { dbStart, dbStop, dbRestart, dbRemove } from "./db-lifecycle";
 import { logsContainer } from "./logs";
+import { domainConfigureHttp, domainIssueCert, domainRemove, domainRenewAll } from "./domain";
 
+/** A handler may return a short string that becomes the result's `detail` on
+ * success — e.g. whether HTTPS actually got configured, a cert's expiry.
+ * Most handlers return nothing, which is the same as returning undefined. */
 export type CommandHandler = (
   payload: Record<string, unknown>,
   emitLog: (line: string) => void,
-) => Promise<void>;
+) => Promise<string | void>;
 
 /** Command handlers, dispatched by name — deploy-step commands
  * ("deploy.clone", "deploy.install", ...) per docs/PHASE1_DESIGN.md
@@ -34,15 +38,19 @@ export const commandHandlers: Partial<Record<string, CommandHandler>> = {
   "db.restart": dbRestart,
   "db.remove": dbRemove,
   "logs.container": logsContainer,
+  "domain.configureHttp": domainConfigureHttp,
+  "domain.issueCert": domainIssueCert,
+  "domain.remove": domainRemove,
+  "domain.renewAll": domainRenewAll,
 };
 
 export async function dispatchCommand(
   command: Command,
   emitLog: (line: string) => void,
-): Promise<void> {
+): Promise<string | void> {
   const handler = commandHandlers[command.name];
   if (!handler) {
     throw new Error(`no handler registered for command "${command.name}"`);
   }
-  await handler(command.payload, emitLog);
+  return handler(command.payload, emitLog);
 }

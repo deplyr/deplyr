@@ -13,3 +13,4 @@ export * from "./audit";
 export * from "./build-plan";
 export * from "./logs";
 export * from "./log-level";
+export * from "./domain";
