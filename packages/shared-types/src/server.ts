@@ -20,6 +20,25 @@ export const registerServerInputSchema = z.object({
 });
 export type RegisterServerInput = z.infer<typeof registerServerInputSchema>;
 
+/**
+ * Payload for PATCH /servers/:id. `name` alone renames. `ipAddress` and/or
+ * `credential` (+ optional `credentialType`, defaults to the existing one)
+ * retry the connection: the server goes back to "pending" and the install
+ * job runs again — this is how a bad SSH key or wrong IP gets fixed without
+ * deleting and re-adding the server.
+ */
+export const updateServerInputSchema = z
+  .object({
+    name: z.string().min(1).max(100).optional(),
+    ipAddress: z.string().ip().optional(),
+    credentialType: sshCredentialTypeSchema.optional(),
+    credential: z.string().min(1).optional(),
+  })
+  .refine((v) => v.name !== undefined || v.ipAddress !== undefined || v.credential !== undefined, {
+    message: "nothing to update",
+  });
+export type UpdateServerInput = z.infer<typeof updateServerInputSchema>;
+
 /** What GET/POST /servers returns — dates arrive as ISO strings over JSON. */
 export interface ServerSummary {
   id: string;

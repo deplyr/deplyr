@@ -28,7 +28,9 @@ export async function processDomainVerify(job: Job<DomainVerifyJob>) {
   const [project] = await db.select().from(projects).where(eq(projects.id, domain.projectId));
   if (!project) return; // project deleted out from under it — nothing to verify against
 
-  const appDomain = process.env.DEPLYR_APP_DOMAIN ?? "deplyr.app";
+  // Unset on self-host until an operator configures one — dnsInstructionFor
+  // falls back to a plain A record at the server's IP when this is null.
+  const appDomain = process.env.DEPLYR_APP_DOMAIN || null;
   const [server] = await db.select().from(servers).where(eq(servers.id, project.serverId));
 
   const retry = async (detail: string) => {

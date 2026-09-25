@@ -94,7 +94,9 @@ overviewRoute.get("/", async (c) => {
       kind: "alert",
       tone: alert.isHealthy ? "success" : "danger",
       title: alert.isHealthy ? `${project.name} recovered` : `${project.name} went down`,
-      detail: "Slack alert sent",
+      // Not "Slack alert sent" — channels are Slack *or* Discord (and an
+      // alert can fan out to several at once), so this can't name one.
+      detail: "Notified your channels",
       at: alert.lastAlertSentAt.toISOString(),
       href: `/projects/${project.id}`,
     });

@@ -9,6 +9,7 @@ import type {
   GithubBranchSummary,
   ServerSummary,
   ProjectSummary,
+  DetectionResult,
 } from "@deplyr/shared-types";
 import { Button, buttonClass } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -17,9 +18,10 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { Page, PageHeader } from "@/components/ui/page";
 import { timeAgo } from "@/lib/time-ago";
 import { cn } from "@/lib/cn";
+import { handleGithubExpired } from "@/lib/github-expired";
+import { projectAddress } from "@/lib/app-domain";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "deplyr.app";
 
 function StepLabel({ n, children }: { n: number; children: React.ReactNode }) {
   return (
@@ -64,10 +66,16 @@ export default function NewProjectPage() {
 
     fetch(`${API_URL}/github/repos`, { credentials: "include" })
       .then(async (r) => {
-        if (!r.ok) throw new Error((await r.json().catch(() => null))?.error ?? "failed");
+        if (!r.ok) {
+          const body = await r.json().catch(() => null);
+          if (handleGithubExpired(body)) return null;
+          throw new Error(body?.error ?? "failed");
+        }
         return r.json();
       })
-      .then(setRepos)
+      .then((body) => {
+        if (body) setRepos(body);
+      })
       .catch(() =>
         setReposError("Could not load your GitHub repos. Connect GitHub in Settings and try again."),
       );
@@ -81,8 +89,14 @@ export default function NewProjectPage() {
     fetch(`${API_URL}/github/repos/${selectedRepo.fullName}/branches`, {
       credentials: "include",
     })
-      .then((r) => r.json())
-      .then(setBranches)
+      .then(async (r) => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => null);
+          if (handleGithubExpired(body)) return;
+          throw new Error(body?.error ?? "failed");
+        }
+        setBranches(await r.json());
+      })
       .catch(() => setBranches([{ name: selectedRepo.defaultBranch }]));
   }, [selectedRepo]);
 
@@ -114,6 +128,7 @@ export default function NewProjectPage() {
 
     if (!res.ok) {
       const body = await res.json().catch(() => null);
+      if (handleGithubExpired(body)) return;
       setError(body?.error ?? "Could not create this project.");
       setSubmitting(false);
       return;
@@ -295,7 +310,7 @@ export default function NewProjectPage() {
                 <p className="mt-4 truncate text-base font-semibold">{name || "Your project"}</p>
                 <p className="mt-1 flex items-center gap-1.5 truncate font-mono text-xs text-accent/80">
                   <Globe className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
-                  {slug}.{APP_DOMAIN}
+                  {projectAddress(slug, chosenServer?.ipAddress) ?? "address assigned on first deploy"}
                 </p>
                 <dl className="mt-5 space-y-3 border-t border-white/[0.07] pt-5 text-xs">
                   <div className="flex items-center justify-between gap-3">

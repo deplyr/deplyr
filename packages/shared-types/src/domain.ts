@@ -64,10 +64,13 @@ export interface DnsInstruction {
 }
 
 /** What to tell the user to put in their DNS, for the "pending_dns" state. */
-export function dnsInstructionFor(hostname: string, appDomain: string, serverIp: string): DnsInstruction {
-  return isApexDomain(hostname)
-    ? { type: "A", host: "@", value: serverIp }
-    : { type: "CNAME", host: hostname.split(".")[0]!, value: `${appDomain}.` };
+export function dnsInstructionFor(hostname: string, appDomain: string | null, serverIp: string): DnsInstruction {
+  // No default domain to CNAME onto (self-host until one's configured) —
+  // point straight at the server's IP instead, apex or not.
+  if (!appDomain || isApexDomain(hostname)) {
+    return { type: "A", host: isApexDomain(hostname) ? "@" : hostname.split(".")[0]!, value: serverIp };
+  }
+  return { type: "CNAME", host: hostname.split(".")[0]!, value: `${appDomain}.` };
 }
 
 export const createDomainInputSchema = z.object({ hostname: z.string().min(1).max(253) });
@@ -90,7 +93,9 @@ export interface DomainDTO {
 /** The free default address is always there and never stored as a row —
  * this is its live equivalent for the same UI. */
 export interface DefaultDomainDTO {
-  hostname: string;
+  /** null on self-host until a domain is configured — see
+   * apps/agent/src/commands/nginx.ts's bare-IP fallback. */
+  hostname: string | null;
   https: boolean;
   checkedAt: string | null;
 }

@@ -71,6 +71,13 @@ export const createProjectInputSchema = z.object({
 });
 export type CreateProjectInput = z.infer<typeof createProjectInputSchema>;
 
+/** Payload for PATCH /projects/:id — a rename. Build settings, branch and
+ * root directory are changed separately, via PUT /projects/:id/settings. */
+export const updateProjectInputSchema = z.object({
+  name: z.string().min(1).max(100),
+});
+export type UpdateProjectInput = z.infer<typeof updateProjectInputSchema>;
+
 /** What GET/POST /projects returns — dates arrive as ISO strings over JSON. */
 export interface ProjectSummary {
   id: string;

@@ -4,10 +4,10 @@ import type { ProjectSummary, ServerSummary } from "@deplyr/shared-types";
 import { GlassCard } from "@/components/ui/glass-card";
 import { RingGauge } from "@/components/dashboard/ring-gauge";
 import { ServerStatusBadge } from "@/components/servers/server-status-badge";
+import { projectAddress } from "@/lib/app-domain";
 import { timeAgo } from "@/lib/time-ago";
 import { cn } from "@/lib/cn";
 
-const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "deplyr.app";
 const MAX_PROJECTS = 3;
 
 const projectDot: Record<ProjectSummary["status"], string> = {
@@ -123,7 +123,7 @@ export function ServerCard({
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-xs font-medium">{p.name}</span>
                       <span className="block truncate font-mono text-[10px] text-muted">
-                        {p.subdomain}.{APP_DOMAIN}
+                        {projectAddress(p.subdomain, server.ipAddress) ?? p.subdomain}
                       </span>
                     </span>
                     <span className={cn("h-2 w-2 shrink-0 rounded-full", projectDot[p.status])} title={p.status} />

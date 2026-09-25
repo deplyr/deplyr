@@ -6,6 +6,15 @@
 #
 # then open the box's public IP on port 80. See the root README for the
 # full setup walkthrough and the required .env values.
+#
+# Running this control plane on a box that *also* self-hosts apps (i.e.
+# this same box is registered as one of its own managed servers) needs
+# DEPLYR_WEB_PORT set to something other than 80/443 in your .env — the
+# agent's own nginx (infra/agent-install.sh) already owns those for every
+# deployed app's traffic, and two things can't both bind them. If you set
+# it, also put the matching port on DEPLYR_PUBLIC_URL itself (web reads
+# that directly — see "web" below); DEPLYR_PUBLIC_URL stays bare for the
+# default, port-80 case.
 services:
   postgres:
     image: postgres:16-alpine
@@ -94,7 +103,11 @@ services:
       NEXT_PUBLIC_API_URL: ${DEPLYR_PUBLIC_URL}:4000
       NEXT_PUBLIC_APP_DOMAIN: ${DEPLYR_APP_DOMAIN}
     ports:
-      - "80:3000"
+      # Default 80; override with DEPLYR_WEB_PORT in your .env if
+      # something else on this box already owns 80/443 (see the note up
+      # top). WEB_URL above is DEPLYR_PUBLIC_URL as-is — put the matching
+      # port on it yourself when you override this.
+      - "${DEPLYR_WEB_PORT:-80}:3000"
     depends_on:
       - api
 

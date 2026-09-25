@@ -22,6 +22,12 @@ export function GithubConnect({ githubLogin, oauthEnabled, onConnected }: Github
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [usePat, setUsePat] = useState(!oauthEnabled);
+  // A connected GitHub can still have a dead token underneath — revoked on
+  // GitHub's side, or auto-revoked as a leaked secret. There's no way to
+  // detect that here (it only shows up as a 401 the next time something
+  // tries to use it), so "Reconnect" is always offered next to Disconnect
+  // rather than only appearing once something has visibly failed.
+  const [reconnecting, setReconnecting] = useState(false);
 
   async function saveToken(e: FormEvent) {
     e.preventDefault();
@@ -40,6 +46,7 @@ export function GithubConnect({ githubLogin, oauthEnabled, onConnected }: Github
         return;
       }
       setToken("");
+      setReconnecting(false);
       if (onConnected) onConnected();
       else router.refresh();
     } catch {
@@ -56,7 +63,7 @@ export function GithubConnect({ githubLogin, oauthEnabled, onConnected }: Github
     router.refresh();
   }
 
-  if (githubLogin) {
+  if (githubLogin && !reconnecting) {
     return (
       <div className="flex items-center justify-between gap-4 rounded-xl border border-success/20 bg-success/5 px-4 py-3">
         <div className="flex items-center gap-3 text-sm">
@@ -65,19 +72,34 @@ export function GithubConnect({ githubLogin, oauthEnabled, onConnected }: Github
             Connected as <span className="font-mono font-medium">@{githubLogin}</span>
           </span>
         </div>
-        <button
-          onClick={disconnect}
-          disabled={busy}
-          className="text-xs text-muted transition hover:text-danger disabled:opacity-50"
-        >
-          Disconnect
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setReconnecting(true)}
+            disabled={busy}
+            className="text-xs text-muted transition hover:text-foreground disabled:opacity-50"
+          >
+            Reconnect
+          </button>
+          <button
+            onClick={disconnect}
+            disabled={busy}
+            className="text-xs text-muted transition hover:text-danger disabled:opacity-50"
+          >
+            Disconnect
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
+      {reconnecting ? (
+        <p className="text-xs text-muted">
+          Currently connected as <span className="font-mono text-foreground">@{githubLogin}</span>. Reconnecting
+          replaces the token on file.
+        </p>
+      ) : null}
       {oauthEnabled && !usePat ? (
         <>
           <a
@@ -93,6 +115,14 @@ export function GithubConnect({ githubLogin, oauthEnabled, onConnected }: Github
           >
             Use a personal access token instead
           </button>
+          {reconnecting ? (
+            <button
+              onClick={() => setReconnecting(false)}
+              className="w-full text-center text-xs text-muted transition hover:text-foreground"
+            >
+              Cancel
+            </button>
+          ) : null}
         </>
       ) : (
         <form onSubmit={saveToken} className="space-y-3">
@@ -143,6 +173,15 @@ export function GithubConnect({ githubLogin, oauthEnabled, onConnected }: Github
               className="w-full text-center text-xs text-muted transition hover:text-foreground"
             >
               Connect with GitHub instead
+            </button>
+          ) : null}
+          {reconnecting ? (
+            <button
+              type="button"
+              onClick={() => setReconnecting(false)}
+              className="w-full text-center text-xs text-muted transition hover:text-foreground"
+            >
+              Cancel
             </button>
           ) : null}
         </form>

@@ -4,8 +4,7 @@ import type { ProjectSummary } from "@deplyr/shared-types";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import { FrameworkBadge } from "@/components/projects/framework-badge";
-
-const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "deplyr.app";
+import { APP_DOMAIN } from "@/lib/app-domain";
 
 export const projectTone = {
   created: "neutral",
@@ -26,7 +25,7 @@ export function ProjectCard({ project, style }: { project: ProjectSummary; style
         </div>
         <p className="mt-4 truncate text-sm font-semibold">{project.name}</p>
         <p className="mt-0.5 truncate font-mono text-xs text-accent/80">
-          {project.subdomain}.{APP_DOMAIN}
+          {APP_DOMAIN ? `${project.subdomain}.${APP_DOMAIN}` : project.subdomain}
         </p>
         <div className="mt-auto flex items-center justify-between gap-2 pt-4 text-xs text-muted">
           <span className="flex min-w-0 items-center gap-1.5">

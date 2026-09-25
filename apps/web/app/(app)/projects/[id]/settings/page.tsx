@@ -19,6 +19,7 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { Page, PageHeader } from "@/components/ui/page";
 import { SectionTitle } from "@/components/ui/section-title";
 import { cn } from "@/lib/cn";
+import { handleGithubExpired } from "@/lib/github-expired";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -123,8 +124,12 @@ export default function ProjectSettingsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(folder === undefined ? {} : { rootDir: folder }),
         });
-        if (res.ok) setDetected(await res.json());
-        else setError((await res.json().catch(() => null))?.error ?? "Couldn't check the repository.");
+        if (res.ok) {
+          setDetected(await res.json());
+        } else {
+          const body = await res.json().catch(() => null);
+          if (!handleGithubExpired(body)) setError(body?.error ?? "Couldn't check the repository.");
+        }
       } finally {
         setDetecting(false);
       }

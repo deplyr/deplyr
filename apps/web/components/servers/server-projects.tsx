@@ -9,11 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { buttonClass } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/glass-card";
 import { SectionTitle } from "@/components/ui/section-title";
+import { projectAddress } from "@/lib/app-domain";
 import { timeAgo } from "@/lib/time-ago";
 import { cn } from "@/lib/cn";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "deplyr.app";
 
 const fetchJson = async <T,>(path: string, fallback: T): Promise<T> => {
   try {
@@ -30,7 +30,7 @@ interface Row {
   health: AppHealthRow | undefined;
 }
 
-export function ServerProjects({ serverId, online }: { serverId: string; online: boolean }) {
+export function ServerProjects({ serverId, serverIp, online }: { serverId: string; serverIp: string; online: boolean }) {
   const [rows, setRows] = useState<Row[] | null>(null);
 
   useEffect(() => {
@@ -86,7 +86,7 @@ export function ServerProjects({ serverId, online }: { serverId: string; online:
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold">{p.name}</p>
                     <p className="truncate font-mono text-xs text-accent/80">
-                      {p.subdomain}.{APP_DOMAIN}
+                      {projectAddress(p.subdomain, serverIp) ?? p.subdomain}
                     </p>
                   </div>
                   <div className="hidden min-w-0 text-right sm:block">

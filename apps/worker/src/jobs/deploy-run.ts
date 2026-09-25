@@ -117,7 +117,10 @@ export async function processDeployRun(job: Job<DeployRunJob>) {
     imageTag: `deplyr-app-${project.subdomain}:latest`,
     containerName: `deplyr-${project.subdomain}`,
     port,
-    domain: process.env.DEPLYR_APP_DOMAIN ?? "deplyr.app",
+    // Unset on self-host until an operator configures one — see
+    // apps/agent/src/commands/nginx.ts for the bare-IP fallback. Only
+    // Cloud's DEPLYR_APP_DOMAIN is a domain anyone here actually owns.
+    domain: process.env.DEPLYR_APP_DOMAIN || null,
     certPem: process.env.DEPLYR_WILDCARD_CERT_PEM,
     keyPem: process.env.DEPLYR_WILDCARD_KEY_PEM,
     githubToken,

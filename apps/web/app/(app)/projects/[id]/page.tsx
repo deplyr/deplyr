@@ -12,10 +12,10 @@ import { CopyButton } from "@/components/ui/copy-button";
 import { GlassCard } from "@/components/ui/glass-card";
 import { SectionTitle } from "@/components/ui/section-title";
 import { DEPLOY_STEP_LABELS } from "@/lib/deploy-step-labels";
+import { projectAddress } from "@/lib/app-domain";
 import { timeAgo } from "@/lib/time-ago";
 import { cn } from "@/lib/cn";
 
-const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "deplyr.app";
 const FRAMEWORK_LABEL = { nextjs: "Next.js", nestjs: "NestJS", node: "Node.js", dockerfile: "Docker" } as const;
 
 type Tone = "default" | "success" | "danger" | "warning";
@@ -77,7 +77,7 @@ export default function ProjectOverview() {
   const base = `/projects/${project.id}`;
   const latest = deploys[0];
   const plan = resolveBuildPlan(project.framework, project.settings);
-  const url = `${project.subdomain}.${APP_DOMAIN}`;
+  const url = projectAddress(project.subdomain, server?.ipAddress);
 
   const statusTile: { value: string; tone: Tone } =
     project.status === "live" ? { value: "Live", tone: "success" } : project.status === "deploying" ? { value: "Deploying", tone: "warning" } : project.status === "failed" ? { value: "Failed", tone: "danger" } : { value: "Not deployed", tone: "default" };
@@ -190,8 +190,14 @@ export default function ProjectOverview() {
                 )}
               </Fact>
               <Fact label="Address">
-                <span className="truncate font-mono">{url}</span>
-                <CopyButton value={`http://${url}`} label="address" />
+                {url ? (
+                  <>
+                    <span className="truncate font-mono">{url}</span>
+                    <CopyButton value={`http://${url}`} label="address" />
+                  </>
+                ) : (
+                  <span className="font-normal text-muted">not yet known</span>
+                )}
               </Fact>
               {project.framework && project.framework !== "dockerfile" ? (
                 <>

@@ -15,6 +15,13 @@ export async function ssl(
 ): Promise<string> {
   const { slug, domain, port, certPem, keyPem } = payload as unknown as DeploySslCommandPayload;
 
+  // A cert is for a hostname — nothing to issue or attach one to on the
+  // self-host bare-IP fallback (see nginx.ts).
+  if (!domain) {
+    emitLog("no domain configured — staying on HTTP (see nginx.ts's bare-IP fallback)");
+    return "http_only";
+  }
+
   if (!certPem || !keyPem) {
     emitLog(
       "no wildcard certificate configured on the control plane — app is reachable over HTTP only",

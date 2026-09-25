@@ -6,10 +6,10 @@ import { Check, Globe, Loader2, X } from "lucide-react";
 import { checkHostnameFormat, type DomainDTO } from "@deplyr/shared-types";
 import { Button } from "@/components/ui/button";
 import { FormError, inputClass } from "@/components/ui/field";
+import { APP_DOMAIN } from "@/lib/app-domain";
 import { cn } from "@/lib/cn";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "deplyr.app";
 
 export function AddDomainDialog({
   projectId,
@@ -45,7 +45,9 @@ export function AddDomainDialog({
   // Client-side check is the same pure function the API uses — instant
   // feedback, but the API re-checks regardless, so this is only a UX nicety.
   const trimmed = hostname.trim();
-  const preview = trimmed ? checkHostnameFormat(trimmed, APP_DOMAIN) : null;
+  // No collision to check against when self-host hasn't configured a
+  // default domain yet — every hostname is fine.
+  const preview = trimmed ? checkHostnameFormat(trimmed, APP_DOMAIN ?? "") : null;
 
   async function submit(e: FormEvent) {
     e.preventDefault();

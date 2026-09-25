@@ -16,7 +16,7 @@ export function HealthIndicator({ health }: { health: HealthSummary }) {
         {ok ? <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-60" /> : null}
         <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-current" />
       </span>
-      {ok ? "Healthy" : "Down"}
+      Health: {ok ? "Healthy" : "Down"}
     </span>
   );
 }

@@ -6,15 +6,15 @@ import { ExternalLink, GitBranch, Globe, History, KeyRound, LayoutDashboard, Loa
 import { DeployButton } from "@/components/deploys/deploy-button";
 import { FrameworkBadge } from "@/components/projects/framework-badge";
 import { HealthIndicator } from "@/components/projects/health-indicator";
+import { ProjectOptionsMenu } from "@/components/projects/project-options-menu";
 import { useProject } from "@/components/projects/project-context";
 import { projectTone } from "@/components/projects/project-card";
 import { Badge } from "@/components/ui/badge";
 import { buttonClass } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/glass-card";
 import { NestedPageContext, Page } from "@/components/ui/page";
+import { projectAddress } from "@/lib/app-domain";
 import { cn } from "@/lib/cn";
-
-const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "deplyr.app";
 
 interface Tab {
   slug: string;
@@ -30,7 +30,7 @@ export function ProjectShell({ children }: { children: React.ReactNode }) {
   const { project, health, deploys, secrets, server } = useProject();
   const pathname = usePathname();
   const base = `/projects/${project.id}`;
-  const url = `${project.subdomain}.${APP_DOMAIN}`;
+  const url = projectAddress(project.subdomain, server?.ipAddress);
   const deploying = project.status === "deploying";
   const live = project.status === "live";
 
@@ -71,10 +71,14 @@ export function ProjectShell({ children }: { children: React.ReactNode }) {
             </span>
             <div className="min-w-0">
               <h1 className="truncate font-mono text-2xl font-semibold tracking-tight">{project.name}</h1>
-              <a href={`http://${url}`} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1.5 font-mono text-sm text-accent transition hover:underline">
-                {url}
-                <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
-              </a>
+              {url ? (
+                <a href={`http://${url}`} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1.5 font-mono text-sm text-accent transition hover:underline">
+                  {url}
+                  <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
+                </a>
+              ) : (
+                <p className="mt-1 text-sm text-muted">No address yet — waiting on the server.</p>
+              )}
               <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
                 <Badge tone={projectTone[project.status]}>{project.status}</Badge>
                 <FrameworkBadge framework={project.framework} />
@@ -109,15 +113,21 @@ export function ProjectShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="flex flex-wrap items-start gap-3">
-            {live ? (
+            {live && url ? (
               <a href={`http://${url}`} target="_blank" rel="noreferrer" className={buttonClass("secondary")}>
                 Visit
                 <ExternalLink className="h-4 w-4" strokeWidth={1.75} />
               </a>
             ) : null}
             {project.framework ? (
-              <DeployButton projectId={project.id} disabled={deploying} disabledReason={deploying ? "A deploy is already in progress." : undefined} />
+              <DeployButton
+                projectId={project.id}
+                disabled={deploying}
+                disabledReason={deploying ? "A deploy is already in progress." : undefined}
+                retry={project.status === "failed"}
+              />
             ) : null}
+            <ProjectOptionsMenu project={project} />
           </div>
         </div>
 

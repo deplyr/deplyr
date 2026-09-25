@@ -18,8 +18,21 @@ set -euo pipefail
 : "${DEPLYR_CONTROL_PLANE_WS:?DEPLYR_CONTROL_PLANE_WS must be set}"
 
 if ! command -v docker >/dev/null 2>&1; then
-  echo "Installing Docker..."
-  curl -fsSL https://get.docker.com | sh
+  # Docker's own convenience script (get.docker.com) refuses to run on
+  # Amazon Linux ("ERROR: Unsupported distribution 'amzn'") — AL2023 ships
+  # Docker in its own dnf repo instead, under the same package name.
+  . /etc/os-release 2>/dev/null || true
+  if [ "${ID:-}" = "amzn" ]; then
+    echo "Installing Docker (Amazon Linux)..."
+    if command -v dnf >/dev/null 2>&1; then
+      dnf install -y docker
+    else
+      yum install -y docker
+    fi
+  else
+    echo "Installing Docker..."
+    curl -fsSL https://get.docker.com | sh
+  fi
 fi
 
 systemctl enable --now docker >/dev/null 2>&1 || true

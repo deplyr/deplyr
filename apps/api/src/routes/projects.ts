@@ -15,6 +15,7 @@ import {
 } from "@deplyr/db";
 import {
   createProjectInputSchema,
+  updateProjectInputSchema,
   updateProjectSettingsInputSchema,
   upsertSecretsInputSchema,
   DEPLOY_STEP_NAMES,
@@ -27,7 +28,8 @@ import { requireAuth } from "../lib/require-auth";
 import { getUserGithubToken } from "../lib/user-github-token";
 import { detectProject } from "../lib/framework-detect";
 import { uniqueProjectSlug } from "../lib/slug";
-import { getFileContent } from "../lib/github";
+import { getFileContent, GithubAuthError } from "../lib/github";
+import { invalidateGithubSession } from "../lib/github-auth-guard";
 import { parseEnvExampleKeys } from "../lib/parse-env-example";
 import { toDeploySummary } from "../lib/deploy-dto";
 import type { AppEnv } from "../types";
@@ -103,7 +105,8 @@ projectsRoute.post("/", async (c) => {
   let detected: Awaited<ReturnType<typeof detectProject>>;
   try {
     detected = await detectProject(token, owner, repo, input.githubBranch, input.rootDir ?? "");
-  } catch {
+  } catch (err) {
+    if (err instanceof GithubAuthError) return invalidateGithubSession(c, userId);
     return c.json({ error: "could not read this repository from GitHub" }, 502);
   }
   const framework = detected.framework;
@@ -131,12 +134,16 @@ projectsRoute.post("/", async (c) => {
 
   // Best-effort: a repo without a .env.example (or a transient GitHub
   // hiccup here) shouldn't fail project creation, which already succeeded.
+  // .env.example lives next to the app, not necessarily the repo root — for
+  // a monorepo project that's rootDir (e.g. "backend/.env.example").
   try {
+    const rootDir = input.rootDir?.trim().replace(/^\/+|\/+$/g, "");
+    const envExamplePath = rootDir ? `${rootDir}/.env.example` : ".env.example";
     const envExample = await getFileContent(
       token,
       owner,
       repo,
-      ".env.example",
+      envExamplePath,
       input.githubBranch,
     );
     const keys = envExample ? parseEnvExampleKeys(envExample) : [];
@@ -172,6 +179,71 @@ projectsRoute.post("/", async (c) => {
   return c.json(toProjectDTO(project), 201);
 });
 
+// Renames a project. Branch, root directory and the rest of the build
+// settings are changed on the settings tab (PUT /:id/settings below) — this
+// is just the name/subdomain-adjacent identity, kept separate the same way
+// PATCH /servers/:id splits "rename" from "reconnect".
+projectsRoute.patch("/:id", async (c) => {
+  const userId = c.get("userId");
+  const project = await getOwnedProject(userId, c.req.param("id"));
+  if (!project) return c.json({ error: "not found" }, 404);
+
+  const parsed = updateProjectInputSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.issues[0]?.message ?? "invalid input", issues: parsed.error.issues }, 400);
+  }
+  const name = parsed.data.name.trim();
+
+  const [updated] = await db
+    .update(projects)
+    .set({ name, updatedAt: new Date() })
+    .where(eq(projects.id, project.id))
+    .returning();
+  if (!updated) return c.json({ error: "failed to rename project" }, 500);
+
+  if (name !== project.name) {
+    await recordAudit({
+      ownerId: userId,
+      serverId: project.serverId,
+      action: "project.update",
+      status: "success",
+      summary: `Renamed ${project.name} to ${name}`,
+      resourceType: "project",
+      resourceId: project.id,
+      resourceName: name,
+    });
+  }
+
+  return c.json(toProjectDTO(updated));
+});
+
+// Deletes the project row, cascading to its secrets, deploys, databases and
+// domains (see packages/db/src/schema.ts) — like server delete, this only
+// removes Deplyr's record of it. The containers, nginx config and cloned
+// source stay on the server until the next deploy of something else at the
+// same subdomain overwrites them, or the server itself is cleaned up.
+projectsRoute.delete("/:id", async (c) => {
+  const userId = c.get("userId");
+  const project = await getOwnedProject(userId, c.req.param("id"));
+  if (!project) return c.json({ error: "not found" }, 404);
+
+  await recordAudit({
+    ownerId: userId,
+    serverId: project.serverId,
+    action: "project.delete",
+    status: "success",
+    summary: `Deleted project ${project.name}`,
+    detail: `${project.githubRepo}@${project.githubBranch}`,
+    resourceType: "project",
+    resourceId: project.id,
+    resourceName: project.name,
+  });
+
+  await db.delete(projects).where(eq(projects.id, project.id));
+
+  return c.json({ ok: true });
+});
+
 // ---------------------------------------------------------------------------
 // build settings — how the project is built and run. Detection proposes; the
 // user can override any of it, and it takes effect on the next deploy.
@@ -196,7 +268,8 @@ projectsRoute.post("/:id/detect", async (c) => {
   const [owner, repo] = project.githubRepo.split("/") as [string, string];
   try {
     return c.json(await detectProject(token, owner, repo, project.githubBranch, rootDir));
-  } catch {
+  } catch (err) {
+    if (err instanceof GithubAuthError) return invalidateGithubSession(c, userId);
     return c.json({ error: "could not read this repository from GitHub" }, 502);
   }
 });

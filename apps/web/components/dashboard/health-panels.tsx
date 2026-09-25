@@ -4,10 +4,9 @@ import type { AppHealthRow, AppHealthStatus, DatabaseRow } from "@deplyr/shared-
 import { GlassCard } from "@/components/ui/glass-card";
 import { DbStatusPill } from "@/components/databases/db-status-pill";
 import { ENGINE_META } from "@/lib/database-meta";
+import { APP_DOMAIN } from "@/lib/app-domain";
 import { timeAgo } from "@/lib/time-ago";
 import { cn } from "@/lib/cn";
-
-const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "deplyr.app";
 
 const dot: Record<AppHealthStatus, string> = {
   healthy: "bg-success",
@@ -63,7 +62,7 @@ export function AppHealthPanel({ rows }: { rows: AppHealthRow[] }) {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{r.name}</p>
                   <p className="truncate font-mono text-[11px] text-muted">
-                    {r.subdomain}.{APP_DOMAIN}
+                    {APP_DOMAIN ? `${r.subdomain}.${APP_DOMAIN}` : r.subdomain}
                   </p>
                 </div>
                 <div className="shrink-0 text-right">

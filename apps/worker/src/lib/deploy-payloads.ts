@@ -25,7 +25,7 @@ export interface StepContext {
   imageTag: string;
   containerName: string;
   port: number;
-  domain: string;
+  domain: string | null;
   certPem: string | undefined;
   keyPem: string | undefined;
   githubToken: string;

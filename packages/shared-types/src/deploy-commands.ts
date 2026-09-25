@@ -61,13 +61,15 @@ export interface DeployStartCommandPayload {
 
 export interface DeployNginxCommandPayload {
   slug: string;
-  domain: string;
+  /** null on self-host until a domain is configured — the agent then
+   * serves this project on the box's bare IP instead of a hostname. */
+  domain: string | null;
   port: number;
 }
 
 export interface DeploySslCommandPayload {
   slug: string;
-  domain: string;
+  domain: string | null;
   port: number;
   /** Both present or both absent — see section 5.3 for the no-cert fallback. */
   certPem?: string;

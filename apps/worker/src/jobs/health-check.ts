@@ -1,6 +1,7 @@
 import type { Job } from "bullmq";
 import { eq } from "drizzle-orm";
 import { db, projects, servers, alertState, recordAudit, notify } from "@deplyr/db";
+import { resolveBuildPlan } from "@deplyr/shared-types";
 import type { HealthCheckJob } from "@deplyr/queue";
 
 const REQUEST_TIMEOUT_MS = 8_000;
@@ -13,7 +14,10 @@ const REQUEST_TIMEOUT_MS = 8_000;
  * health_check step already checks from the agent's side, at deploy time.
  */
 export async function processHealthCheck(_job: Job<HealthCheckJob>) {
-  const domain = process.env.DEPLYR_APP_DOMAIN ?? "deplyr.app";
+  // Unset on self-host until an operator configures one — see
+  // apps/web/lib/app-domain.ts and apps/agent/src/commands/nginx.ts for
+  // the matching bare-IP fallback this mirrors.
+  const domain = process.env.DEPLYR_APP_DOMAIN || null;
   const liveProjects = await db.select().from(projects).where(eq(projects.status, "live"));
 
   for (const project of liveProjects) {
@@ -21,15 +25,32 @@ export async function processHealthCheck(_job: Job<HealthCheckJob>) {
   }
 }
 
-async function checkProject(project: typeof projects.$inferSelect, domain: string) {
-  const url = `http://${project.subdomain}.${domain}/`;
+async function checkProject(project: typeof projects.$inferSelect, domain: string | null) {
+  const [server] = await db
+    .select({ name: servers.name, ipAddress: servers.ipAddress })
+    .from(servers)
+    .where(eq(servers.id, project.serverId));
+
+  // Same path the deploy pipeline's own health_check step uses — checking
+  // "/" here regardless would 404 on any app that only serves a real
+  // route (e.g. an API with its health endpoint at /health), independent
+  // of whether the app is actually up.
+  const path = resolveBuildPlan(project.framework, project.settings).healthCheckPath;
+  const host = domain ? `${project.subdomain}.${domain}` : server?.ipAddress;
+  const url = host ? `http://${host}${path}` : null;
 
   let healthy: boolean;
-  try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-    healthy = res.ok;
-  } catch {
+  if (!url) {
+    // No domain and no known server IP (shouldn't happen for a live
+    // project, but a project with nothing to reach it by can't be "up").
     healthy = false;
+  } else {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+      healthy = res.ok;
+    } catch {
+      healthy = false;
+    }
   }
 
   const [existing] = await db
@@ -70,7 +91,7 @@ async function checkProject(project: typeof projects.$inferSelect, domain: strin
       action: "alert.health",
       status: justFailed ? "failure" : "success",
       summary: justFailed ? `${project.name} went down` : `${project.name} recovered`,
-      detail: justFailed ? `Health check failed for ${url}` : `${url} is responding again`,
+      detail: justFailed ? `Health check failed for ${url ?? "(no known address)"}` : `${url ?? "(no known address)"} is responding again`,
       resourceType: "project",
       resourceId: project.id,
       resourceName: project.name,
@@ -79,16 +100,15 @@ async function checkProject(project: typeof projects.$inferSelect, domain: strin
 
   if (!justFailed && !justRecovered) return;
 
-  const [server] = await db.select({ name: servers.name }).from(servers).where(eq(servers.id, project.serverId));
   const outcome = await notify({
     ownerId: project.userId,
     event: justFailed ? "app.down" : "app.recovered",
     title: justFailed ? `${project.name} is down` : `${project.name} is back up`,
-    message: justFailed ? `The health check for ${url} failed.` : `${url} is responding again.`,
+    message: justFailed ? `The health check for ${url ?? "(no known address)"} failed.` : `${url ?? "(no known address)"} is responding again.`,
     fields: [
       { name: "Project", value: project.name },
       ...(server ? [{ name: "Server", value: server.name }] : []),
-      { name: "Address", value: url },
+      { name: "Address", value: url ?? "(no known address)" },
     ],
     link: `/projects/${project.id}`,
     projectId: project.id,

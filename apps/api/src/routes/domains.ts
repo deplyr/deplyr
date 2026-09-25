@@ -9,7 +9,10 @@ import type { AppEnv } from "../types";
 export const domainsRoute = new Hono<AppEnv>();
 domainsRoute.use("*", requireAuth);
 
-const appDomain = () => process.env.DEPLYR_APP_DOMAIN ?? "deplyr.app";
+// Unset on self-host until an operator configures one — see
+// apps/agent/src/commands/nginx.ts's bare-IP fallback and
+// apps/web/lib/app-domain.ts for the matching UI behavior.
+const appDomain = () => process.env.DEPLYR_APP_DOMAIN || null;
 
 async function getOwnedProjectWithServer(userId: string, projectId: string) {
   const [row] = await db
@@ -43,8 +46,9 @@ domainsRoute.get("/:id/domains", async (c) => {
 
   const rows = await db.select().from(domains).where(eq(domains.projectId, project.id)).orderBy(domains.createdAt);
 
+  const domain = appDomain();
   const defaultDomain: DefaultDomainDTO = {
-    hostname: `${project.subdomain}.${appDomain()}`,
+    hostname: domain ? `${project.subdomain}.${domain}` : null,
     https: project.defaultDomainHttps,
     checkedAt: project.defaultDomainCheckedAt ? project.defaultDomainCheckedAt.toISOString() : null,
   };
@@ -61,7 +65,7 @@ domainsRoute.post("/:id/domains", async (c) => {
   const parsed = createDomainInputSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: "invalid input" }, 400);
 
-  const check = checkHostnameFormat(parsed.data.hostname, appDomain());
+  const check = checkHostnameFormat(parsed.data.hostname, appDomain() ?? "");
   if (!check.ok || !check.normalized) return c.json({ error: check.error }, 400);
   const hostname = check.normalized;
 

@@ -22,6 +22,8 @@ interface ServerContextValue {
   online: boolean;
   /** Connected, but the agent hasn't reported lately. */
   stale: boolean;
+  /** Re-poll right away — call after an edit that changes status (e.g. a retry). */
+  refresh: () => void;
 }
 
 const ServerContext = createContext<ServerContextValue | null>(null);
@@ -42,6 +44,7 @@ export function ServerProvider({ id, children }: { id: string; children: ReactNo
   const [notFound, setNotFound] = useState(false);
   const [counts, setCounts] = useState<ServerCounts>({ databases: null, projects: null });
   const [now, setNow] = useState(() => Date.now());
+  const [refreshNonce, setRefreshNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,8 +62,10 @@ export function ServerProvider({ id, children }: { id: string; children: ReactNo
         if (cancelled) return;
         setServer(data);
         setNow(Date.now());
-        if (data.status === "pending" || data.status === "installing") timer = setTimeout(poll, INSTALLING_POLL_MS);
-        else if (data.status === "connected") timer = setTimeout(poll, CONNECTED_POLL_MS);
+        // "error" also keeps a slow poll going — an edit that retries the
+        // connection flips it back to "pending" from the API, and this tab
+        // should pick that up without a manual page reload.
+        timer = setTimeout(poll, data.status === "pending" || data.status === "installing" ? INSTALLING_POLL_MS : CONNECTED_POLL_MS);
       } catch {
         if (!cancelled) timer = setTimeout(poll, CONNECTED_POLL_MS);
       }
@@ -71,7 +76,7 @@ export function ServerProvider({ id, children }: { id: string; children: ReactNo
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [id]);
+  }, [id, refreshNonce]);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,5 +128,7 @@ export function ServerProvider({ id, children }: { id: string; children: ReactNo
   const age = server.metricsUpdatedAt ? now - new Date(server.metricsUpdatedAt).getTime() : null;
   const stale = online && age !== null && age > STALE_METRICS_MS;
 
-  return <ServerContext.Provider value={{ server, counts, online, stale }}>{children}</ServerContext.Provider>;
+  const refresh = () => setRefreshNonce((n) => n + 1);
+
+  return <ServerContext.Provider value={{ server, counts, online, stale, refresh }}>{children}</ServerContext.Provider>;
 }

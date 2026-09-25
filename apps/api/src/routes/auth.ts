@@ -23,11 +23,17 @@ export const authRoute = new Hono<AppEnv>();
 // Tells the UI which sign-in options this instance supports. Cloud has
 // GitHub OAuth configured and always has users; a fresh self-hosted
 // install may have neither, and falls back to the setup flow + PAT.
+//
+// DEPLYR_CLOUD_MODE pins needsSetup to false regardless of user count: a
+// hosted multi-tenant instance always shows the normal login screen (and
+// its "Continue with GitHub" button), never the single-admin setup wizard
+// that's meant for a fresh self-hosted box's first run.
 authRoute.get("/config", async (c) => {
+  const cloudMode = process.env.DEPLYR_CLOUD_MODE === "true";
   const [row] = await db.select({ count: sql<number>`count(*)::int` }).from(users);
   return c.json({
     githubOAuth: Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET),
-    needsSetup: (row?.count ?? 0) === 0,
+    needsSetup: cloudMode ? false : (row?.count ?? 0) === 0,
   });
 });
 

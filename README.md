@@ -152,6 +152,7 @@ the API and worker to get "Open in Deplyr" links in messages.
 | `DEPLYR_APP_DOMAIN` | worker, web | Base domain for deployed apps (`my-app.<domain>`) |
 | `DEPLYR_WILDCARD_CERT_PEM` / `_KEY_PEM` | worker | Optional wildcard certificate for HTTPS on deployed apps |
 | `API_URL`, `NEXT_PUBLIC_API_URL` | web | Server-side and browser URLs of the API |
+| `DEPLYR_WEB_PORT` | web | Host port for the dashboard. Default `80` — override if this box also self-hosts apps (its own agent's nginx already owns 80/443) |
 
 ## Self-hosting the control plane
 
@@ -177,6 +178,15 @@ the API and worker to get "Open in Deplyr" links in messages.
    **4000** (the API; the browser talks to it, and agents dial back to it).
 
 Registering a *managed* server happens afterwards from inside the UI.
+
+**Running the control plane on a box that's also a managed server** (i.e. you
+register this same box as one of its own deploy targets, self-hosting apps
+alongside the control plane): set `DEPLYR_WEB_PORT` to something other than
+80/443 — the agent's own nginx already owns those — and put the matching
+port on `DEPLYR_PUBLIC_URL` (e.g. `http://<ip>:8081`). Everything else above
+stays the same. Since both roles share the same Docker network on that box
+(no isolation between them — see docs/PHASE1_DESIGN.md), only do this if
+every app deployed there, on both sides, is something you trust.
 
 ## Status and known limitations
 

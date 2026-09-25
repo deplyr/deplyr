@@ -1,5 +1,21 @@
 const GITHUB_API = "https://api.github.com";
 
+/**
+ * The stored token itself is dead — revoked on GitHub's side, or
+ * auto-revoked as a leaked secret. Distinct from every other failure mode
+ * (repo renamed, rate limited, network blip) so callers can react to it
+ * specifically instead of showing a generic "couldn't read GitHub" error.
+ */
+export class GithubAuthError extends Error {
+  constructor() {
+    super("GitHub token is no longer valid");
+  }
+}
+
+function checkAuth(res: Response) {
+  if (res.status === 401) throw new GithubAuthError();
+}
+
 function githubHeaders(accessToken: string) {
   return {
     Authorization: `Bearer ${accessToken}`,
@@ -21,6 +37,7 @@ export async function listRepos(accessToken: string): Promise<GithubRepo[]> {
     `${GITHUB_API}/user/repos?sort=pushed&per_page=100&affiliation=owner,collaborator`,
     { headers: githubHeaders(accessToken) },
   );
+  checkAuth(res);
   if (!res.ok) throw new Error(`GitHub repo list failed: ${res.status}`);
   return (await res.json()) as GithubRepo[];
 }
@@ -38,6 +55,7 @@ export async function listBranches(
     `${GITHUB_API}/repos/${owner}/${repo}/branches?per_page=100`,
     { headers: githubHeaders(accessToken) },
   );
+  checkAuth(res);
   if (!res.ok) throw new Error(`GitHub branch list failed: ${res.status}`);
   return (await res.json()) as GithubBranch[];
 }
@@ -55,6 +73,7 @@ export async function getFileContent(
     { headers: githubHeaders(accessToken) },
   );
   if (res.status === 404) return null;
+  checkAuth(res);
   if (!res.ok) throw new Error(`GitHub content fetch failed: ${res.status}`);
 
   const body = (await res.json()) as { content?: string; encoding?: string };
@@ -81,6 +100,7 @@ export async function listDirectory(
     { headers: githubHeaders(accessToken) },
   );
   if (res.status === 404) return null;
+  checkAuth(res);
   if (!res.ok) throw new Error(`GitHub directory listing failed: ${res.status}`);
 
   const body = (await res.json()) as unknown;

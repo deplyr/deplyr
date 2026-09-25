@@ -6,6 +6,7 @@ import { AlertTriangle, Boxes, Clock, Cpu, Database, LayoutDashboard, ListChecks
 import { ServerStatusBadge } from "@/components/servers/server-status-badge";
 import { InstallProgress } from "@/components/servers/install-progress";
 import { NewServiceMenu } from "@/components/servers/new-service-menu";
+import { ServerOptionsMenu } from "@/components/servers/server-options-menu";
 import { useServer } from "@/components/servers/server-context";
 import { Badge } from "@/components/ui/badge";
 import { CopyButton } from "@/components/ui/copy-button";
@@ -82,7 +83,10 @@ export function ServerShell({ children }: { children: React.ReactNode }) {
               ) : null}
             </div>
           </div>
-          {online ? <NewServiceMenu serverId={server.id} databaseCount={counts.databases?.total ?? 0} /> : null}
+          <div className="flex items-center gap-2">
+            {online ? <NewServiceMenu serverId={server.id} databaseCount={counts.databases?.total ?? 0} /> : null}
+            <ServerOptionsMenu server={server} />
+          </div>
         </div>
       </GlassCard>
 

@@ -1,7 +1,14 @@
-import { Check, Loader2, X } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { Check, Loader2, RotateCw, X } from "lucide-react";
 import type { ServerSummary } from "@deplyr/shared-types";
+import { useServer } from "@/components/servers/server-context";
+import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/glass-card";
 import { cn } from "@/lib/cn";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 /** Derived from the flags the installer sets — no extra API needed. */
 function stepsFor(server: ServerSummary) {
@@ -25,9 +32,21 @@ function stepsFor(server: ServerSummary) {
 }
 
 export function InstallProgress({ server }: { server: ServerSummary }) {
+  const { refresh } = useServer();
   const { steps, current } = stepsFor(server);
   const failed = server.status === "error";
   const doneCount = steps.filter((s) => s.done).length;
+  const [retrying, setRetrying] = useState(false);
+
+  async function retry() {
+    setRetrying(true);
+    try {
+      const res = await fetch(`${API_URL}/servers/${server.id}/retry`, { method: "POST", credentials: "include" });
+      if (res.ok) refresh();
+    } finally {
+      setRetrying(false);
+    }
+  }
 
   return (
     <GlassCard
@@ -52,9 +71,16 @@ export function InstallProgress({ server }: { server: ServerSummary }) {
                 : "This usually takes a couple of minutes. You can leave this page."}
             </p>
           </div>
-          <span className="font-mono text-xs text-muted">
-            {doneCount}/{steps.length}
-          </span>
+          {failed ? (
+            <Button type="button" variant="secondary" onClick={retry} disabled={retrying}>
+              {retrying ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCw className="h-4 w-4" strokeWidth={1.75} />}
+              {retrying ? "Retrying…" : "Retry connection"}
+            </Button>
+          ) : (
+            <span className="font-mono text-xs text-muted">
+              {doneCount}/{steps.length}
+            </span>
+          )}
         </div>
 
         <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-white/10">

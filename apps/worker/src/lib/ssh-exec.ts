@@ -13,6 +13,17 @@ export interface SshExecResult {
 const CONNECT_TIMEOUT_MS = 20_000;
 
 /**
+ * ssh2's key parser is strict about exact PEM/OpenSSH framing: pasting a key
+ * from a browser textarea commonly introduces CRLF line endings, a stray
+ * leading/trailing blank line, or a missing final newline, any of which
+ * makes it throw "Cannot parse privateKey: Unsupported key format" even
+ * though the key itself is fine. Normalize before handing it to ssh2.
+ */
+function normalizePrivateKey(value: string): string {
+  return value.replace(/\r\n/g, "\n").trim() + "\n";
+}
+
+/**
  * Connects as root and runs `script` via `bash -s` (script piped over
  * stdin). Used by the server:install job to run infra/agent-install.sh on
  * a user's freshly-registered VPS — see docs/PHASE1_DESIGN.md section 3.
@@ -46,7 +57,7 @@ export async function sshExec(
         readyTimeout: CONNECT_TIMEOUT_MS,
         ...(credential.type === "password"
           ? { password: credential.value }
-          : { privateKey: credential.value }),
+          : { privateKey: normalizePrivateKey(credential.value) }),
       });
   });
 
