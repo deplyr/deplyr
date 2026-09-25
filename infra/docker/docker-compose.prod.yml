@@ -51,6 +51,10 @@ services:
       REDIS_URL: redis://redis:6379
       DEPLYR_MASTER_KEY: ${DEPLYR_MASTER_KEY}
       DEPLYR_SESSION_SECRET: ${DEPLYR_SESSION_SECRET}
+      # Unset (blank) by default — leaves the self-host "create the admin
+      # account" first-run wizard in place. Set to "true" in your .env for
+      # an instance meant to have real, independent sign-ups (Cloud).
+      DEPLYR_CLOUD_MODE: ${DEPLYR_CLOUD_MODE:-}
       PORT: 4000
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}

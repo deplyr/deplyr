@@ -153,6 +153,7 @@ the API and worker to get "Open in Deplyr" links in messages.
 | `DEPLYR_WILDCARD_CERT_PEM` / `_KEY_PEM` | worker | Optional wildcard certificate for HTTPS on deployed apps |
 | `API_URL`, `NEXT_PUBLIC_API_URL` | web | Server-side and browser URLs of the API |
 | `DEPLYR_WEB_PORT` | web | Host port for the dashboard. Default `80` — override if this box also self-hosts apps (its own agent's nginx already owns 80/443) |
+| `DEPLYR_CLOUD_MODE` | api | Set to `true` for an instance with real, independent sign-ups (skips the self-host "create the admin account" wizard). Leave unset otherwise |
 
 ## Self-hosting the control plane
 
