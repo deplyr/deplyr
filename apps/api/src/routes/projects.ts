@@ -12,6 +12,7 @@ import {
   encryptSecret,
   decryptSecret,
   recordAudit,
+  syncCaddy,
 } from "@deplyr/db";
 import {
   createProjectInputSchema,
@@ -240,6 +241,11 @@ projectsRoute.delete("/:id", async (c) => {
   });
 
   await db.delete(projects).where(eq(projects.id, project.id));
+
+  // An app on the local server is routed by Caddy — take its route out too.
+  if (project.serverId === process.env.DEPLYR_LOCAL_SERVER_ID) {
+    syncCaddy().catch((err: unknown) => console.warn("[api] couldn't update Caddy after deleting a project:", err));
+  }
 
   return c.json({ ok: true });
 });

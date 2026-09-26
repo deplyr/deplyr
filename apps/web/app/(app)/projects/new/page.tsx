@@ -308,7 +308,7 @@ export default function NewProjectPage() {
               <p className="mt-4 truncate text-base font-semibold">{name || "Your project"}</p>
               <p className="mt-1 flex items-center gap-1.5 truncate font-mono text-xs text-accent/80">
                 <Globe className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
-                {projectAddress(slug, chosenServer?.ipAddress) ?? "address assigned on first deploy"}
+                {projectAddress(slug, chosenServer?.ipAddress, chosenServer?.isLocal) ?? "address assigned on first deploy"}
               </p>
               <dl className="mt-5 space-y-3 border-t border-border pt-5 text-xs">
                 <div className="flex items-center justify-between gap-3">

@@ -44,6 +44,9 @@ export interface ServerSummary {
   id: string;
   name: string;
   ipAddress: string;
+  /** The box Deplyr itself runs on, registered automatically. Its apps are
+   * routed by Caddy (by hostname), not by a per-app nginx. */
+  isLocal: boolean;
   status: ServerStatus;
   statusDetail: string | null;
   dockerInstalled: boolean;

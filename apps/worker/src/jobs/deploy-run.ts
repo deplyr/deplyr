@@ -1,9 +1,10 @@
 import type { Job } from "bullmq";
 import { and, eq, sql } from "drizzle-orm";
-import { db, deploys, deploySteps, projects, servers, secrets, users, decryptSecret, recordAudit, notify } from "@deplyr/db";
+import { db, deploys, deploySteps, projects, servers, secrets, users, decryptSecret, recordAudit, notify, syncCaddy } from "@deplyr/db";
 import type { DeployRunJob } from "@deplyr/queue";
 import {
   DEPLOY_STEP_NAMES,
+  localAppAddress,
   resolveBuildPlan,
   type DeployStepName,
 } from "@deplyr/shared-types";
@@ -139,12 +140,18 @@ export async function processDeployRun(job: Job<DeployRunJob>) {
       .where(and(eq(deploySteps.deployId, deploy.id), eq(deploySteps.name, stepName)));
 
     try {
-      const detail = await runAgentCommand({
-        serverId: server.id,
-        name: `deploy.${stepName}`,
-        payload: buildPayload(stepName, ctx),
-        onLog: (line) => appendStepLog(deploy.id, stepName, line),
-      });
+      // On the box Deplyr itself runs on, Caddy is the front door on 80/443 —
+      // there's no per-app nginx to configure, so routing and TLS are Caddy's.
+      const onLog = (line: string) => appendStepLog(deploy.id, stepName, line);
+      const detail =
+        server.id === process.env.DEPLYR_LOCAL_SERVER_ID && (stepName === "nginx" || stepName === "ssl")
+          ? await runLocalStep(stepName, project.subdomain, port, onLog)
+          : await runAgentCommand({
+              serverId: server.id,
+              name: `deploy.${stepName}`,
+              payload: buildPayload(stepName, ctx),
+              onLog,
+            });
       await db
         .update(deploySteps)
         .set({ status: "success", finishedAt: new Date() })
@@ -188,6 +195,35 @@ export async function processDeployRun(job: Job<DeployRunJob>) {
     .set({ status: "live", updatedAt: new Date() })
     .where(eq(projects.id, project.id));
   await report(true, `Deployed ${project.name}`);
+}
+
+/** The nginx + ssl steps for an app on the local server. Same contract as the
+ * agent's: throw to fail the step; ssl returns "https" or "http". */
+async function runLocalStep(
+  step: "nginx" | "ssl",
+  slug: string,
+  port: number,
+  onLog: (line: string) => Promise<void> | void,
+): Promise<string> {
+  const publicHost = process.env.DEPLYR_PUBLIC_HOST ?? "";
+  const addr = localAppAddress(slug, publicHost, process.env.DEPLYR_APP_DOMAIN || null);
+
+  if (step === "nginx") {
+    await syncCaddy();
+    await onLog(
+      addr
+        ? `routed ${addr.https ? "https" : "http"}://${addr.host} → this server's port ${port} through Caddy`
+        : `no hostname to route for ${slug} — it's reachable on the server's port ${port}`,
+    );
+    return "";
+  }
+
+  await onLog(
+    addr?.https
+      ? `${addr.host} gets its certificate from Caddy automatically (its DNS must point at this server)`
+      : "served over plain HTTP — a certificate needs a domain you own (set DEPLYR_APP_DOMAIN)",
+  );
+  return addr?.https ? "https" : "http";
 }
 
 async function failDeploy(deployId: string, projectId: string | undefined, reason: string) {

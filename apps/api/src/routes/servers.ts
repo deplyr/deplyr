@@ -17,6 +17,7 @@ function toServerDTO(server: typeof servers.$inferSelect) {
     id: server.id,
     name: server.name,
     ipAddress: server.ipAddress,
+    isLocal: Boolean(process.env.DEPLYR_LOCAL_SERVER_ID) && server.id === process.env.DEPLYR_LOCAL_SERVER_ID,
     status: server.status,
     statusDetail: server.statusDetail,
     dockerInstalled: server.dockerInstalled,

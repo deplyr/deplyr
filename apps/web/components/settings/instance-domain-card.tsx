@@ -112,8 +112,8 @@ function StatusPanel({ domain, check }: { domain: string; check: InstanceDomainC
           <>
             <p className="font-medium">DNS found — issuing your HTTPS certificate…</p>
             <p className="mt-1 text-muted">
-              This normally takes under a minute. If it's still here after 5 minutes, check that port <span className="font-mono text-foreground">443</span> is open to the internet in your server's
-              firewall or cloud security group — the certificate can't be issued without it.
+              This normally takes under a minute. If it's still here after 5 minutes, check that ports <span className="font-mono text-foreground">80</span> and <span className="font-mono text-foreground">443</span> are open to the
+              internet in your server's firewall or cloud security group — the certificate can't be issued without them.
             </p>
           </>
         )}

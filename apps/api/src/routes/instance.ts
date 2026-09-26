@@ -2,14 +2,13 @@ import { resolve4 } from "node:dns/promises";
 import tls from "node:tls";
 import { Hono } from "hono";
 import { eq } from "drizzle-orm";
-import { db, instanceSettings, recordAudit } from "@deplyr/db";
+import { buildCaddyfile, db, instanceSettings, pushCaddyfile, recordAudit } from "@deplyr/db";
 import {
   checkHostnameFormat,
   updateInstanceDomainSchema,
   type InstanceDomainCheck,
   type InstanceSettingsDTO,
 } from "@deplyr/shared-types";
-import { caddyfileFor, pushCaddyfile } from "../lib/caddy";
 import { requireAuth } from "../lib/require-auth";
 import type { AppEnv } from "../types";
 
@@ -102,7 +101,7 @@ instanceRoute.put("/domain", async (c) => {
 
   let caddyRes: Response;
   try {
-    caddyRes = await pushCaddyfile(caddyfileFor(publicHost, customDomain));
+    caddyRes = await pushCaddyfile(await buildCaddyfile({ customDomain }));
   } catch {
     return c.json({ error: "Couldn't reach Caddy to apply this — is the caddy container running?" }, 502);
   }

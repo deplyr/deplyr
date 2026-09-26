@@ -1,3 +1,5 @@
+import { localAppAddress } from "@deplyr/shared-types";
+
 /**
  * Set only on Cloud (a real domain with wildcard DNS + cert). Unset on a
  * fresh self-hosted instance on purpose — falling back to "deplyr.app"
@@ -16,7 +18,10 @@ export const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || null;
  * apps/agent/src/commands/nginx.ts), so IP access only ever reaches one
  * project at a time until a real domain is configured.
  */
-export function projectAddress(subdomain: string, serverIp?: string | null): string | null {
+export function projectAddress(subdomain: string, serverIp?: string | null, isLocal = false): string | null {
+  // On the box Deplyr itself runs on, Caddy routes every app by hostname (no
+  // per-app nginx), so there's no bare-IP fallback: see localAppAddress.
+  if (isLocal && serverIp) return localAppAddress(subdomain, serverIp, APP_DOMAIN)?.host ?? serverIp;
   if (APP_DOMAIN) return `${subdomain}.${APP_DOMAIN}`;
   return serverIp ?? null;
 }

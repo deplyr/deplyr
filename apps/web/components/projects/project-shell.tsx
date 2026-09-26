@@ -29,7 +29,7 @@ export function ProjectShell({ children }: { children: React.ReactNode }) {
   const { project, health, deploys, secrets, server } = useProject();
   const pathname = usePathname();
   const base = `/projects/${project.id}`;
-  const url = projectAddress(project.subdomain, server?.ipAddress);
+  const url = projectAddress(project.subdomain, server?.ipAddress, server?.isLocal);
   const deploying = project.status === "deploying";
   const live = project.status === "live";
 

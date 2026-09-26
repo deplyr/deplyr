@@ -110,7 +110,7 @@ export function ServerCard({
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-xs font-medium">{p.name}</span>
                       <span className="block truncate font-mono text-[10px] text-muted">
-                        {projectAddress(p.subdomain, server.ipAddress) ?? p.subdomain}
+                        {projectAddress(p.subdomain, server.ipAddress, server.isLocal) ?? p.subdomain}
                       </span>
                     </span>
                     <span className={cn("h-2 w-2 shrink-0 rounded-full", projectDot[p.status])} title={p.status} />

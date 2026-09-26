@@ -77,6 +77,15 @@ docker run -d \
   -e DEPLYR_CONTROL_PLANE_WS="$DEPLYR_CONTROL_PLANE_WS" \
   ghcr.io/deplyr/agent:latest
 
+if [ "${DEPLYR_SKIP_NGINX:-}" = "1" ]; then
+  # The box Deplyr itself runs on: Caddy is already the front door on 80/443
+  # and routes each app by hostname, so an nginx here would only fight it for
+  # those ports (see packages/db/src/caddy.ts).
+  docker rm -f deplyr-nginx >/dev/null 2>&1 || true
+  echo "Deplyr agent started (no nginx — Caddy fronts apps on this box)."
+  exit 0
+fi
+
 echo "Starting nginx..."
 docker rm -f deplyr-nginx >/dev/null 2>&1 || true
 

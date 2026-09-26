@@ -42,3 +42,11 @@
 {$DEPLYR_SITE_ADDRESS}:4000 {
 	reverse_proxy api:4000
 }
+
+# The agent on this box (host network) reaches the api through the port Caddy
+# publishes, on the loopback address — no public IP or firewall rule involved.
+http://127.0.0.1 {
+	handle_path /api/* {
+		reverse_proxy api:4000
+	}
+}

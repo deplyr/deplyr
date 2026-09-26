@@ -30,7 +30,7 @@ interface Row {
   health: AppHealthRow | undefined;
 }
 
-export function ServerProjects({ serverId, serverIp, online }: { serverId: string; serverIp: string; online: boolean }) {
+export function ServerProjects({ serverId, serverIp, isLocal, online }: { serverId: string; serverIp: string; isLocal: boolean; online: boolean }) {
   const [rows, setRows] = useState<Row[] | null>(null);
 
   useEffect(() => {
@@ -86,7 +86,7 @@ export function ServerProjects({ serverId, serverIp, online }: { serverId: strin
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold">{p.name}</p>
                     <p className="truncate font-mono text-xs text-accent/80">
-                      {projectAddress(p.subdomain, serverIp) ?? p.subdomain}
+                      {projectAddress(p.subdomain, serverIp, isLocal) ?? p.subdomain}
                     </p>
                   </div>
                   <div className="hidden min-w-0 text-right sm:block">

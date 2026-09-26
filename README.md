@@ -152,7 +152,7 @@ the API and worker to get "Open in Deplyr" links in messages.
 | `DEPLYR_APP_DOMAIN` | worker, web | Base domain for deployed apps (`my-app.<domain>`) |
 | `DEPLYR_WILDCARD_CERT_PEM` / `_KEY_PEM` | worker | Optional wildcard certificate for HTTPS on deployed apps |
 | `API_URL`, `NEXT_PUBLIC_API_URL` | web | Server-side URL of the API, and the browser's path to it — `/api` on whatever address you opened Deplyr at (Caddy routes it), so the IP and any domain you add both work without a rebuild |
-| `DEPLYR_WEB_PORT` | caddy | Host port for the dashboard. `8081` by default, since this box also runs your apps and their nginx owns port 80. (The dashboard's own HTTPS domain uses 443.) |
+| `DEPLYR_WEB_PORT` | caddy | Host port for the dashboard. `80` by default. |
 
 `infra/install.sh` generates all of these for you on first install — the only
 one you'd normally touch afterward is the domain, and that's now done from
@@ -175,8 +175,8 @@ it installs Docker if it's missing, generates `DEPLYR_MASTER_KEY` and every
 other secret, detects the box's public IP, and brings up Postgres, Redis, the
 API, the worker, the dashboard and Caddy. It prints a URL when it's done.
 
-1. **Open that URL** — it looks like `http://<your-server-ip>:8081`. First
-   time, it's a setup page: pick an email and password. That's your one
+1. **Open that URL** — it's just your server's IP, like `http://<your-server-ip>`.
+   First time, it's a setup page: pick an email and password. That's your one
    account for this instance; there's no invite flow or public sign-up here,
    on purpose (see [Status and known limitations](#status-and-known-limitations)).
 2. **You're in, and this server is already registered.** Under **Servers**
@@ -191,10 +191,16 @@ API, the worker, the dashboard and Caddy. It prints a URL when it's done.
    updates in place; your account, servers, projects and secrets are
    untouched.
 
-Open these in your firewall / cloud security group: **8081** (the dashboard),
-**443** (HTTPS, once you add a domain), **4000** (agents connecting back) and
-**80** (the apps you deploy on this box — which is why the dashboard sits on
-8081 rather than 80).
+**Only ports 80 and 443 need to be open** in your firewall / cloud security
+group — the dashboard and every app you deploy on this box are served through
+them, by hostname (Caddy is the single front door). Most VPS providers have no
+firewall by default; on AWS/GCP/Azure it's the one rule to add. Port 4000 is
+only needed if you connect extra servers.
+
+Apps you deploy on this box get a free address like
+`myapp.13-126-137-183.sslip.io` (sslip.io is a public wildcard-DNS service that
+resolves such names to the IP inside them), over plain HTTP. For HTTPS, set
+`DEPLYR_APP_DOMAIN` to a domain you own whose wildcard DNS points at the box.
 
 Want more capacity later? Add extra servers from **Servers → Connect server**
 and manage them all from this one instance. The local server shares a Docker
@@ -209,8 +215,8 @@ you don't on a separate server.
 2. Clone this repo and create a `.env` at its root — see `infra/install.sh`
    for the exact variables it would otherwise generate for you.
 3. `docker compose -f infra/docker/docker-compose.prod.yml --env-file .env up -d --build`
-4. Allow inbound **8081**, **443**, **4000** and **80** as above. Then start the
-   local agent yourself — see the end of `infra/install.sh`.
+4. Allow inbound **80** and **443**. Then start the local agent yourself — see
+   the end of `infra/install.sh`.
 
 `DEPLYR_PUBLIC_URL`/`DEPLYR_PUBLIC_HOST` can still be set in `.env` up front
 if you'd rather not use Settings for the domain — see the config table above.
@@ -241,9 +247,10 @@ Being upfront, since this is early:
 - **The control plane itself runs over plain HTTP** by default, so the session
   cookie and any SSH credentials you paste travel unencrypted. Put a TLS-terminating
   reverse proxy in front of it before using it for anything sensitive.
-- **On the box Deplyr itself runs on, deployed apps are HTTP-only.** Their nginx
-  takes port 80 and the dashboard's HTTPS domain (Caddy) holds 443, so HTTPS for
-  an *app's* custom domain needs a separate server for now.
+- **Apps on the box Deplyr runs on are HTTP-only unless you set
+  `DEPLYR_APP_DOMAIN`.** They're routed by Caddy by hostname (no per-app nginx
+  there), with a free `*.sslip.io` name by default. Attaching a separate custom
+  domain to such an app isn't supported yet — use an extra server for that.
 - **Databases are private-only.** There is no public exposure or firewall
   management yet; connect from your machine over an SSH tunnel.
 - **Your app must listen on `$PORT`.** Deplyr assigns the port and sets it.

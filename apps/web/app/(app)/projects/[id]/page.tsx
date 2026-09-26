@@ -71,7 +71,7 @@ export default function ProjectOverview() {
   const base = `/projects/${project.id}`;
   const latest = deploys[0];
   const plan = resolveBuildPlan(project.framework, project.settings);
-  const url = projectAddress(project.subdomain, server?.ipAddress);
+  const url = projectAddress(project.subdomain, server?.ipAddress, server?.isLocal);
 
   const statusTile: { value: string; tone: Tone } =
     project.status === "live" ? { value: "Live", tone: "success" } : project.status === "deploying" ? { value: "Deploying", tone: "warning" } : project.status === "failed" ? { value: "Failed", tone: "danger" } : { value: "Not deployed", tone: "default" };

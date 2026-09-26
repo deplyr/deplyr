@@ -117,14 +117,11 @@ if [ ! -f "$ENV_FILE" ]; then
   # certificate, so DEPLYR_PUBLIC_URL stays http:// for that case (see the
   # compose file's own notes) — DEPLYR_PUBLIC_HOST wins either way for
   # DEPLYR_PUBLIC_URL's scheme if it looks like a domain, not an IP.
-  # The dashboard lives on 8081, not 80: this box also becomes your first
-  # managed server (see below), and the nginx that serves your deployed apps
-  # needs port 80 for itself.
-  WEB_PORT="${DEPLYR_WEB_PORT:-8081}"
+  WEB_PORT="${DEPLYR_WEB_PORT:-80}"
   case "$PUBLIC_HOST" in
     *[a-zA-Z]*) DEFAULT_URL="https://$PUBLIC_HOST"; SITE_ADDRESS="$PUBLIC_HOST" ;;
     # http:// explicitly: Caddy otherwise self-signs an IP and redirects to it.
-    *) DEFAULT_URL="http://$PUBLIC_HOST:$WEB_PORT"; SITE_ADDRESS="http://$PUBLIC_HOST" ;;
+    *) DEFAULT_URL="http://$PUBLIC_HOST"; SITE_ADDRESS="http://$PUBLIC_HOST" ;;
   esac
 
   cat > "$ENV_FILE" <<EOF
@@ -176,23 +173,21 @@ docker compose -f infra/docker/docker-compose.prod.yml --env-file "$ENV_FILE" up
 # SSH — see apps/api/src/lib/local-server.ts); all that's left is starting the
 # agent here with the token it expects. It retries until the record exists.
 get() { grep "^$1=" "$ENV_FILE" | cut -d= -f2-; }
-WEB_PORT=$(get DEPLYR_WEB_PORT)
-if [ "${WEB_PORT:-80}" = "80" ] || [ "${WEB_PORT:-80}" = "443" ]; then
-  echo -e "${ORANGE}Skipping the local server:${NC} the dashboard is on port ${WEB_PORT:-80}, and the nginx that serves your"
-  echo "deployed apps needs 80/443. Set DEPLYR_WEB_PORT=8081 in $ENV_FILE (and DEPLYR_PUBLIC_URL to match), re-run this, and this box"
-  echo "will register itself as a server too."
-else
-  echo -e "${ORANGE}Starting this box's agent...${NC}"
-  DEPLYR_TOKEN="$(get DEPLYR_LOCAL_AGENT_TOKEN)" \
-  DEPLYR_SERVER_ID="$(get DEPLYR_LOCAL_SERVER_ID)" \
-  DEPLYR_CONTROL_PLANE_WS="ws://$(get DEPLYR_PUBLIC_HOST):4000/agent/ws" \
-    bash "$INSTALL_DIR/infra/agent-install.sh"
-fi
+WEB_PORT=$(get DEPLYR_WEB_PORT); WEB_PORT=${WEB_PORT:-80}
+echo -e "${ORANGE}Starting this box's agent...${NC}"
+# Caddy is the one front door here (dashboard and every app, by hostname), so
+# the agent skips its nginx. It reaches the api via Caddy's published port on
+# loopback: no public IP, nothing for a firewall to block.
+DEPLYR_TOKEN="$(get DEPLYR_LOCAL_AGENT_TOKEN)" \
+DEPLYR_SERVER_ID="$(get DEPLYR_LOCAL_SERVER_ID)" \
+DEPLYR_CONTROL_PLANE_WS="ws://127.0.0.1:$WEB_PORT/api/agent/ws" \
+DEPLYR_SKIP_NGINX=1 \
+  bash "$INSTALL_DIR/infra/agent-install.sh"
 
 PUBLIC_URL=$(grep '^DEPLYR_PUBLIC_URL=' "$ENV_FILE" | cut -d= -f2-)
 echo ""
 echo -e "${GREEN}${BOLD}Deplyr is up:${NC} ${ORANGE}$PUBLIC_URL${NC}"
 echo "Open it — first visit walks you through creating the admin account, and this box is"
 echo "registered as your first server automatically, so you can deploy right away."
-echo "Open these in your firewall / security group: ${WEB_PORT:-80} (dashboard), 443 (HTTPS domain), 4000 (agents), 80 (your apps)."
+echo "Only ports 80 and 443 need to be open in your firewall / security group — the dashboard and every app you deploy here use them."
 echo "To update later, run this exact command again."

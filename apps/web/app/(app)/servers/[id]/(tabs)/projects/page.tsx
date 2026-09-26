@@ -5,5 +5,5 @@ import { useServer } from "@/components/servers/server-context";
 
 export default function ServerProjectsTab() {
   const { server, online } = useServer();
-  return <ServerProjects serverId={server.id} serverIp={server.ipAddress} online={online} />;
+  return <ServerProjects serverId={server.id} serverIp={server.ipAddress} isLocal={server.isLocal} online={online} />;
 }

@@ -42,3 +42,32 @@ export interface InstanceSettingsDTO {
   /** Null when there's no custom domain. */
   check: InstanceDomainCheck | null;
 }
+
+const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
+
+/**
+ * The hostname an app on the box Deplyr itself runs on is served at. Caddy is
+ * the one front door on 80/443 there (there's no per-app nginx on that box),
+ * so every app needs a hostname to be routed by:
+ *
+ *  - with an operator-set DEPLYR_APP_DOMAIN: `<slug>.<that domain>`, over
+ *    HTTPS (Caddy issues the certificate — their wildcard DNS has to point
+ *    here);
+ *  - otherwise, on a bare IP: `<slug>.<ip-with-dashes>.sslip.io` — sslip.io
+ *    is a public wildcard DNS service that resolves any such name to the IP
+ *    inside it, so an app gets a working address without anyone owning a
+ *    domain. Served over HTTP: those names all share one Let's Encrypt
+ *    rate limit, so issuing certificates for them isn't something to do
+ *    behind someone's back;
+ *  - a domain as the public host with no app domain: no address (that needs
+ *    wildcard DNS Deplyr can't assume).
+ */
+export function localAppAddress(
+  slug: string,
+  publicHost: string,
+  appDomain?: string | null,
+): { host: string; https: boolean } | null {
+  if (appDomain) return { host: `${slug}.${appDomain}`, https: true };
+  if (IPV4.test(publicHost)) return { host: `${slug}.${publicHost.replace(/\./g, "-")}.sslip.io`, https: false };
+  return null;
+}

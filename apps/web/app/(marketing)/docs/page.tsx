@@ -207,8 +207,8 @@ const sections: DocSection[] = [
               title: "Open the URL it printed",
               body: (
                 <p>
-                  It looks like <InlineCode>http://&lt;your-server-ip&gt;:8081</InlineCode>. First time, this is a setup page —
-                  pick an email and password. That's your one account for this instance; there's no invite flow or
+                  It's just your server's IP address, like <InlineCode>http://13.126.137.183</InlineCode>. First time, this
+                  is a setup page — pick an email and password. That's your one account for this instance; there's no invite flow or
                   public sign-up here, on purpose.
                 </p>
               ),
@@ -245,10 +245,11 @@ const sections: DocSection[] = [
           ]}
         />
 
-        <Callout tone="info" title="Open these ports in your firewall / cloud security group">
-          <InlineCode>8081</InlineCode> (the dashboard), <InlineCode>443</InlineCode> (HTTPS, once you add a domain),{" "}
-          <InlineCode>4000</InlineCode> (agents connecting back) and <InlineCode>80</InlineCode> (the apps you deploy on
-          this box). Deployed apps use port 80 — which is why the dashboard sits on 8081 instead.
+        <Callout tone="info" title="Only ports 80 and 443 need to be open">
+          In your firewall or cloud security group (AWS, GCP, Azure…), allow inbound <InlineCode>80</InlineCode> and{" "}
+          <InlineCode>443</InlineCode>. That's all — the dashboard and every app you deploy on this server are served
+          through them, by hostname. Most VPS providers (DigitalOcean, Hetzner, Vultr…) have no firewall by default, so
+          there's nothing to do at all. (Port <InlineCode>4000</InlineCode> is only needed if you connect extra servers.)
         </Callout>
       </>
     ),
@@ -456,7 +457,7 @@ const sections: DocSection[] = [
           { name: "DEPLYR_APP_DOMAIN", app: "worker, web", purpose: <>Base domain for deployed apps (<InlineCode>my-app.&lt;domain&gt;</InlineCode>)</> },
           { name: "DEPLYR_WILDCARD_CERT_PEM / _KEY_PEM", app: "worker", purpose: "Optional wildcard certificate for HTTPS on the free default addresses" },
           { name: "API_URL, NEXT_PUBLIC_API_URL", app: "web", purpose: <>Server-side URL of the API, and the browser's path to it — <InlineCode>/api</InlineCode> on whatever address you opened Deplyr at, so IP and domain both work</> },
-          { name: "DEPLYR_WEB_PORT", app: "caddy", purpose: "Host port for the dashboard — 8081 by default, because your deployed apps' nginx on this same box owns 80" },
+          { name: "DEPLYR_WEB_PORT", app: "caddy", purpose: "Host port for the dashboard — 80 by default" },
         ]}
       />
       </>
@@ -502,7 +503,7 @@ const sections: DocSection[] = [
         items={[
           "Not yet validated end-to-end on a real remote Linux server — each piece works against real Docker and GitHub, but the full path through nginx, SSL and the post-deploy health check on a fresh VPS is the current milestone.",
           "The agent image needs publishing (infra/publish-agent.sh) before first use, and after any change to the agent itself.",
-          "On the server Deplyr itself runs on, your deployed apps are served over plain HTTP on port 80 — the dashboard's own HTTPS domain holds port 443, so HTTPS for an app's custom domain needs a separate server for now.",
+          "Apps on the server Deplyr itself runs on get a free address like myapp.13-126-137-183.sslip.io over plain HTTP (sslip.io is a public wildcard-DNS service). HTTPS needs a domain you own — set DEPLYR_APP_DOMAIN to one whose wildcard DNS points here. Attaching a separate custom domain to an app on that server isn't supported yet; use an extra server for that.",
           "Databases are private-only — no public exposure or firewall management yet; connect from your machine over an SSH tunnel.",
           "Your app must listen on $PORT — Deplyr assigns the port and sets it for you.",
           "An existing managed server needs its agent updated when the agent's own commands change.",
