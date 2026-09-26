@@ -7,7 +7,7 @@ set -euo pipefail
 # confused with infra/agent-install.sh, which the control plane itself runs
 # over SSH on a *managed* server — this one is for the control plane box.
 #
-#   curl -fsSL https://raw.githubusercontent.com/deplyr/deplyr/main/infra/install.sh | bash
+#   curl -fsSL https://deplyr.abhilaksharora.com/install.sh | bash
 #
 # Safe to re-run: an existing install is updated in place (git pull, rebuild,
 # restart) rather than reset — the existing .env is left untouched, so

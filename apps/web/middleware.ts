@@ -12,8 +12,15 @@ const PUBLIC_PATHS = ["/login", "/setup", "/docs"];
 // logged-in visitor the pitch, or the login form.
 const GUEST_ONLY_PATHS = ["/login"];
 
+// Set on the standalone landing-page deploy (Vercel): no API and no accounts
+// there, so only the marketing pages exist and everything else goes home.
+const MARKETING_ONLY = process.env.NEXT_PUBLIC_MARKETING_ONLY === "1";
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  if (MARKETING_ONLY) {
+    return pathname === "/" || pathname.startsWith("/docs") || pathname === "/install.sh" ? NextResponse.next() : NextResponse.redirect(new URL("/", request.url));
+  }
   const hasSession = request.cookies.has(SESSION_COOKIE);
   const isRoot = pathname === "/";
   const isPublicPath = isRoot || PUBLIC_PATHS.some((path) => pathname.startsWith(path));
@@ -31,5 +38,5 @@ export function middleware(request: NextRequest) {
 export const config = {
   // Static/SEO files are excluded so crawlers and social scrapers (no session
   // cookie) get them instead of a redirect to /login.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|robots.txt|sitemap.xml|opengraph-image|twitter-image).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|robots.txt|sitemap.xml|install.sh|opengraph-image|twitter-image).*)"],
 };

@@ -15,6 +15,9 @@ const GITHUB_URL = "https://github.com/deplyr/deplyr";
  * reads as an old-school site chrome; a pill with room to breathe around it
  * is the current shape for this kind of header. */
 export function SiteHeader({ user }: { user: AuthUser | null }) {
+  // The standalone landing-page deploy has no accounts, so no sign-in button —
+  // and with it gone, Docs/GitHub stay visible on phones instead of hiding.
+  const marketingOnly = process.env.NEXT_PUBLIC_MARKETING_ONLY === "1";
   return (
     <header className="sticky top-3 z-30 px-3 sm:top-4 sm:px-4">
       <div className="mx-auto flex h-14 max-w-4xl items-center gap-1 rounded-full border border-border bg-surface/80 pl-4 pr-2 shadow-lg shadow-black/[0.03] backdrop-blur-xl sm:gap-2">
@@ -24,7 +27,7 @@ export function SiteHeader({ user }: { user: AuthUser | null }) {
         </Link>
 
         <div className="ml-auto flex items-center gap-1.5">
-          <nav className="hidden items-center gap-1 sm:flex">
+          <nav className={marketingOnly ? "flex items-center gap-1" : "hidden items-center gap-1 sm:flex"}>
             <Link href="/docs" className="rounded-full px-3.5 py-2 text-sm font-medium text-muted transition hover:bg-surface-hover hover:text-foreground">
               Docs
             </Link>
@@ -39,6 +42,7 @@ export function SiteHeader({ user }: { user: AuthUser | null }) {
             </a>
           </nav>
           <ThemeToggle className="!h-9 !w-9 rounded-full border-none" />
+          {marketingOnly ? null : (
           <Link
             href={user ? "/dashboard" : "/login"}
             className="group inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-accent py-2 pl-4 pr-3 text-sm font-semibold text-accent-foreground transition hover:brightness-110"
@@ -46,6 +50,7 @@ export function SiteHeader({ user }: { user: AuthUser | null }) {
             {user ? "Dashboard" : "Sign in"}
             <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" strokeWidth={2} />
           </Link>
+          )}
         </div>
       </div>
     </header>

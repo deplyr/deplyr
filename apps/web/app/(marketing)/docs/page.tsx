@@ -199,7 +199,7 @@ const sections: DocSection[] = [
     body: (
       <>
         <p>Get a small Linux VPS from any provider — Hetzner, DigitalOcean, an EC2 instance, anything. Then run this on it:</p>
-        <CodeBlock label="bash">{`curl -fsSL https://raw.githubusercontent.com/deplyr/deplyr/main/infra/install.sh | bash`}</CodeBlock>
+        <CodeBlock label="bash">{`curl -fsSL https://deplyr.abhilaksharora.com/install.sh | bash`}</CodeBlock>
         <p>That's the entire install. It figures out the rest on its own, and prints a URL when it's done.</p>
 
         <StepList

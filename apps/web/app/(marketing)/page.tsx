@@ -19,7 +19,7 @@ import {
 import { CopyButton } from "@/components/ui/copy-button";
 import { GITHUB_URL, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site";
 
-const INSTALL_CMD = "curl -fsSL https://raw.githubusercontent.com/deplyr/deplyr/main/infra/install.sh | bash";
+const INSTALL_CMD = "curl -fsSL https://deplyr.abhilaksharora.com/install.sh | bash";
 
 const FEATURES: Array<{ icon: LucideIcon; title: string; body: string }> = [
   { icon: ServerIcon, title: "Any Linux VPS", body: "Register a box with an IP and root password or SSH key — Deplyr installs Docker, nginx and a small agent for you." },
@@ -87,6 +87,7 @@ export default function LandingPage() {
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link
               href="/docs#self-hosting"
+              data-umami-event="get-started"
               className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground shadow-lg shadow-accent/20 transition hover:brightness-110"
             >
               <Rocket className="h-4 w-4" strokeWidth={1.75} />
@@ -94,6 +95,7 @@ export default function LandingPage() {
             </Link>
             <a
               href={GITHUB_URL}
+              data-umami-event="view-github"
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-2 rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800"
@@ -202,7 +204,7 @@ export default function LandingPage() {
                 <Terminal className="h-3 w-3" strokeWidth={1.75} />
                 bash
               </span>
-              <CopyButton value={INSTALL_CMD} label="install command" />
+              <CopyButton value={INSTALL_CMD} label="install command" trackEvent="copy-install-command" />
             </div>
             <pre className="overflow-x-auto px-4 py-4 text-xs leading-relaxed">
               <code className="font-mono text-foreground">{INSTALL_CMD}</code>
@@ -224,6 +226,7 @@ export default function LandingPage() {
           <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
             <Link
               href="/docs#self-hosting"
+              data-umami-event="get-started"
               className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground shadow-lg shadow-accent/20 transition hover:brightness-110"
             >
               <Rocket className="h-4 w-4" strokeWidth={1.75} />
@@ -231,6 +234,7 @@ export default function LandingPage() {
             </Link>
             <a
               href={GITHUB_URL}
+              data-umami-event="view-github"
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-2 rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800"

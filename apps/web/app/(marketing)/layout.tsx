@@ -1,3 +1,4 @@
+import Script from "next/script";
 import type { ReactNode } from "react";
 import type { AuthUser } from "@deplyr/shared-types";
 import { MarketingBackground } from "@/components/marketing/marketing-background";
@@ -6,6 +7,8 @@ import { SiteFooter } from "@/components/marketing/site-footer";
 import { apiFetch } from "@/lib/api";
 
 async function getCurrentUser(): Promise<AuthUser | null> {
+  // Landing-page-only deploy has no API to ask (and staying API-free keeps the pages static).
+  if (process.env.NEXT_PUBLIC_MARKETING_ONLY === "1") return null;
   const res = await apiFetch("/auth/me");
   if (!res.ok) return null;
   return res.json();
@@ -19,6 +22,11 @@ export default async function MarketingLayout({ children }: { children: ReactNod
   const user = await getCurrentUser();
   return (
     <div className="relative flex min-h-screen flex-col">
+      {/* Analytics only on the public landing-page deploy — self-hosted
+          instances stay telemetry-free. */}
+      {process.env.NEXT_PUBLIC_MARKETING_ONLY === "1" ? (
+        <Script defer src="https://cloud.umami.is/script.js" data-website-id="48cb65b2-6169-40b4-ad2d-f90c136ab84c" strategy="afterInteractive" />
+      ) : null}
       <MarketingBackground />
       <SiteHeader user={user} />
       {/* min-w-0: flex items default to min-width:auto, so without this a

@@ -5,7 +5,7 @@ import { Check, Copy } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 /** `value` may be a function so secrets can be fetched only at click time. */
-export function CopyButton({ value, label, className }: { value: string | (() => Promise<string>); label?: string; className?: string }) {
+export function CopyButton({ value, label, className, trackEvent }: { value: string | (() => Promise<string>); label?: string; className?: string; trackEvent?: string }) {
   const [copied, setCopied] = useState(false);
 
   async function copy(e: React.MouseEvent) {
@@ -24,6 +24,7 @@ export function CopyButton({ value, label, className }: { value: string | (() =>
     <button
       type="button"
       onClick={copy}
+      data-umami-event={trackEvent}
       title={`Copy ${label ?? "value"}`}
       aria-label={`Copy ${label ?? "value"}`}
       className={cn(

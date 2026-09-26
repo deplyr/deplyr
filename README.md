@@ -167,7 +167,7 @@ Get a small Linux VPS from any provider (Hetzner, DigitalOcean, an EC2
 instance — anything works), then run this on it:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/deplyr/deplyr/main/infra/install.sh | bash
+curl -fsSL https://deplyr.abhilaksharora.com/install.sh | bash
 ```
 
 That's the whole install. No Docker to set up by hand, no `.env` to write —
