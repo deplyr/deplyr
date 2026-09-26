@@ -153,49 +153,52 @@ the API and worker to get "Open in Deplyr" links in messages.
 | `DEPLYR_WILDCARD_CERT_PEM` / `_KEY_PEM` | worker | Optional wildcard certificate for HTTPS on deployed apps |
 | `API_URL`, `NEXT_PUBLIC_API_URL` | web | Server-side and browser URLs of the API |
 | `DEPLYR_WEB_PORT` | caddy | Host port for the dashboard. Default `80` — override if this box also self-hosts apps (its own agent's nginx already owns 80/443); doing so forfeits automatic HTTPS |
-| `DEPLYR_CLOUD_MODE` | api | Set to `true` for an instance with real, independent sign-ups (skips the self-host "create the admin account" wizard). Leave unset otherwise |
+
+`infra/install.sh` generates all of these for you on first install — the only
+one you'd normally touch afterward is the domain, and that's now done from
+**Settings → Instance address** in the dashboard itself, not by editing this
+file (see below). Deplyr is self-hosted software with exactly one account per
+instance; there's no multi-tenant "cloud" mode being offered, so there's
+nothing here to configure for that.
 
 ## Self-hosting the control plane
 
-Provision a small VPS (a `t3.small` or larger, Ubuntu 22.04+), then run:
+Get a small Linux VPS from any provider (Hetzner, DigitalOcean, an EC2
+instance — anything works), then run this on it:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/deplyr/deplyr/main/infra/install.sh | bash
 ```
 
-That's it — no Docker install, no hand-written `.env`. It installs Docker if
-it's missing, clones this repo, generates `DEPLYR_MASTER_KEY` and every other
-secret, detects the box's public IP, and brings up Postgres, Redis, the API,
-the worker, the dashboard and Caddy. Open the URL it prints; first visit walks
-you through creating the admin account.
+That's the whole install. No Docker to set up by hand, no `.env` to write —
+it installs Docker if it's missing, generates `DEPLYR_MASTER_KEY` and every
+other secret, detects the box's public IP, and brings up Postgres, Redis, the
+API, the worker, the dashboard and Caddy. It prints a URL when it's done.
 
-**It's also how you update or redeploy later** — run the exact same command
-again on the same box. It pulls the latest code and rebuilds; your existing
-`.env` (and `DEPLYR_MASTER_KEY`) is left untouched, so nothing already
-encrypted breaks.
+1. **Open that URL.** First time, it's a setup page — pick an email and
+   password. That's your one account for this instance; there's no invite
+   flow or public sign-up here, on purpose (see
+   [Status and known limitations](#status-and-known-limitations)).
+2. **You're in — no domain required.** Deplyr already works over plain HTTP
+   on the server's bare IP.
+3. **Want a domain, with HTTPS?** Point its DNS A record at the server, then
+   add it from **Settings → Instance address** in the dashboard, any time.
+   No rebuild, no SSH, no editing files — the certificate is issued
+   automatically within about a minute.
+4. **Updating later:** SSH back in and run the exact same command again. It
+   updates in place; your account, servers, projects and secrets are
+   untouched.
 
-Want a real domain (for automatic HTTPS) instead of the bare IP it
-auto-detects, or to set GitHub OAuth up front? Export the matching variable
-before piping it in:
-
-```bash
-DEPLYR_PUBLIC_HOST=deplyr.example.com \
-GITHUB_CLIENT_ID=… GITHUB_CLIENT_SECRET=… \
-  bash -c "$(curl -fsSL https://raw.githubusercontent.com/deplyr/deplyr/main/infra/install.sh)"
-```
-
-Point the domain's DNS A record at the box first if you use one. Allow
-inbound **80** (the dashboard, and the HTTPS challenge on a domain), **443**
-(HTTPS, domain only) and **4000** (the API — the browser talks to it, and
-managed-server agents dial back to it).
-
-Registering a *managed* server happens afterwards from inside the UI — see
-[How it works](#how-it-works) above for the difference. **The control plane
-box can register itself** as one of its own managed servers (so it deploys
-your apps alongside itself) — just set `DEPLYR_WEB_PORT` to something other
-than 80/443 first (the agent's own nginx needs those), re-run the install
-command to pick it up, then add that same box's IP from **Servers → Connect
-server** like any other.
+This only stands up Deplyr itself — the box doesn't run any of *your* apps
+yet. Add the server(s) you actually want to deploy to from **Servers →
+Connect server** once you're logged in (see [How it works](#how-it-works)
+above). That can be a different box, or **this same one** — Deplyr can
+register the box it's running on as one of its own managed servers, in which
+case set `DEPLYR_WEB_PORT` to something other than 80/443 first (the agent's
+own nginx needs those, once installed) and re-run the install command to pick
+it up. Both roles then share one Docker network on that box with no
+isolation between them (see `docs/PHASE1_DESIGN.md`), so only do this if
+every app deployed there is something you trust.
 
 <details>
 <summary>Prefer to do it by hand instead of running the installer?</summary>
@@ -204,20 +207,12 @@ server** like any other.
 2. Clone this repo and create a `.env` at its root — see `infra/install.sh`
    for the exact variables it would otherwise generate for you.
 3. `docker compose -f infra/docker/docker-compose.prod.yml --env-file .env up -d --build`
+4. Allow inbound **80** (the dashboard, and the HTTPS challenge on a domain),
+   **443** (HTTPS, domain only) and **4000** (the API).
 
-Changed `DEPLYR_PUBLIC_URL` from `http://` to `https://` later? Re-run step 3
-— `NEXT_PUBLIC_API_URL` is baked into web's build, so it needs a rebuild, not
-just a restart, to pick up the new scheme.
+`DEPLYR_PUBLIC_URL`/`DEPLYR_PUBLIC_HOST` can still be set in `.env` up front
+if you'd rather not use Settings for the domain — see the config table above.
 </details>
-
-**Running the control plane on a box that's also a managed server** (i.e. you
-register this same box as one of its own deploy targets, self-hosting apps
-alongside the control plane): set `DEPLYR_WEB_PORT` to something other than
-80/443 — the agent's own nginx already owns those — and put the matching
-port on `DEPLYR_PUBLIC_URL` (e.g. `http://<ip>:8081`). Everything else above
-stays the same. Since both roles share the same Docker network on that box
-(no isolation between them — see docs/PHASE1_DESIGN.md), only do this if
-every app deployed there, on both sides, is something you trust.
 
 ## Status and known limitations
 

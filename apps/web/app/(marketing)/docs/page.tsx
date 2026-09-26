@@ -26,7 +26,7 @@ import { cn } from "@/lib/cn";
 // ---------------------------------------------------------------------------
 
 function InlineCode({ children }: { children: ReactNode }) {
-  return <code className="rounded border border-border bg-surface-hover px-1.5 py-0.5 font-mono text-[12px] text-foreground">{children}</code>;
+  return <code className="break-all rounded border border-border bg-surface-hover px-1.5 py-0.5 font-mono text-[12px] text-foreground">{children}</code>;
 }
 
 function CodeBlock({ label, children }: { label: string; children: string }) {
@@ -62,6 +62,22 @@ function Callout({ tone = "info", title, children }: { tone?: keyof typeof CALLO
       </div>
       <div className="text-sm leading-relaxed text-muted">{children}</div>
     </div>
+  );
+}
+
+function StepList({ steps }: { steps: Array<{ title: string; body: ReactNode }> }) {
+  return (
+    <ol className="space-y-3">
+      {steps.map((step, i) => (
+        <li key={step.title} className="rounded-xl border border-border bg-surface-hover p-4">
+          <div className="mb-1.5 flex items-center gap-3">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent/15 text-xs font-semibold text-accent">{i + 1}</span>
+            <h4 className="text-sm font-semibold">{step.title}</h4>
+          </div>
+          <div className="space-y-2 pl-9 text-sm leading-relaxed text-muted">{step.body}</div>
+        </li>
+      ))}
+    </ol>
   );
 }
 
@@ -135,7 +151,9 @@ const sections: DocSection[] = [
           apps from GitHub, spin up Postgres or Redis, watch health and logs, and get told in Discord or Slack when
           something breaks.
         </p>
-        <p>Two different servers are involved — worth keeping straight from the start:</p>
+        <p>
+          Two <em>roles</em> are involved, not two VPS — worth keeping straight, but you only need one box to start:
+        </p>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-border bg-surface-hover p-4">
             <p className="text-sm font-semibold">The control plane</p>
@@ -146,11 +164,17 @@ const sections: DocSection[] = [
           <div className="rounded-xl border border-border bg-surface-hover p-4">
             <p className="text-sm font-semibold">A managed server</p>
             <p className="mt-1 text-sm leading-relaxed text-muted">
-              A VPS you register <em>through</em> Deplyr to run your apps on. It dials out to the control plane and stays
+              A VPS you register <em>through</em> Deplyr to run your apps on — often the <strong className="text-foreground">
+              same box</strong> the control plane itself runs on. It dials out to the control plane and stays
               connected, so it never needs an open inbound management port.
             </p>
           </div>
         </div>
+        <Callout tone="success" title="Most people start with exactly one VPS">
+          Install Deplyr on a box, then register that <em>same</em> box as a managed server and deploy right there —
+          no second VPS needed to get going. Add more servers later, only once you actually want to, and run all of
+          them from this one Deplyr instance.
+        </Callout>
         <BulletGrid
           items={[
             "Register a server and deploy Next.js, NestJS, plain Node, or anything with a Dockerfile.",
@@ -170,40 +194,56 @@ const sections: DocSection[] = [
     group: "Get started",
     icon: Server,
     title: "Self-hosting the control plane",
-    description: "One command on a fresh VPS — no manual Docker install, no hand-written .env.",
+    description: "One command on a fresh VPS. No Docker to install by hand, no config file to write.",
     body: (
       <>
-        <p>
-          Provision a small VPS (a t3.small or larger, Ubuntu 22.04+), then run this on it as root:
-        </p>
+        <p>Get a small Linux VPS from any provider — Hetzner, DigitalOcean, an EC2 instance, anything. Then run this on it:</p>
         <CodeBlock label="bash">{`curl -fsSL https://raw.githubusercontent.com/deplyr/deplyr/main/infra/install.sh | bash`}</CodeBlock>
-        <p>
-          It installs Docker if it's missing, clones the repo, generates <InlineCode>DEPLYR_MASTER_KEY</InlineCode> and
-          every other secret, detects the box's public IP, and brings the whole stack up — Postgres, Redis, the API,
-          the worker, the dashboard and Caddy. Open the URL it prints; first visit walks you through creating the
-          admin account.
-        </p>
-        <Callout tone="success" title="Also how you update or redeploy later">
-          Run the exact same command again on the same box whenever a new version ships, or you just want to redeploy.
-          It pulls the latest code and rebuilds — your existing <InlineCode>.env</InlineCode> (and{" "}
-          <InlineCode>DEPLYR_MASTER_KEY</InlineCode>) is left untouched, so nothing already encrypted breaks.
-        </Callout>
-        <p>
-          Want a real domain instead of the bare IP it auto-detects, or GitHub OAuth set up front? Export the matching
-          variable before piping it in:
-        </p>
-        <CodeBlock label="bash">{`DEPLYR_PUBLIC_HOST=deplyr.example.com \\
-GITHUB_CLIENT_ID=… GITHUB_CLIENT_SECRET=… \\
-  bash -c "$(curl -fsSL https://raw.githubusercontent.com/deplyr/deplyr/main/infra/install.sh)"`}</CodeBlock>
-        <p>
-          Point the domain's DNS A record at the box first if you use one. Allow inbound <InlineCode>80</InlineCode>{" "}
-          (the dashboard, and the HTTPS challenge on a domain), <InlineCode>443</InlineCode> (HTTPS, domain only) and{" "}
-          <InlineCode>4000</InlineCode> (the API — the browser talks to it, and managed-server agents dial back to it).
-        </p>
-        <Callout tone="info" title="Registering managed servers happens afterwards, inside the UI">
-          The command above only stands up the control plane. Add the VPS you actually want to deploy apps to from{" "}
-          <strong className="text-foreground">Servers → Connect server</strong> once you're logged in — including,
-          if you want, this same box (see the callout on that below).
+        <p>That's the entire install. It figures out the rest on its own, and prints a URL when it's done.</p>
+
+        <StepList
+          steps={[
+            {
+              title: "Open the URL it printed",
+              body: (
+                <p>
+                  First time, this is a setup page — pick an email and password. That's your one account for this
+                  instance; there's no invite flow or public sign-up here, on purpose.
+                </p>
+              ),
+            },
+            {
+              title: "You're in — no domain needed yet",
+              body: <p>Deplyr already works over plain HTTP on your server's IP address. Nothing else is required to start using it.</p>,
+            },
+            {
+              title: "Add a domain whenever you want (optional)",
+              body: (
+                <p>
+                  Point the domain's DNS A record at your server, then go to{" "}
+                  <strong className="text-foreground">Settings → Instance address</strong> and type it in. HTTPS is
+                  issued automatically within a minute — no reinstall, no editing files on the server.
+                </p>
+              ),
+            },
+            {
+              title: "Updating later",
+              body: (
+                <p>
+                  SSH back into the box and run the exact same command again. It updates in place — your account,
+                  servers, projects and secrets are untouched.
+                </p>
+              ),
+            },
+          ]}
+        />
+
+        <Callout tone="info" title="One VPS is all you need — this same box can run your apps too">
+          The install above only brings up Deplyr's dashboard. To actually deploy something, go to{" "}
+          <strong className="text-foreground">Servers → Connect server</strong> once you're logged in and register a
+          server — and the easiest choice is <strong className="text-foreground">this exact box</strong>, the one you
+          just installed on. No second VPS required to get started; add more servers later only if and when you
+          want to.
         </Callout>
       </>
     ),
@@ -263,6 +303,11 @@ GITHUB_CLIENT_ID=… GITHUB_CLIENT_SECRET=… \\
         <p>
           Once connected you get live CPU, memory, disk and load, with history charts from 1 hour to 7 days, and a
           warning if the agent's heartbeat goes stale.
+        </p>
+        <p>
+          One server is a complete setup on its own — the box running Deplyr can be registered here too (see
+          Self-hosting above). This screen is for when you want <em>more</em>: connect as many additional servers as
+          you like, and run every deploy, database and project across all of them from this one Deplyr instance.
         </p>
         <Callout tone="warning" title="Docker Desktop on a Mac doesn't work as a managed server">
           Docker Desktop doesn't expose host networking, which deployed apps rely on. Use a real Linux server or VM.
@@ -340,6 +385,11 @@ GITHUB_CLIENT_ID=… GITHUB_CLIENT_SECRET=… \\
           <InlineCode>_KEY_PEM</InlineCode>), the free <InlineCode>*.your-domain</InlineCode> addresses serve over HTTP
           only. Custom domains always get a real certificate automatically, independent of this.
         </Callout>
+        <Callout tone="info" title="Not the same domain as the dashboard itself">
+          This is a domain for a deployed <em>project</em>. Pointing a domain at Deplyr's own dashboard — the thing
+          you're reading this in right now — is a different, simpler setting: see{" "}
+          <strong className="text-foreground">Settings → Instance address</strong>, covered in Self-hosting above.
+        </Callout>
       </>
     ),
   },
@@ -381,8 +431,14 @@ GITHUB_CLIENT_ID=… GITHUB_CLIENT_SECRET=… \\
     group: "Reference",
     icon: KeyRound,
     title: "Environment variables",
-    description: "What the control plane's own configuration knobs do.",
+    description: "What the installer sets for you, and what each one actually does — rarely worth touching by hand.",
     body: (
+      <>
+      <p>
+        <InlineCode>infra/install.sh</InlineCode> generates all of these on first install. The only one you'd normally
+        change afterward is the domain, and that's done from <strong className="text-foreground">Settings → Instance
+        address</strong> now, not by editing this file — see Self-hosting above.
+      </p>
       <EnvTable
         rows={[
           { name: "DATABASE_URL, REDIS_URL", app: "api, worker", purpose: "Postgres and Redis connections" },
@@ -395,9 +451,9 @@ GITHUB_CLIENT_ID=… GITHUB_CLIENT_SECRET=… \\
           { name: "DEPLYR_WILDCARD_CERT_PEM / _KEY_PEM", app: "worker", purpose: "Optional wildcard certificate for HTTPS on the free default addresses" },
           { name: "API_URL, NEXT_PUBLIC_API_URL", app: "web", purpose: "Server-side and browser URLs of the API" },
           { name: "DEPLYR_WEB_PORT", app: "caddy", purpose: "Host port for the dashboard — default 80; override if this box also self-hosts apps" },
-          { name: "DEPLYR_CLOUD_MODE", app: "api", purpose: "Set true for real, independent sign-ups — skips the self-host \"create the admin account\" wizard" },
         ]}
       />
+      </>
     ),
   },
   {
@@ -460,9 +516,27 @@ export default function DocsPage() {
         description="How Deplyr works, how to self-host it, and how to use everything in it."
       />
 
-      <div className="grid gap-8 xl:grid-cols-[240px_1fr]">
+      {/* Below xl there's no room for the sticky sidebar — this horizontal
+          pill row is its mobile/tablet stand-in, so jumping to a section
+          isn't sighted-scroll-only there. */}
+      <nav aria-label="Documentation sections" className="-mx-4 overflow-x-auto px-4 pb-1 sm:-mx-8 sm:px-8 lg:hidden">
+        <div className="flex w-max gap-2">
+          {sections.map((s) => (
+            <a
+              key={s.id}
+              href={`#${s.id}`}
+              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-muted transition hover:bg-surface-hover hover:text-foreground"
+            >
+              <s.icon className="h-3 w-3 shrink-0" strokeWidth={1.75} />
+              {s.label}
+            </a>
+          ))}
+        </div>
+      </nav>
+
+      <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
         {/* Table of contents */}
-        <aside className="hidden xl:block">
+        <aside className="hidden lg:block">
           <nav
             aria-label="Documentation sections"
             className="sticky top-[4.25rem] max-h-[calc(100vh-6rem)] overflow-y-auto rounded-xl border border-border bg-surface p-5 shadow-sm"
@@ -492,7 +566,7 @@ export default function DocsPage() {
         </aside>
 
         {/* Content */}
-        <div className="max-w-3xl space-y-6">
+        <div className="mx-auto w-full max-w-3xl space-y-6">
           {sections.map((s) => (
             <section key={s.id} id={s.id} className="scroll-mt-[5.5rem] rounded-xl border border-border bg-surface p-6 sm:p-8">
               <div className="mb-5 flex items-start gap-4">

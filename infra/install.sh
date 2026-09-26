@@ -55,17 +55,17 @@ if ! command -v docker >/dev/null 2>&1; then
   # Docker in its own dnf repo instead, under the same package name.
   . /etc/os-release 2>/dev/null || true
   if [ "${ID:-}" = "amzn" ]; then
-    echo "Installing Docker (Amazon Linux)..."
+    echo -e "${ORANGE}Installing Docker (Amazon Linux)...${NC}"
     if command -v dnf >/dev/null 2>&1; then dnf install -y docker; else yum install -y docker; fi
   else
-    echo "Installing Docker..."
+    echo -e "${ORANGE}Installing Docker...${NC}"
     curl -fsSL https://get.docker.com | sh
   fi
 fi
 systemctl enable --now docker >/dev/null 2>&1 || true
 
 if ! docker compose version >/dev/null 2>&1; then
-  echo "Docker installed, but its Compose plugin didn't come with it." >&2
+  echo -e "${RED}Docker installed, but its Compose plugin didn't come with it.${NC}" >&2
   echo "See https://docs.docker.com/compose/install/ and re-run this." >&2
   exit 1
 fi
@@ -75,12 +75,12 @@ fi
 # ---------------------------------------------------------------------------
 for bin in git openssl; do
   if ! command -v "$bin" >/dev/null 2>&1; then
-    echo "Installing $bin..."
+    echo -e "${ORANGE}Installing $bin...${NC}"
     if command -v apt-get >/dev/null 2>&1; then apt-get update -y && apt-get install -y "$bin"
     elif command -v dnf >/dev/null 2>&1; then dnf install -y "$bin"
     elif command -v yum >/dev/null 2>&1; then yum install -y "$bin"
     else
-      echo "Couldn't find a package manager to install $bin — install it yourself and re-run." >&2
+      echo -e "${RED}Couldn't find a package manager to install $bin — install it yourself and re-run.${NC}" >&2
       exit 1
     fi
   fi
@@ -90,10 +90,10 @@ done
 # fetch (or update) the repo
 # ---------------------------------------------------------------------------
 if [ -d "$INSTALL_DIR/.git" ]; then
-  echo "Updating existing install at $INSTALL_DIR..."
+  echo -e "${ORANGE}Updating existing install at $INSTALL_DIR...${NC}"
   git -C "$INSTALL_DIR" pull --ff-only
 else
-  echo "Cloning Deplyr into $INSTALL_DIR..."
+  echo -e "${ORANGE}Cloning Deplyr into $INSTALL_DIR...${NC}"
   git clone --depth 1 "$REPO_URL" "$INSTALL_DIR"
 fi
 cd "$INSTALL_DIR"
@@ -103,14 +103,14 @@ cd "$INSTALL_DIR"
 # ---------------------------------------------------------------------------
 ENV_FILE="$INSTALL_DIR/.env"
 if [ ! -f "$ENV_FILE" ]; then
-  echo "First install — generating $ENV_FILE with fresh secrets..."
+  echo -e "${ORANGE}First install — generating $ENV_FILE with fresh secrets...${NC}"
 
   PUBLIC_HOST="${DEPLYR_PUBLIC_HOST:-}"
   if [ -z "$PUBLIC_HOST" ]; then
     PUBLIC_HOST=$(curl -fsSL -4 https://ifconfig.me 2>/dev/null || curl -fsSL -4 https://api.ipify.org 2>/dev/null || true)
   fi
   if [ -z "$PUBLIC_HOST" ]; then
-    echo "Couldn't auto-detect this box's public IP. Re-run with DEPLYR_PUBLIC_HOST=<ip-or-domain> set." >&2
+    echo -e "${RED}Couldn't auto-detect this box's public IP. Re-run with DEPLYR_PUBLIC_HOST=<ip-or-domain> set.${NC}" >&2
     exit 1
   fi
   # A domain gets automatic HTTPS from Caddy; a bare IP can't get a real
@@ -135,19 +135,19 @@ GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID:-}
 GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET:-}
 EOF
   chmod 600 "$ENV_FILE"
-  echo "Wrote $ENV_FILE — back up DEPLYR_MASTER_KEY somewhere safe, it can't be recovered if it's lost."
+  echo -e "${GREEN}Wrote $ENV_FILE${NC} — back up DEPLYR_MASTER_KEY somewhere safe, it can't be recovered if it's lost."
 else
-  echo "Found existing $ENV_FILE — reusing it as-is (secrets untouched)."
+  echo -e "${ORANGE}Found existing $ENV_FILE${NC} — reusing it as-is (secrets untouched)."
 fi
 
 # ---------------------------------------------------------------------------
 # bring it up
 # ---------------------------------------------------------------------------
-echo "Building and starting Deplyr (this takes a few minutes the first time)..."
+echo -e "${ORANGE}Building and starting Deplyr (this takes a few minutes the first time)...${NC}"
 docker compose -f infra/docker/docker-compose.prod.yml --env-file "$ENV_FILE" up -d --build
 
 PUBLIC_URL=$(grep '^DEPLYR_PUBLIC_URL=' "$ENV_FILE" | cut -d= -f2-)
 echo ""
-echo "Deplyr is up: $PUBLIC_URL"
+echo -e "${GREEN}${BOLD}Deplyr is up:${NC} ${ORANGE}$PUBLIC_URL${NC}"
 echo "Open it — first visit walks you through creating the admin account."
 echo "To update later, or add a managed server, run this exact command again."

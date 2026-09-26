@@ -1,6 +1,7 @@
 import type { AuthUser } from "@deplyr/shared-types";
 import { Github, UserRound } from "lucide-react";
 import { GithubConnect } from "@/components/github/github-connect";
+import { InstanceDomainCard } from "@/components/settings/instance-domain-card";
 import { FlatCard } from "@/components/ui/flat-card";
 import { Page, PageHeader } from "@/components/ui/page";
 import { SectionTitle } from "@/components/ui/section-title";
@@ -45,6 +46,10 @@ export default async function SettingsPage({
           </div>
         ) : null}
         <GithubConnect githubLogin={user?.githubLogin ?? null} oauthEnabled={cfg.githubOAuth} />
+      </FlatCard>
+
+      <FlatCard className="animate-fade-up p-6 sm:p-8" style={{ animationDelay: "110ms" }}>
+        <InstanceDomainCard />
       </FlatCard>
     </Page>
   );

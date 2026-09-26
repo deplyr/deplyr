@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
   Bell,
-  Boxes,
   Check,
   Database,
   Github,
@@ -19,7 +18,7 @@ import {
 import { CopyButton } from "@/components/ui/copy-button";
 
 const GITHUB_URL = "https://github.com/deplyr/deplyr";
-const INSTALL_CMD = "docker compose -f infra/docker/docker-compose.prod.yml --env-file .env up -d --build";
+const INSTALL_CMD = "curl -fsSL https://raw.githubusercontent.com/deplyr/deplyr/main/infra/install.sh | bash";
 
 const FEATURES: Array<{ icon: LucideIcon; title: string; body: string }> = [
   { icon: ServerIcon, title: "Any Linux VPS", body: "Register a box with an IP and root password or SSH key — Deplyr installs Docker, nginx and a small agent for you." },
@@ -33,21 +32,10 @@ const FEATURES: Array<{ icon: LucideIcon; title: string; body: string }> = [
 export default function LandingPage() {
   return (
     <>
-      {/* hero */}
-      <section className="relative isolate overflow-hidden border-b border-border">
-        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-          <div className="absolute -left-40 -top-40 h-[34rem] w-[34rem] rounded-full bg-accent/20 blur-[140px]" />
-          <div className="absolute -bottom-52 right-[-8rem] h-[36rem] w-[36rem] rounded-full bg-accent/10 blur-[150px]" />
-          <div
-            className="absolute inset-0 opacity-[0.5] [mask-image:radial-gradient(ellipse_at_top,black_30%,transparent_75%)]"
-            style={{
-              backgroundImage:
-                "linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px), linear-gradient(to bottom, hsl(var(--border)) 1px, transparent 1px)",
-              backgroundSize: "44px 44px",
-            }}
-          />
-        </div>
-
+      {/* hero — the ambient glow/grid behind this now lives in the marketing
+          layout (MarketingBackground), fixed to the viewport so it shows
+          behind the floating header too, not just this section. */}
+      <section className="border-b border-border">
         <div className="mx-auto max-w-4xl px-4 py-20 text-center sm:px-8 sm:py-28">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-muted shadow-sm">
             <Sparkles className="h-3.5 w-3.5 text-accent" strokeWidth={1.75} />
@@ -66,7 +54,7 @@ export default function LandingPage() {
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link
-              href="/login"
+              href="/docs#self-hosting"
               className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground shadow-lg shadow-accent/20 transition hover:brightness-110"
             >
               <Rocket className="h-4 w-4" strokeWidth={1.75} />
@@ -82,7 +70,7 @@ export default function LandingPage() {
               View on GitHub
             </a>
           </div>
-          <p className="mt-4 text-xs text-muted">MIT licensed. Self-host it in minutes — see the <Link href="/docs" className="text-accent hover:underline">documentation</Link>.</p>
+          <p className="mt-4 text-xs text-muted">MIT licensed. Self-host it in minutes — see the <Link href="/docs#self-hosting" className="text-accent hover:underline">documentation</Link>.</p>
         </div>
       </section>
 
@@ -90,10 +78,11 @@ export default function LandingPage() {
       <section className="mx-auto max-w-5xl px-4 py-16 sm:px-8 sm:py-20">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-xs font-semibold uppercase tracking-widest text-accent">How it works</p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Two servers, never mixed up</h2>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">One VPS is all it takes</h2>
           <p className="mt-3 text-sm leading-relaxed text-muted">
-            The control plane is Deplyr itself, run once on your own box. Managed servers are the VPS instances you
-            register through it to actually run your apps.
+            Deplyr itself and the apps it deploys are two <em>roles</em>, not two boxes — the same VPS you install
+            Deplyr on can run your apps too. Add more servers later, whenever you actually want to, and manage all of
+            them from this one instance.
           </p>
         </div>
 
@@ -108,9 +97,9 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="flex items-center justify-center gap-2 py-4 text-muted lg:flex-col lg:py-0">
+          <div className="flex items-center justify-center gap-2 py-4 text-center text-muted lg:flex-col lg:py-0">
             <Radio className="h-4 w-4 shrink-0 animate-pulse text-accent" strokeWidth={1.75} />
-            <span className="whitespace-nowrap text-[11px] font-medium uppercase tracking-widest">WebSocket, always out</span>
+            <span className="text-[11px] font-medium uppercase tracking-widest">WebSocket, always out</span>
           </div>
 
           <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
@@ -124,6 +113,10 @@ export default function LandingPage() {
             </p>
           </div>
         </div>
+        <p className="mx-auto mt-6 max-w-lg text-center text-xs text-muted">
+          These can be the exact same VPS — register the box Deplyr runs on as its own managed server and deploy right
+          there. A second box is only for when you outgrow the first one.
+        </p>
       </section>
 
       {/* features */}
@@ -155,8 +148,8 @@ export default function LandingPage() {
             <p className="text-xs font-semibold uppercase tracking-widest text-accent">Self-host it</p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Up and running in one command</h2>
             <p className="mt-3 text-sm leading-relaxed text-muted">
-              Provision a small VPS, clone the repo, set a few environment variables, and bring the whole control
-              plane up with Docker Compose — Postgres, Redis, the API, the worker and the dashboard, all in one shot.
+              Provision a small VPS and run one command. It installs Docker if it's missing, generates every secret,
+              and brings up Postgres, Redis, the API, the worker and the dashboard — no config file to write by hand.
             </p>
             <div className="mt-5 space-y-2">
               {["Runs entirely on infrastructure you control", "No telemetry, no vendor lock-in", "MIT licensed, fork it freely"].map((line) => (
@@ -166,7 +159,7 @@ export default function LandingPage() {
                 </div>
               ))}
             </div>
-            <Link href="/docs" className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:underline">
+            <Link href="/docs#self-hosting" className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:underline">
               Read the full self-hosting guide →
             </Link>
           </div>
@@ -198,19 +191,21 @@ export default function LandingPage() {
           </p>
           <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
             <Link
-              href="/login"
+              href="/docs#self-hosting"
               className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-accent-foreground shadow-lg shadow-accent/20 transition hover:brightness-110"
             >
               <Rocket className="h-4 w-4" strokeWidth={1.75} />
               Get started
             </Link>
-            <Link
-              href="/docs"
-              className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-5 py-3 text-sm font-semibold transition hover:bg-surface-hover"
+            <a
+              href={GITHUB_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800"
             >
-              <Boxes className="h-4 w-4" strokeWidth={1.75} />
-              Read the docs
-            </Link>
+              <Github className="h-4 w-4" strokeWidth={1.75} />
+              View on GitHub
+            </a>
           </div>
         </div>
       </section>

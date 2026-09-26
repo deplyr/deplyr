@@ -5,6 +5,7 @@ import { eq, ne, and, sql } from "drizzle-orm";
 import { credentialsInputSchema, type AuthUser } from "@deplyr/shared-types";
 import { SESSION_COOKIE, createSessionToken, verifySessionToken } from "../lib/session";
 import { requireAuth } from "../lib/require-auth";
+import { clearLoginAttempts, isLoginLocked, loginAttemptKey, recordFailedLogin } from "../lib/login-rate-limit";
 import type { AppEnv } from "../types";
 
 const STATE_COOKIE = "deplyr_oauth_state";
@@ -16,6 +17,15 @@ function requiredEnv(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`${name} is not set`);
   return value;
+}
+
+/** Best effort — trusts Caddy's X-Forwarded-For in front of this, falls
+ * back to "unknown" (one shared bucket) for direct/local connections where
+ * nothing sets it, e.g. local dev. */
+function clientIp(c: { req: { header: (name: string) => string | undefined } }): string {
+  const forwarded = c.req.header("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0]!.trim();
+  return c.req.header("x-real-ip") ?? "unknown";
 }
 
 export const authRoute = new Hono<AppEnv>();
@@ -144,6 +154,16 @@ authRoute.get("/github/callback", async (c) => {
       }
       [user] = await db.update(users).set(githubFields).where(eq(users.id, byEmail.id)).returning();
     } else {
+      // Same cap as /auth/signup, enforced here too — GitHub OAuth was the
+      // one path that could still mint a second account on a self-hosted
+      // instance regardless of it.
+      const cloudMode = process.env.DEPLYR_CLOUD_MODE === "true";
+      if (!cloudMode) {
+        const [row] = await db.select({ count: sql<number>`count(*)::int` }).from(users);
+        if ((row?.count ?? 0) > 0) {
+          return c.redirect(`${requiredEnv("WEB_URL")}/login?error=signups_closed`);
+        }
+      }
       [user] = await db
         .insert(users)
         .values({ email: primaryEmail.email, ...githubFields })
@@ -167,6 +187,19 @@ authRoute.get("/github/callback", async (c) => {
 });
 
 authRoute.post("/signup", async (c) => {
+  // Mirrors /auth/config's needsSetup exactly, but enforced here — that
+  // endpoint only ever told the *frontend* whether to show a signup form;
+  // nothing stopped this one from being called directly regardless. On a
+  // self-hosted instance, sign-ups are for creating the one admin account
+  // during first-run setup, full stop.
+  const cloudMode = process.env.DEPLYR_CLOUD_MODE === "true";
+  if (!cloudMode) {
+    const [row] = await db.select({ count: sql<number>`count(*)::int` }).from(users);
+    if ((row?.count ?? 0) > 0) {
+      return c.json({ error: "sign-ups are closed on this instance" }, 403);
+    }
+  }
+
   const parsed = credentialsInputSchema.safeParse(await c.req.json());
   if (!parsed.success) {
     return c.json({ error: parsed.error.issues[0]?.message ?? "invalid input" }, 400);
@@ -203,10 +236,17 @@ authRoute.post("/login", async (c) => {
   }
   const { email, password } = parsed.data;
 
+  const attemptKey = loginAttemptKey(clientIp(c), email);
+  if (isLoginLocked(attemptKey)) {
+    return c.json({ error: "too many attempts — try again in a few minutes" }, 429);
+  }
+
   const [user] = await db.select().from(users).where(eq(users.email, email));
   if (!user || !user.passwordHash || !(await Bun.password.verify(password, user.passwordHash))) {
+    recordFailedLogin(attemptKey);
     return c.json({ error: "incorrect email or password" }, 401);
   }
+  clearLoginAttempts(attemptKey);
 
   const sessionToken = await createSessionToken(user.id);
   setCookie(c, SESSION_COOKIE, sessionToken, {

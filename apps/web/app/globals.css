@@ -65,6 +65,11 @@ html.dark {
 body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
+  /* Safety net: something somewhere is one long unbroken token (a URL, an
+   * ALL_CAPS_ENV_VAR, a table) away from pushing wider than a narrow phone
+   * screen. Vertical scroll (sticky headers included) is unaffected — only
+   * the horizontal axis is clipped. */
+  overflow-x: hidden;
 }
 
 ::selection {

@@ -412,6 +412,20 @@ export const domains = pgTable(
   (table) => [index("domains_project_idx").on(table.projectId)],
 );
 
+// Singleton — one row, id fixed to "default". Not per-project (see
+// `domains` above, which is): this is the control plane's *own* public
+// address, set from the dashboard instead of an env var + manual rebuild.
+export const instanceSettings = pgTable("instance_settings", {
+  id: text("id").primaryKey().default("default"),
+  customDomain: text("custom_domain"),
+  // Reuses domain_ssl_status's shape (none/provisioning/active/error) — no
+  // "pending_dns" step here, since this domain isn't verified against a DNS
+  // record the way a project's is; it's just "did Caddy accept it".
+  domainStatus: domainSslStatusEnum("domain_status").notNull().default("none"),
+  domainStatusDetail: text("domain_status_detail"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const auditEvents = pgTable(
   "audit_events",
   {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, ListChecks, Server, Bell, BookOpen, Settings, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import type { AuthUser } from "@deplyr/shared-types";
+import { DeplyrMark } from "@/components/brand/deplyr-mark";
 import { cn } from "@/lib/cn";
 import { useSidebar } from "@/components/shell/sidebar-context";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
@@ -91,10 +92,8 @@ export function Sidebar({ user }: { user: AuthUser | null }) {
         )}
       >
         <div className={cn("mb-7 flex items-center gap-2.5", collapsed && "justify-center")}>
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent text-sm font-bold text-accent-foreground">
-            D
-          </div>
-          {!collapsed ? <span className="text-base font-semibold tracking-tight">deplyr</span> : null}
+          <DeplyrMark className="h-8 w-8 shrink-0" idPrefix="sidebar-mark" />
+          {!collapsed ? <span className="text-base font-semibold tracking-tight">Deplyr</span> : null}
         </div>
 
         {!collapsed ? <p className="mb-2 px-3 text-[10px] uppercase tracking-widest text-muted/70">Workspace</p> : null}

@@ -70,6 +70,13 @@ services:
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
       GITHUB_OAUTH_REDIRECT_URI: ${DEPLYR_PUBLIC_URL}:4000/auth/github/callback
       WEB_URL: ${DEPLYR_PUBLIC_URL}
+      DEPLYR_APP_DOMAIN: ${DEPLYR_APP_DOMAIN}
+      # This instance's own bare address, and where Caddy's admin API lives
+      # — both needed for Settings' "point a domain at this instance" to
+      # push Caddy a new config live (see routes/instance.ts). Internal to
+      # this Docker network; never published to the host.
+      DEPLYR_PUBLIC_HOST: ${DEPLYR_PUBLIC_HOST}
+      CADDY_ADMIN_URL: http://caddy:2019
     depends_on:
       postgres:
         condition: service_healthy
@@ -142,6 +149,12 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    # --resume: if a newer config was pushed live via the admin API (see
+    # routes/instance.ts — Settings' "point a domain at this instance"),
+    # reload *that* on restart instead of always resetting to this static
+    # Caddyfile. It's still what a fresh instance boots from the very first
+    # time, before anything's ever been pushed.
+    command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile", "--resume"]
     environment:
       DEPLYR_PUBLIC_HOST: ${DEPLYR_PUBLIC_HOST}
     volumes:

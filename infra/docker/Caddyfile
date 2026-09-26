@@ -5,6 +5,12 @@
 # reaches web on the default port and api on :4000, matching
 # NEXT_PUBLIC_API_URL's shape (see docker-compose.prod.yml) — Caddy issues
 # one cert and reuses it for both, since certs are per-hostname, not per-port.
+#
+# This is only ever the *bootstrap* config. Adding a custom domain from
+# Settings in the dashboard pushes a new one of these straight to Caddy's
+# admin API at runtime (apps/api/src/routes/instance.ts) — no file edit, no
+# restart. --resume on the caddy service (see docker-compose.prod.yml) is
+# what makes that survive a restart instead of resetting to this file.
 
 {$DEPLYR_PUBLIC_HOST} {
 	reverse_proxy web:3000

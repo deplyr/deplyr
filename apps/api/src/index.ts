@@ -14,6 +14,7 @@ import { activityRoute, serverActivityRoute } from "./routes/activity";
 import { notificationsRoute } from "./routes/notifications";
 import { domainsRoute } from "./routes/domains";
 import { logsRoute } from "./routes/logs";
+import { instanceRoute } from "./routes/instance";
 import { agentWsHandler, startAgentCommandBridge } from "./ws/agent";
 import type { AppEnv } from "./types";
 
@@ -49,6 +50,7 @@ app.route("/github", githubRoute);
 app.route("/projects", projectsRoute);
 app.route("/deploys", deploysRoute);
 app.route("/overview", overviewRoute);
+app.route("/instance", instanceRoute);
 
 // Agents dial out to this endpoint and stay connected — see
 // docs/PHASE1_DESIGN.md section 3.

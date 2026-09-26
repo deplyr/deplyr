@@ -27,6 +27,13 @@ export default function LoginPage() {
         setGithubOAuth(cfg.githubOAuth);
       })
       .catch(() => {});
+
+    // Not useSearchParams — that needs a Suspense boundary this page
+    // doesn't otherwise want, and this only ever matters right after the
+    // GitHub OAuth redirect lands here.
+    if (new URLSearchParams(window.location.search).get("error") === "signups_closed") {
+      setError("Sign-ups are closed on this instance — sign in if you already have an account here.");
+    }
   }, [router]);
 
   async function handleSubmit(e: FormEvent) {
