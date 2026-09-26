@@ -1,6 +1,11 @@
 import type { ReactNode } from "react";
 import { Check, Globe, Database, ShieldCheck, Activity } from "lucide-react";
 
+import type { Metadata } from "next";
+
+// Private per-instance pages — nothing here should ever show up in search.
+export const metadata: Metadata = { robots: { index: false, follow: false } };
+
 const steps = [
   { icon: Check, label: "Cloned from GitHub", done: true },
   { icon: Database, label: "Database provisioned", done: true },

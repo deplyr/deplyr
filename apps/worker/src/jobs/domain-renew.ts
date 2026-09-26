@@ -26,6 +26,7 @@ export async function processDomainRenew(_job: Job<DomainRenewJob>) {
 
   const byServer = new Map<string, typeof rows>();
   for (const row of rows) {
+    if (row.server.id === process.env.DEPLYR_LOCAL_SERVER_ID) continue; // Caddy renews its own certificates
     if (row.server.status !== "connected") continue; // catches up next sweep
     const list = byServer.get(row.server.id) ?? [];
     list.push(row);

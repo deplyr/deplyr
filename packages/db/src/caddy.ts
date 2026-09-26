@@ -1,7 +1,7 @@
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { localAppAddress } from "@deplyr/shared-types";
 import { db } from "./client";
-import { instanceSettings, projects } from "./schema";
+import { domains, instanceSettings, projects } from "./schema";
 
 // Reachable over the internal Docker network only (never published to the
 // host — see infra/docker/docker-compose.prod.yml).
@@ -39,6 +39,14 @@ export async function localApps(): Promise<CaddyApp[]> {
     const addr = localAppAddress(r.subdomain, publicHost, process.env.DEPLYR_APP_DOMAIN || null);
     if (addr && r.appPort) apps.push({ ...addr, port: r.appPort });
   }
+  // Custom domains whose DNS has been verified. Caddy gets each one's
+  // certificate itself the first time it's asked for the host.
+  const custom = await db
+    .select({ hostname: domains.hostname, appPort: projects.appPort })
+    .from(domains)
+    .innerJoin(projects, eq(domains.projectId, projects.id))
+    .where(and(eq(projects.serverId, localId), isNotNull(projects.appPort), inArray(domains.status, ["provisioning", "active"])));
+  for (const d of custom) if (d.appPort) apps.push({ host: d.hostname, https: true, port: d.appPort });
   return apps;
 }
 

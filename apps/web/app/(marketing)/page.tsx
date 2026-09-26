@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   Bell,
@@ -16,8 +17,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { CopyButton } from "@/components/ui/copy-button";
+import { GITHUB_URL, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site";
 
-const GITHUB_URL = "https://github.com/deplyr/deplyr";
 const INSTALL_CMD = "curl -fsSL https://raw.githubusercontent.com/deplyr/deplyr/main/infra/install.sh | bash";
 
 const FEATURES: Array<{ icon: LucideIcon; title: string; body: string }> = [
@@ -29,9 +30,40 @@ const FEATURES: Array<{ icon: LucideIcon; title: string; body: string }> = [
   { icon: Lock, title: "Encrypted at rest", body: "GitHub tokens, SSH credentials, secret values and database passwords are all AES-256-GCM encrypted, never logged in plain text." },
 ];
 
+export const metadata: Metadata = {
+  title: { absolute: SITE_TITLE },
+  description: SITE_DESCRIPTION,
+  alternates: { canonical: "/" },
+  openGraph: { url: SITE_URL, title: SITE_TITLE, description: SITE_DESCRIPTION, type: "website", images: ["/opengraph-image"] },
+};
+
+// Structured data so search engines can show this as a software product, and
+// tie the site to its repository.
+const JSON_LD = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "@id": `${SITE_URL}/#software`,
+      name: SITE_NAME,
+      url: SITE_URL,
+      description: SITE_DESCRIPTION,
+      applicationCategory: "DeveloperApplication",
+      operatingSystem: "Linux",
+      license: "https://opensource.org/licenses/MIT",
+      codeRepository: GITHUB_URL,
+      sameAs: [GITHUB_URL],
+      isAccessibleForFree: true,
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+    },
+    { "@type": "WebSite", "@id": `${SITE_URL}/#website`, name: SITE_NAME, url: SITE_URL, description: SITE_DESCRIPTION },
+  ],
+};
+
 export default function LandingPage() {
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
       {/* hero — the ambient glow/grid behind this now lives in the marketing
           layout (MarketingBackground), fixed to the viewport so it shows
           behind the floating header too, not just this section. */}

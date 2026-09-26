@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import {
   AlertTriangle,
@@ -512,6 +513,14 @@ const sections: DocSection[] = [
     ),
   },
 ];
+
+export const metadata: Metadata = {
+  title: "Documentation",
+  description:
+    "How to self-host Deplyr with one command, connect GitHub, deploy apps, run Postgres and Redis, add domains with free SSL, and set up alerts.",
+  alternates: { canonical: "/docs" },
+  openGraph: { url: "/docs", title: "Deplyr documentation", type: "article", images: ["/opengraph-image"] },
+};
 
 const groups = Array.from(new Set(sections.map((s) => s.group)));
 

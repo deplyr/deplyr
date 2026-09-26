@@ -1,12 +1,52 @@
 import { resolve4, resolveCname } from "node:dns/promises";
 import type { Job } from "bullmq";
 import { eq } from "drizzle-orm";
-import { db, domains, projects, servers, recordAudit } from "@deplyr/db";
+import { connect } from "node:tls";
+import { db, domains, projects, servers, recordAudit, syncCaddy } from "@deplyr/db";
 import { domainVerifyQueue, DOMAIN_VERIFY_RETRY_MS, type DomainVerifyJob } from "@deplyr/queue";
 import { dnsInstructionFor } from "@deplyr/shared-types";
 import { runAgentCommand } from "../lib/agent-commands";
 
 const PROVISION_TIMEOUT_MS = 2 * 60 * 1000;
+
+// Cloudflare's proxy ranges (the orange cloud). A domain resolving to these is
+// hidden behind Cloudflare, so its real target can't be checked — and the
+// certificate challenge can't reach the server.
+const CLOUDFLARE_PREFIXES = [
+  ["103.21.244.0", 22], ["103.22.200.0", 22], ["103.31.4.0", 22], ["104.16.0.0", 13], ["108.162.192.0", 18],
+  ["131.0.72.0", 22], ["141.101.64.0", 18], ["162.158.0.0", 15], ["172.64.0.0", 13], ["173.245.48.0", 20],
+  ["188.114.96.0", 20], ["190.93.240.0", 20], ["197.234.240.0", 22], ["198.41.128.0", 17],
+] as const;
+const ipToInt = (ip: string) => ip.split(".").reduce((n, o) => n * 256 + Number(o), 0);
+const isCloudflareIp = (ip: string) =>
+  CLOUDFLARE_PREFIXES.some(([base, bits]) => {
+    const size = 2 ** (32 - bits);
+    return Math.floor(ipToInt(ip) / size) === Math.floor(ipToInt(base) / size);
+  });
+
+/** Waits for Caddy to serve a valid certificate for `hostname`; resolves the
+ * expiry, or null if it isn't there after ~90s. */
+async function waitForCaddyCert(hostname: string): Promise<Date | null> {
+  const probe = () =>
+    new Promise<Date | null>((resolve) => {
+      const socket = connect({ host: "caddy", port: 443, servername: hostname, rejectUnauthorized: true, timeout: 5000 }, () => {
+        const cert = socket.getPeerCertificate();
+        socket.end();
+        resolve(cert?.valid_to ? new Date(cert.valid_to) : null);
+      });
+      socket.on("error", () => resolve(null));
+      socket.on("timeout", () => {
+        socket.destroy();
+        resolve(null);
+      });
+    });
+  for (let i = 0; i < 18; i++) {
+    const expires = await probe();
+    if (expires) return expires;
+    await new Promise((r) => setTimeout(r, 5000));
+  }
+  return null;
+}
 
 /**
  * Checks whether a domain's DNS points where we told the user to point it,
@@ -71,6 +111,13 @@ export async function processDomainVerify(job: Job<DomainVerifyJob>) {
   }
 
   if (!matched) {
+    const proxied = seen.split(", ").some(isCloudflareIp);
+    if (proxied) {
+      await retry(
+        `${domain.hostname} is behind Cloudflare's proxy (orange cloud), so it can't be pointed at your server or get a certificate. In Cloudflare DNS, set this record to "DNS only" (grey cloud) with the A record ${instruction.value}, then check again.`,
+      );
+      return;
+    }
     await retry(
       `${domain.hostname} ${instruction.type === "A" ? "points to" : "resolves to"} "${seen}", not the ${instruction.type} record we're expecting (${instruction.value}). Add the DNS record shown below, then wait for it to propagate.`,
     );
@@ -83,6 +130,43 @@ export async function processDomainVerify(job: Job<DomainVerifyJob>) {
   }
 
   await db.update(domains).set({ status: "provisioning", statusDetail: "DNS looks right — setting up HTTPS…", lastCheckedAt: new Date() }).where(eq(domains.id, domainId));
+
+  // The box Deplyr runs on is fronted by Caddy, not nginx: the domain just
+  // becomes a site in Caddy's config and Caddy gets the certificate itself.
+  if (server.id === process.env.DEPLYR_LOCAL_SERVER_ID) {
+    try {
+      await syncCaddy();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await db.update(domains).set({ status: "error", statusDetail: message }).where(eq(domains.id, domainId));
+      return;
+    }
+    await db
+      .update(domains)
+      .set({ status: "active", statusDetail: null, sslStatus: "provisioning", sslStatusDetail: "Requesting a certificate…" })
+      .where(eq(domains.id, domainId));
+    const expires = await waitForCaddyCert(domain.hostname);
+    if (!expires) {
+      await db
+        .update(domains)
+        .set({ sslStatus: "error", sslStatusDetail: "Caddy couldn't get a certificate yet. Make sure ports 80 and 443 are open and DNS isn't proxied, then retry." })
+        .where(eq(domains.id, domainId));
+      return;
+    }
+    await db.update(domains).set({ sslStatus: "active", sslStatusDetail: null, certExpiresAt: expires }).where(eq(domains.id, domainId));
+    await recordAudit({
+      ownerId: project.userId,
+      serverId: server.id,
+      action: "domain.active",
+      status: "success",
+      summary: `${domain.hostname} is live`,
+      detail: "HTTPS is on",
+      resourceType: "project",
+      resourceId: project.id,
+      resourceName: domain.hostname,
+    });
+    return;
+  }
 
   try {
     await runAgentCommand({

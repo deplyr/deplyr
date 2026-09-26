@@ -1,6 +1,6 @@
 import type { Job } from "bullmq";
 import { eq } from "drizzle-orm";
-import { db, domains, projects, servers, recordAudit } from "@deplyr/db";
+import { db, domains, projects, servers, recordAudit, syncCaddy } from "@deplyr/db";
 import type { DomainRemoveJob } from "@deplyr/queue";
 import { runAgentCommand } from "../lib/agent-commands";
 
@@ -18,7 +18,8 @@ export async function processDomainRemove(job: Job<DomainRemoveJob>) {
   const [project] = await db.select().from(projects).where(eq(projects.id, domain.projectId));
   const [server] = project ? await db.select().from(servers).where(eq(servers.id, project.serverId)) : [];
 
-  if (server?.status === "connected") {
+  const isLocal = !!server && server.id === process.env.DEPLYR_LOCAL_SERVER_ID;
+  if (server?.status === "connected" && !isLocal) {
     try {
       await runAgentCommand({
         serverId: server.id,
@@ -33,6 +34,7 @@ export async function processDomainRemove(job: Job<DomainRemoveJob>) {
   }
 
   await db.delete(domains).where(eq(domains.id, domainId));
+  if (isLocal) await syncCaddy().catch((err) => console.error("[worker] caddy sync after domain removal failed", err));
 
   if (project) {
     await recordAudit({

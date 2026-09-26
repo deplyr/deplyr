@@ -29,5 +29,7 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Static/SEO files are excluded so crawlers and social scrapers (no session
+  // cookie) get them instead of a redirect to /login.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|robots.txt|sitemap.xml|opengraph-image|twitter-image).*)"],
 };
