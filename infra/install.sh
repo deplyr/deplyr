@@ -117,21 +117,27 @@ if [ ! -f "$ENV_FILE" ]; then
   # certificate, so DEPLYR_PUBLIC_URL stays http:// for that case (see the
   # compose file's own notes) — DEPLYR_PUBLIC_HOST wins either way for
   # DEPLYR_PUBLIC_URL's scheme if it looks like a domain, not an IP.
+  # The dashboard lives on 8081, not 80: this box also becomes your first
+  # managed server (see below), and the nginx that serves your deployed apps
+  # needs port 80 for itself.
+  WEB_PORT="${DEPLYR_WEB_PORT:-8081}"
   case "$PUBLIC_HOST" in
-    *[a-zA-Z]*) DEFAULT_SCHEME="https"; SITE_ADDRESS="$PUBLIC_HOST" ;;
+    *[a-zA-Z]*) DEFAULT_URL="https://$PUBLIC_HOST"; SITE_ADDRESS="$PUBLIC_HOST" ;;
     # http:// explicitly: Caddy otherwise self-signs an IP and redirects to it.
-    *) DEFAULT_SCHEME="http"; SITE_ADDRESS="http://$PUBLIC_HOST" ;;
+    *) DEFAULT_URL="http://$PUBLIC_HOST:$WEB_PORT"; SITE_ADDRESS="http://$PUBLIC_HOST" ;;
   esac
 
   cat > "$ENV_FILE" <<EOF
 POSTGRES_PASSWORD=$(openssl rand -hex 24)
 DEPLYR_MASTER_KEY=$(openssl rand -base64 32)
 DEPLYR_SESSION_SECRET=$(openssl rand -base64 32)
-DEPLYR_PUBLIC_URL=${DEPLYR_PUBLIC_URL:-$DEFAULT_SCHEME://$PUBLIC_HOST}
+DEPLYR_PUBLIC_URL=${DEPLYR_PUBLIC_URL:-$DEFAULT_URL}
 DEPLYR_PUBLIC_HOST=$PUBLIC_HOST
 DEPLYR_SITE_ADDRESS=$SITE_ADDRESS
 DEPLYR_APP_DOMAIN=${DEPLYR_APP_DOMAIN:-}
-DEPLYR_WEB_PORT=${DEPLYR_WEB_PORT:-80}
+DEPLYR_WEB_PORT=$WEB_PORT
+DEPLYR_LOCAL_SERVER_ID=$(cat /proc/sys/kernel/random/uuid)
+DEPLYR_LOCAL_AGENT_TOKEN=$(openssl rand -hex 32)
 DEPLYR_CLOUD_MODE=${DEPLYR_CLOUD_MODE:-}
 GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID:-}
 GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET:-}
@@ -140,6 +146,12 @@ EOF
   echo -e "${GREEN}Wrote $ENV_FILE${NC} — back up DEPLYR_MASTER_KEY somewhere safe, it can't be recovered if it's lost."
 else
   echo -e "${ORANGE}Found existing $ENV_FILE${NC} — reusing it as-is (secrets untouched)."
+  if ! grep -q '^DEPLYR_LOCAL_SERVER_ID=' "$ENV_FILE"; then
+    {
+      echo "DEPLYR_LOCAL_SERVER_ID=$(cat /proc/sys/kernel/random/uuid)"
+      echo "DEPLYR_LOCAL_AGENT_TOKEN=$(openssl rand -hex 32)"
+    } >> "$ENV_FILE"
+  fi
   # An .env from before DEPLYR_SITE_ADDRESS existed: add it, otherwise a
   # bare-IP install keeps Caddy's IP auto-HTTPS redirect (see the compose file).
   if ! grep -q '^DEPLYR_SITE_ADDRESS=' "$ENV_FILE"; then
@@ -157,8 +169,30 @@ fi
 echo -e "${ORANGE}Building and starting Deplyr (this takes a few minutes the first time)...${NC}"
 docker compose -f infra/docker/docker-compose.prod.yml --env-file "$ENV_FILE" up -d --build
 
+# ---------------------------------------------------------------------------
+# this box as your first managed server
+# ---------------------------------------------------------------------------
+# The api registers "This server" itself once you've created your account (no
+# SSH — see apps/api/src/lib/local-server.ts); all that's left is starting the
+# agent here with the token it expects. It retries until the record exists.
+get() { grep "^$1=" "$ENV_FILE" | cut -d= -f2-; }
+WEB_PORT=$(get DEPLYR_WEB_PORT)
+if [ "${WEB_PORT:-80}" = "80" ] || [ "${WEB_PORT:-80}" = "443" ]; then
+  echo -e "${ORANGE}Skipping the local server:${NC} the dashboard is on port ${WEB_PORT:-80}, and the nginx that serves your"
+  echo "deployed apps needs 80/443. Set DEPLYR_WEB_PORT=8081 in $ENV_FILE (and DEPLYR_PUBLIC_URL to match), re-run this, and this box"
+  echo "will register itself as a server too."
+else
+  echo -e "${ORANGE}Starting this box's agent...${NC}"
+  DEPLYR_TOKEN="$(get DEPLYR_LOCAL_AGENT_TOKEN)" \
+  DEPLYR_SERVER_ID="$(get DEPLYR_LOCAL_SERVER_ID)" \
+  DEPLYR_CONTROL_PLANE_WS="ws://$(get DEPLYR_PUBLIC_HOST):4000/agent/ws" \
+    bash "$INSTALL_DIR/infra/agent-install.sh"
+fi
+
 PUBLIC_URL=$(grep '^DEPLYR_PUBLIC_URL=' "$ENV_FILE" | cut -d= -f2-)
 echo ""
 echo -e "${GREEN}${BOLD}Deplyr is up:${NC} ${ORANGE}$PUBLIC_URL${NC}"
-echo "Open it — first visit walks you through creating the admin account."
-echo "To update later, or add a managed server, run this exact command again."
+echo "Open it — first visit walks you through creating the admin account, and this box is"
+echo "registered as your first server automatically, so you can deploy right away."
+echo "Open these in your firewall / security group: ${WEB_PORT:-80} (dashboard), 443 (HTTPS domain), 4000 (agents), 80 (your apps)."
+echo "To update later, run this exact command again."

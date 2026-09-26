@@ -152,7 +152,7 @@ the API and worker to get "Open in Deplyr" links in messages.
 | `DEPLYR_APP_DOMAIN` | worker, web | Base domain for deployed apps (`my-app.<domain>`) |
 | `DEPLYR_WILDCARD_CERT_PEM` / `_KEY_PEM` | worker | Optional wildcard certificate for HTTPS on deployed apps |
 | `API_URL`, `NEXT_PUBLIC_API_URL` | web | Server-side URL of the API, and the browser's path to it — `/api` on whatever address you opened Deplyr at (Caddy routes it), so the IP and any domain you add both work without a rebuild |
-| `DEPLYR_WEB_PORT` | caddy | Host port for the dashboard. Default `80` — override if this box also self-hosts apps (its own agent's nginx already owns 80/443); doing so forfeits automatic HTTPS |
+| `DEPLYR_WEB_PORT` | caddy | Host port for the dashboard. `8081` by default, since this box also runs your apps and their nginx owns port 80. (The dashboard's own HTTPS domain uses 443.) |
 
 `infra/install.sh` generates all of these for you on first install — the only
 one you'd normally touch afterward is the domain, and that's now done from
@@ -175,30 +175,32 @@ it installs Docker if it's missing, generates `DEPLYR_MASTER_KEY` and every
 other secret, detects the box's public IP, and brings up Postgres, Redis, the
 API, the worker, the dashboard and Caddy. It prints a URL when it's done.
 
-1. **Open that URL.** First time, it's a setup page — pick an email and
-   password. That's your one account for this instance; there's no invite
-   flow or public sign-up here, on purpose (see
-   [Status and known limitations](#status-and-known-limitations)).
-2. **You're in — no domain required.** Deplyr already works over plain HTTP
-   on the server's bare IP.
+1. **Open that URL** — it looks like `http://<your-server-ip>:8081`. First
+   time, it's a setup page: pick an email and password. That's your one
+   account for this instance; there's no invite flow or public sign-up here,
+   on purpose (see [Status and known limitations](#status-and-known-limitations)).
+2. **You're in, and this server is already registered.** Under **Servers**
+   you'll find **This server** — the box you just installed on — already
+   connecting, so you can deploy straight away. Nothing to connect by hand,
+   no second VPS needed. Deplyr works over plain HTTP on the bare IP; no
+   domain is required.
 3. **Want a domain, with HTTPS?** Point its DNS A record at the server, then
-   add it from **Settings → Instance address** in the dashboard, any time.
-   No rebuild, no SSH, no editing files — the certificate is issued
-   automatically within about a minute.
+   add it from **Settings → Instance address**, any time. No rebuild, no SSH,
+   no editing files — the certificate is issued automatically.
 4. **Updating later:** SSH back in and run the exact same command again. It
    updates in place; your account, servers, projects and secrets are
    untouched.
 
-This only stands up Deplyr itself — the box doesn't run any of *your* apps
-yet. Add the server(s) you actually want to deploy to from **Servers →
-Connect server** once you're logged in (see [How it works](#how-it-works)
-above). That can be a different box, or **this same one** — Deplyr can
-register the box it's running on as one of its own managed servers, in which
-case set `DEPLYR_WEB_PORT` to something other than 80/443 first (the agent's
-own nginx needs those, once installed) and re-run the install command to pick
-it up. Both roles then share one Docker network on that box with no
-isolation between them (see `docs/PHASE1_DESIGN.md`), so only do this if
-every app deployed there is something you trust.
+Open these in your firewall / cloud security group: **8081** (the dashboard),
+**443** (HTTPS, once you add a domain), **4000** (agents connecting back) and
+**80** (the apps you deploy on this box — which is why the dashboard sits on
+8081 rather than 80).
+
+Want more capacity later? Add extra servers from **Servers → Connect server**
+and manage them all from this one instance. The local server shares a Docker
+network with Deplyr itself (no isolation between them — see
+`docs/PHASE1_DESIGN.md`), so it's best kept for apps you trust; put anything
+you don't on a separate server.
 
 <details>
 <summary>Prefer to do it by hand instead of running the installer?</summary>
@@ -207,8 +209,8 @@ every app deployed there is something you trust.
 2. Clone this repo and create a `.env` at its root — see `infra/install.sh`
    for the exact variables it would otherwise generate for you.
 3. `docker compose -f infra/docker/docker-compose.prod.yml --env-file .env up -d --build`
-4. Allow inbound **80** (the dashboard, and the HTTPS challenge on a domain),
-   **443** (HTTPS, domain only) and **4000** (the API).
+4. Allow inbound **8081**, **443**, **4000** and **80** as above. Then start the
+   local agent yourself — see the end of `infra/install.sh`.
 
 `DEPLYR_PUBLIC_URL`/`DEPLYR_PUBLIC_HOST` can still be set in `.env` up front
 if you'd rather not use Settings for the domain — see the config table above.
@@ -239,6 +241,9 @@ Being upfront, since this is early:
 - **The control plane itself runs over plain HTTP** by default, so the session
   cookie and any SSH credentials you paste travel unencrypted. Put a TLS-terminating
   reverse proxy in front of it before using it for anything sensitive.
+- **On the box Deplyr itself runs on, deployed apps are HTTP-only.** Their nginx
+  takes port 80 and the dashboard's HTTPS domain (Caddy) holds 443, so HTTPS for
+  an *app's* custom domain needs a separate server for now.
 - **Databases are private-only.** There is no public exposure or firewall
   management yet; connect from your machine over an SSH tunnel.
 - **Your app must listen on `$PORT`.** Deplyr assigns the port and sets it.

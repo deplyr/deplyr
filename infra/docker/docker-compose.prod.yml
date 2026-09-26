@@ -77,6 +77,11 @@ services:
       # this Docker network; never published to the host.
       DEPLYR_PUBLIC_HOST: ${DEPLYR_PUBLIC_HOST}
       CADDY_ADMIN_URL: http://caddy:2019
+      # Lets the api register the box it runs on as a managed server, with no
+      # SSH — the installer starts that server's agent with these same values
+      # (see lib/local-server.ts). Blank on an .env from before this existed.
+      DEPLYR_LOCAL_SERVER_ID: ${DEPLYR_LOCAL_SERVER_ID:-}
+      DEPLYR_LOCAL_AGENT_TOKEN: ${DEPLYR_LOCAL_AGENT_TOKEN:-}
     depends_on:
       postgres:
         condition: service_healthy

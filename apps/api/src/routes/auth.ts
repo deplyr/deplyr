@@ -5,6 +5,7 @@ import { eq, ne, and, sql } from "drizzle-orm";
 import { credentialsInputSchema, type AuthUser } from "@deplyr/shared-types";
 import { SESSION_COOKIE, createSessionToken, verifySessionToken } from "../lib/session";
 import { requireAuth } from "../lib/require-auth";
+import { ensureLocalServerSafely } from "../lib/local-server";
 import { clearLoginAttempts, isLoginLocked, loginAttemptKey, recordFailedLogin } from "../lib/login-rate-limit";
 import type { AppEnv } from "../types";
 
@@ -174,6 +175,7 @@ authRoute.get("/github/callback", async (c) => {
   if (!user) {
     return c.json({ error: "failed to create user" }, 500);
   }
+  ensureLocalServerSafely();
 
   const sessionToken = await createSessionToken(user.id);
   setCookie(c, SESSION_COOKIE, sessionToken, {
@@ -216,6 +218,8 @@ authRoute.post("/signup", async (c) => {
   if (!user) {
     return c.json({ error: "failed to create user" }, 500);
   }
+
+  ensureLocalServerSafely();
 
   const sessionToken = await createSessionToken(user.id);
   setCookie(c, SESSION_COOKIE, sessionToken, {

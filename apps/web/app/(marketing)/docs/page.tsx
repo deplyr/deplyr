@@ -171,9 +171,9 @@ const sections: DocSection[] = [
           </div>
         </div>
         <Callout tone="success" title="Most people start with exactly one VPS">
-          Install Deplyr on a box, then register that <em>same</em> box as a managed server and deploy right there —
-          no second VPS needed to get going. Add more servers later, only once you actually want to, and run all of
-          them from this one Deplyr instance.
+          The box you install Deplyr on registers <em>itself</em> as your first server — automatically, as soon as you've
+          created your account — so you can deploy right there. No second VPS, and nothing to connect by hand. Add
+          more servers later, only once you actually want to, and run all of them from this one Deplyr instance.
         </Callout>
         <BulletGrid
           items={[
@@ -207,14 +207,21 @@ const sections: DocSection[] = [
               title: "Open the URL it printed",
               body: (
                 <p>
-                  First time, this is a setup page — pick an email and password. That's your one account for this
-                  instance; there's no invite flow or public sign-up here, on purpose.
+                  It looks like <InlineCode>http://&lt;your-server-ip&gt;:8081</InlineCode>. First time, this is a setup page —
+                  pick an email and password. That's your one account for this instance; there's no invite flow or
+                  public sign-up here, on purpose.
                 </p>
               ),
             },
             {
-              title: "You're in — no domain needed yet",
-              body: <p>Deplyr already works over plain HTTP on your server's IP address. Nothing else is required to start using it.</p>,
+              title: "You're in — and this server is already registered",
+              body: (
+                <p>
+                  Open <strong className="text-foreground">Servers</strong> and you'll find <strong className="text-foreground">This
+                  server</strong> already there and connecting — it's the box you just installed on. Deplyr works over plain
+                  HTTP on its IP address; no domain is needed to start deploying.
+                </p>
+              ),
             },
             {
               title: "Add a domain whenever you want (optional)",
@@ -238,12 +245,10 @@ const sections: DocSection[] = [
           ]}
         />
 
-        <Callout tone="info" title="One VPS is all you need — this same box can run your apps too">
-          The install above only brings up Deplyr's dashboard. To actually deploy something, go to{" "}
-          <strong className="text-foreground">Servers → Connect server</strong> once you're logged in and register a
-          server — and the easiest choice is <strong className="text-foreground">this exact box</strong>, the one you
-          just installed on. No second VPS required to get started; add more servers later only if and when you
-          want to.
+        <Callout tone="info" title="Open these ports in your firewall / cloud security group">
+          <InlineCode>8081</InlineCode> (the dashboard), <InlineCode>443</InlineCode> (HTTPS, once you add a domain),{" "}
+          <InlineCode>4000</InlineCode> (agents connecting back) and <InlineCode>80</InlineCode> (the apps you deploy on
+          this box). Deployed apps use port 80 — which is why the dashboard sits on 8081 instead.
         </Callout>
       </>
     ),
@@ -305,9 +310,10 @@ const sections: DocSection[] = [
           warning if the agent's heartbeat goes stale.
         </p>
         <p>
-          One server is a complete setup on its own — the box running Deplyr can be registered here too (see
-          Self-hosting above). This screen is for when you want <em>more</em>: connect as many additional servers as
-          you like, and run every deploy, database and project across all of them from this one Deplyr instance.
+          You don't need this screen to get started: the box running Deplyr is registered for you automatically as{" "}
+          <strong className="text-foreground">This server</strong>. Use it when you want <em>more</em> — connect as many
+          additional servers as you like, and run every deploy, database and project across all of them from this one
+          Deplyr instance.
         </p>
         <Callout tone="warning" title="Docker Desktop on a Mac doesn't work as a managed server">
           Docker Desktop doesn't expose host networking, which deployed apps rely on. Use a real Linux server or VM.
@@ -450,7 +456,7 @@ const sections: DocSection[] = [
           { name: "DEPLYR_APP_DOMAIN", app: "worker, web", purpose: <>Base domain for deployed apps (<InlineCode>my-app.&lt;domain&gt;</InlineCode>)</> },
           { name: "DEPLYR_WILDCARD_CERT_PEM / _KEY_PEM", app: "worker", purpose: "Optional wildcard certificate for HTTPS on the free default addresses" },
           { name: "API_URL, NEXT_PUBLIC_API_URL", app: "web", purpose: <>Server-side URL of the API, and the browser's path to it — <InlineCode>/api</InlineCode> on whatever address you opened Deplyr at, so IP and domain both work</> },
-          { name: "DEPLYR_WEB_PORT", app: "caddy", purpose: "Host port for the dashboard — default 80; override if this box also self-hosts apps" },
+          { name: "DEPLYR_WEB_PORT", app: "caddy", purpose: "Host port for the dashboard — 8081 by default, because your deployed apps' nginx on this same box owns 80" },
         ]}
       />
       </>
@@ -496,6 +502,7 @@ const sections: DocSection[] = [
         items={[
           "Not yet validated end-to-end on a real remote Linux server — each piece works against real Docker and GitHub, but the full path through nginx, SSL and the post-deploy health check on a fresh VPS is the current milestone.",
           "The agent image needs publishing (infra/publish-agent.sh) before first use, and after any change to the agent itself.",
+          "On the server Deplyr itself runs on, your deployed apps are served over plain HTTP on port 80 — the dashboard's own HTTPS domain holds port 443, so HTTPS for an app's custom domain needs a separate server for now.",
           "Databases are private-only — no public exposure or firewall management yet; connect from your machine over an SSH tunnel.",
           "Your app must listen on $PORT — Deplyr assigns the port and sets it for you.",
           "An existing managed server needs its agent updated when the agent's own commands change.",
