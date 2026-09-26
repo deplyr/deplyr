@@ -62,7 +62,7 @@ export interface RunAgentCommandOptions {
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes — a build can be slow
 
-export async function runAgentCommand(options: RunAgentCommandOptions): Promise<string | undefined> {
+async function runAgentCommandOnce(options: RunAgentCommandOptions): Promise<string | undefined> {
   ensureSubscriber();
   const requestId = randomUUID();
   const command: Command = {
@@ -96,4 +96,28 @@ export async function runAgentCommand(options: RunAgentCommandOptions): Promise<
       reject(err instanceof Error ? err : new Error(String(err)));
     });
   });
+}
+
+// Only ever produced by the API when it holds no socket for the server, i.e.
+// the command was never delivered — so resending it can't run anything twice.
+const NOT_CONNECTED = "agent is not connected";
+const RECONNECT_ATTEMPTS = 6;
+const RECONNECT_WAIT_MS = 3_000;
+
+/**
+ * Runs a command on a server's agent. If the agent happens to be reconnecting
+ * (its connection drops briefly when Caddy reloads, or the box restarts an
+ * agent), waits and tries again for about 18 seconds before giving up.
+ */
+export async function runAgentCommand(options: RunAgentCommandOptions): Promise<string | undefined> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await runAgentCommandOnce(options);
+    } catch (err) {
+      const notConnected = err instanceof Error && err.message === NOT_CONNECTED;
+      if (!notConnected || attempt >= RECONNECT_ATTEMPTS) throw err;
+      options.onLog(`waiting for the server's agent to reconnect (${attempt}/${RECONNECT_ATTEMPTS - 1})…`);
+      await new Promise((r) => setTimeout(r, RECONNECT_WAIT_MS));
+    }
+  }
 }

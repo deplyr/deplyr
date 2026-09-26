@@ -10,6 +10,11 @@ export const CADDY_ADMIN_URL = process.env.CADDY_ADMIN_URL ?? "http://caddy:2019
 /** Must match the static Caddyfile's global block: /load replaces the whole
  * config, so without it Caddy falls back to a localhost-only admin API and
  * nothing can reach it again. */
+/** Applied to every reverse_proxy to the API. Caddy closes proxied WebSockets
+ * when its config reloads, and a reload happens on every deploy, so without
+ * this the local agent would drop mid-deploy. */
+const API_PROXY = `reverse_proxy api:4000 {\n\t\t\tstream_close_delay 5m\n\t\t}`;
+
 const ADMIN_BLOCK = `{\n\tadmin 0.0.0.0:2019 {\n\t\torigins caddy:2019 localhost:2019 127.0.0.1:2019\n\t}\n}\n`;
 
 // A bare IP needs an explicit http:// — Caddy otherwise self-signs it and
@@ -63,15 +68,15 @@ export function caddyfileText(publicHost: string, customDomain: string | null, a
     const host = address(rawHost);
     return (
       `${host} {\n` +
-      `\thandle_path /api/* {\n\t\treverse_proxy api:4000\n\t}\n` +
+      `\thandle_path /api/* {\n\t\t${API_PROXY}\n\t}\n` +
       `\thandle {\n\t\treverse_proxy web:3000\n\t}\n` +
       `}\n\n` +
-      `${host}:4000 {\n\treverse_proxy api:4000\n}\n`
+      `${host}:4000 {\n\t${API_PROXY}\n}\n`
     );
   };
   // The local agent (host network) reaches the api through Caddy's published
   // port on the loopback address — no public IP, no firewall involved.
-  const localAgent = `http://127.0.0.1 {\n\thandle_path /api/* {\n\t\treverse_proxy api:4000\n\t}\n}\n`;
+  const localAgent = `http://127.0.0.1 {\n\thandle_path /api/* {\n\t\t${API_PROXY}\n\t}\n}\n`;
   const appBlocks = apps
     .map((a) => `${a.https ? a.host : `http://${a.host}`} {\n\treverse_proxy host.docker.internal:${a.port}\n}\n`)
     .join("\n");

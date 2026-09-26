@@ -25,7 +25,10 @@ export default async function MarketingLayout({ children }: { children: ReactNod
       {/* Analytics only on the public landing-page deploy — self-hosted
           instances stay telemetry-free. */}
       {process.env.NEXT_PUBLIC_MARKETING_ONLY === "1" ? (
-        <Script defer src="https://cloud.umami.is/script.js" data-website-id="48cb65b2-6169-40b4-ad2d-f90c136ab84c" strategy="afterInteractive" />
+        <>
+          <Script defer src="https://cloud.umami.is/script.js" data-website-id="48cb65b2-6169-40b4-ad2d-f90c136ab84c" strategy="afterInteractive" />
+          <Script defer src="https://argus-api.abhilaksharora.com/argus.js" data-site-id="go4psq4ghmh4" strategy="afterInteractive" />
+        </>
       ) : null}
       <MarketingBackground />
       <SiteHeader user={user} />
