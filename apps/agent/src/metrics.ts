@@ -4,7 +4,7 @@ import { DEPLYR_HOME } from "./lib/paths";
 import type { HeartbeatEvent } from "@deplyr/shared-types";
 
 /**
- * CPU/RAM/disk sampling for the heartbeat event (see docs/PHASE1_DESIGN.md
+ * CPU/RAM/disk sampling for the heartbeat event (see docs/architecture.md
  * section 3) — server-level, not per-app (there's no per-app metrics
  * protocol in Phase 1; see the PR7 notes for why).
  */

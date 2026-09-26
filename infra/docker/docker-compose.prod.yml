@@ -110,7 +110,7 @@ services:
       DEPLYR_LOCAL_SERVER_ID: ${DEPLYR_LOCAL_SERVER_ID:-}
       # Adds "Open in Deplyr" links to Slack/Discord notifications.
       WEB_URL: ${DEPLYR_PUBLIC_URL}
-      # Optional — see docs/PHASE1_DESIGN.md section 5.3. Deployed apps
+      # Optional — see docs/architecture.md Deployed apps
       # are HTTP-only until you set these to a real wildcard cert/key.
       DEPLYR_WILDCARD_CERT_PEM: ${DEPLYR_WILDCARD_CERT_PEM:-}
       DEPLYR_WILDCARD_KEY_PEM: ${DEPLYR_WILDCARD_KEY_PEM:-}

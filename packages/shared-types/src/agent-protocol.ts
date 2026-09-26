@@ -4,7 +4,7 @@ import { deployStepNameSchema } from "./deploy";
 /**
  * Wire protocol for the single persistent WebSocket connection between the
  * control plane (apps/api) and an agent running on a managed server. The
- * agent always dials out — see docs/PHASE1_DESIGN.md section 3.
+ * agent always dials out — see docs/architecture.md
  */
 
 // ---- agent -> control plane: auth handshake (first message on connect) ----

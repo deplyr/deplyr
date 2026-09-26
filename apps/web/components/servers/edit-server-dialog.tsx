@@ -7,6 +7,7 @@ import type { ServerSummary, SshCredentialType } from "@deplyr/shared-types";
 import { Button } from "@/components/ui/button";
 import { Field, FormError, inputClass } from "@/components/ui/field";
 import { cn } from "@/lib/cn";
+import { useOnOpen } from "@/lib/use-on-open";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -37,8 +38,9 @@ export function EditServerDialog({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
+  // Only when it opens: `server` is re-fetched by polling, and resetting on
+  // every refresh would erase what's being typed.
+  useOnOpen(open, () => {
     setName(server.name);
     setIpAddress(server.ipAddress);
     setChangeCredential(false);
@@ -46,7 +48,7 @@ export function EditServerDialog({
     setCredential("");
     setError(null);
     setSaving(false);
-  }, [open, server]);
+  });
 
   useEffect(() => {
     if (!open) return;

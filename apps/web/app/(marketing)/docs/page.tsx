@@ -492,26 +492,6 @@ const sections: DocSection[] = [
       </>
     ),
   },
-  {
-    id: "status",
-    label: "Status & limitations",
-    group: "Reference",
-    icon: ShieldCheck,
-    title: "Status & known limitations",
-    description: "Deplyr is early alpha — worth knowing before relying on it.",
-    body: (
-      <BulletGrid
-        items={[
-          "Not yet validated end-to-end on a real remote Linux server — each piece works against real Docker and GitHub, but the full path through nginx, SSL and the post-deploy health check on a fresh VPS is the current milestone.",
-          "The agent image needs publishing (infra/publish-agent.sh) before first use, and after any change to the agent itself.",
-          "Apps on the server Deplyr itself runs on get a free address like myapp.13-126-137-183.sslip.io over plain HTTP (sslip.io is a public wildcard-DNS service). HTTPS needs a domain you own — set DEPLYR_APP_DOMAIN to one whose wildcard DNS points here. Attaching a separate custom domain to an app on that server isn't supported yet; use an extra server for that.",
-          "Databases are private-only — no public exposure or firewall management yet; connect from your machine over an SSH tunnel.",
-          "Your app must listen on $PORT — Deplyr assigns the port and sets it for you.",
-          "An existing managed server needs its agent updated when the agent's own commands change.",
-        ]}
-      />
-    ),
-  },
 ];
 
 export const metadata: Metadata = {

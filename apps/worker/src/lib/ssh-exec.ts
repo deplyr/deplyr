@@ -26,7 +26,7 @@ function normalizePrivateKey(value: string): string {
 /**
  * Connects as root and runs `script` via `bash -s` (script piped over
  * stdin). Used by the server:install job to run infra/agent-install.sh on
- * a user's freshly-registered VPS — see docs/PHASE1_DESIGN.md section 3.
+ * a user's freshly-registered VPS — see docs/architecture.md
  */
 export async function sshExec(
   host: string,

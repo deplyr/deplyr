@@ -6,6 +6,7 @@ import { Loader2, X } from "lucide-react";
 import type { ProjectSummary } from "@deplyr/shared-types";
 import { Button } from "@/components/ui/button";
 import { Field, FormError, inputClass } from "@/components/ui/field";
+import { useOnOpen } from "@/lib/use-on-open";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -29,12 +30,12 @@ export function EditProjectDialog({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
+  // Only when it opens — `project` is re-fetched by polling and would erase typing.
+  useOnOpen(open, () => {
     setName(project.name);
     setError(null);
     setSaving(false);
-  }, [open, project]);
+  });
 
   useEffect(() => {
     if (!open) return;

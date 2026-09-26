@@ -83,7 +83,9 @@ export function DatabaseConnection({ database, serverIp }: { database: DatabaseS
   const masked = "••••••••••••••••";
 
   const cli = database.type === "redis" ? `redis-cli -h 127.0.0.1 -p ${port} -a ${pw}` : `PGPASSWORD=${pw} psql -h 127.0.0.1 -p ${port} -U ${username ?? "user"} -d ${dbName ?? "postgres"}`;
-  const tunnel = `ssh -N -L ${port}:127.0.0.1:${port} root@${serverIp ?? "<server-ip>"}`;
+  // The login user depends on the provider: ec2-user (Amazon Linux), ubuntu
+  // (Ubuntu images), root on most others. Most clouds also need the key file.
+  const tunnel = `ssh -i ~/path/to/your-key.pem -N -L ${port}:127.0.0.1:${port} <ssh-user>@${serverIp ?? "<server-ip>"}`;
 
   return (
     <FlatCard className="animate-fade-up p-6" style={{ animationDelay: "100ms" }}>
@@ -93,7 +95,8 @@ export function DatabaseConnection({ database, serverIp }: { database: DatabaseS
         <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" strokeWidth={1.75} />
         <span>
           <span className="font-medium text-foreground">Private.</span> Only reachable from this server. Apps deployed here connect
-          with the values below; from your laptop, use an SSH tunnel.
+          with the values below. To look inside without setting anything up, use the console below; for your own client (TablePlus,
+          DBeaver), use the SSH tunnel.
         </span>
       </div>
 
@@ -145,7 +148,7 @@ export function DatabaseConnection({ database, serverIp }: { database: DatabaseS
             return database.type === "redis" ? `redis-cli -h 127.0.0.1 -p ${port} -a ${c.password}` : `PGPASSWORD=${c.password} psql -h 127.0.0.1 -p ${port} -U ${username ?? "user"} -d ${dbName ?? "postgres"}`;
           }}
         />
-        <Snippet title="SSH tunnel, from your laptop" icon={Network} code={`${tunnel}\n# then connect to localhost:${port}`} copy={async () => tunnel} />
+        <Snippet title="SSH tunnel, from your laptop" icon={Network} code={`${tunnel}\n# <ssh-user>: ec2-user (Amazon Linux), ubuntu (Ubuntu), root (most others)\n# leave it running, then connect to localhost:${port}`} copy={async () => tunnel} />
       </div>
     </FlatCard>
   );

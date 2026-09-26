@@ -5,7 +5,7 @@ import { getRedisConnection } from "./connection";
  * Queue names + typed job payloads shared by apps/api (enqueues) and
  * apps/worker (processes). Phase 1 has exactly these four; each gets its
  * processor implemented in the PR that builds the corresponding feature
- * (see docs/PHASE1_DESIGN.md section 4) — this package only defines the
+ * (see docs/architecture.md) — this package only defines the
  * shape so both sides agree on it from day one.
  */
 

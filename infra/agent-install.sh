@@ -5,7 +5,7 @@ set -euo pipefail
 # (apps/worker/src/jobs/server-install.ts, PR2). Runs as root on the
 # user's VPS. Expects DEPLYR_TOKEN, DEPLYR_SERVER_ID, and DEPLYR_CONTROL_PLANE_WS
 # to already be set in the environment it runs in — see
-# docs/PHASE1_DESIGN.md section 3 for the full registration flow, and
+# docs/architecture.md for the full registration flow, and
 # section 5 for why this script also stands up a sibling nginx container.
 #
 # Neither the agent nor nginx container is reachable via inbound-initiated

@@ -324,7 +324,7 @@ projectsRoute.put("/:id/settings", async (c) => {
 // ---------------------------------------------------------------------------
 // secrets — detected from .env.example at project creation, filled in here.
 // The list endpoint never returns decrypted values; reveal is a separate,
-// explicit, single-key request (see docs/PHASE1_DESIGN.md PR4 notes).
+// explicit, single-key request (see docs/architecture.md PR4 notes).
 // ---------------------------------------------------------------------------
 
 projectsRoute.get("/:id/secrets", async (c) => {
@@ -407,7 +407,7 @@ projectsRoute.put("/:id/secrets", async (c) => {
 
 // ---------------------------------------------------------------------------
 // deploys — one manual "Deploy" button in Phase 1 (no auto-deploy-on-push,
-// no rollback). See docs/PHASE1_DESIGN.md sections 4/5 for the pipeline.
+// no rollback). See docs/architecture.md sections 4/5 for the pipeline.
 // ---------------------------------------------------------------------------
 
 projectsRoute.get("/:id/deploys", async (c) => {

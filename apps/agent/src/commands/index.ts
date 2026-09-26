@@ -10,6 +10,7 @@ import { healthCheck } from "./health-check";
 import { dbProvision } from "./db-provision";
 import { dbStart, dbStop, dbRestart, dbRemove } from "./db-lifecycle";
 import { logsContainer } from "./logs";
+import { dbExec } from "./db-exec";
 import { domainConfigureHttp, domainIssueCert, domainRemove, domainRenewAll } from "./domain";
 
 /** A handler may return a short string that becomes the result's `detail` on
@@ -21,7 +22,7 @@ export type CommandHandler = (
 ) => Promise<string | void>;
 
 /** Command handlers, dispatched by name — deploy-step commands
- * ("deploy.clone", "deploy.install", ...) per docs/PHASE1_DESIGN.md
+ * ("deploy.clone", "deploy.install", ...) per docs/architecture.md
  * sections 4 and 5, plus the "db.*" database commands. */
 export const commandHandlers: Partial<Record<string, CommandHandler>> = {
   "deploy.clone": clone,
@@ -37,6 +38,7 @@ export const commandHandlers: Partial<Record<string, CommandHandler>> = {
   "db.stop": dbStop,
   "db.restart": dbRestart,
   "db.remove": dbRemove,
+  "db.exec": dbExec,
   "logs.container": logsContainer,
   "domain.configureHttp": domainConfigureHttp,
   "domain.issueCert": domainIssueCert,

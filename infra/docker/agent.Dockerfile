@@ -7,7 +7,7 @@ WORKDIR /app
 # git: for deploy.clone. docker-cli: the `docker` binary the agent shells
 # out to for every deploy/database/domain step, talking to the daemon over
 # the mounted socket (docker.sock) — every such step runs as a sibling
-# container. See docs/PHASE1_DESIGN.md section 5.1.
+# container. See docs/architecture.md
 #
 # docker-cli, not docker.io: on Debian 13 (trixie), docker.io only pulls in
 # dockerd (the daemon) — the client binary was split into its own package.

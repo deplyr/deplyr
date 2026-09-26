@@ -6,13 +6,17 @@ import {
   buildConnectionString,
   createDatabaseInputSchema,
   databaseActionSchema,
+  dbQueryRequestSchema,
   metricsRangeSchema,
   type DatabaseCredentials,
+  type DbExecPayload,
 } from "@deplyr/shared-types";
 import { requireAuth } from "../lib/require-auth";
 import { createDatabase } from "../lib/create-database";
 import { resolveConfig, toDatabaseDTO } from "../lib/database-dto";
 import { getDatabaseMetricsHistory } from "../lib/database-metrics";
+import { checkRedisCommand, runDatabaseQuery, splitCommand } from "../lib/db-query";
+import { getConnectedAgent } from "../ws/agent";
 import type { AppEnv } from "../types";
 
 // ---------------------------------------------------------------------------
@@ -148,6 +152,48 @@ databasesRoute.get("/:id/credentials", async (c) => {
     connectionString: buildConnectionString(database.type, { host: "127.0.0.1", port: database.port, username, dbName, password }),
   };
   return c.json(body);
+});
+
+// Query console: SQL for Postgres, one command for Redis. Runs inside the
+// database's own container through the agent — nothing is exposed on the network.
+databasesRoute.post("/:id/query", async (c) => {
+  const userId = c.get("userId");
+  const database = await getOwnedDatabase(userId, c.req.param("id"));
+  if (!database) return c.json({ error: "not found" }, 404);
+
+  const body = dbQueryRequestSchema.safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "Type a query first (up to 20,000 characters)." }, 400);
+  if (database.status !== "running") return c.json({ error: `The database is ${database.status}. Start it first.` }, 409);
+  if (!getConnectedAgent(database.serverId)) return c.json({ error: "The server isn't connected right now." }, 503);
+  if (!database.passwordEncrypted) return c.json({ error: "The console isn't available for this database." }, 409);
+
+  const cfg = resolveConfig(database);
+  const payload: DbExecPayload = {
+    containerName: database.containerName,
+    type: database.type,
+    username: typeof cfg.username === "string" ? cfg.username : null,
+    dbName: typeof cfg.dbName === "string" ? cfg.dbName : null,
+    password: decryptSecret(database.passwordEncrypted),
+  };
+  if (database.type === "redis") {
+    let args: string[];
+    try {
+      args = splitCommand(body.data.statement);
+    } catch (err) {
+      return c.json({ kind: "error", error: err instanceof Error ? `Couldn't read that command: ${err.message}.` : "Couldn't read that command.", elapsedMs: 0 });
+    }
+    const problem = checkRedisCommand(args);
+    if (problem) return c.json({ kind: "error", error: problem, elapsedMs: 0 });
+    payload.args = args;
+  } else {
+    payload.statement = body.data.statement;
+    payload.allowWrites = body.data.allowWrites === true;
+  }
+
+  const result = await runDatabaseQuery(database.serverId, payload);
+  // The statement itself is left out on purpose — it can contain data.
+  await logRequest(userId, database, "database.query", `Ran a ${database.type === "redis" ? "command" : "query"} on ${database.name}`, result.kind === "error" ? "info" : "success");
+  return c.json(result);
 });
 
 databasesRoute.post("/:id/actions", async (c) => {

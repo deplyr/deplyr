@@ -122,3 +122,46 @@ export function buildConnectionString(
   if (type === "redis") return `redis://:${pw}@${c.host}:${c.port}`;
   return `postgres://${encodeURIComponent(c.username ?? "postgres")}:${pw}@${c.host}:${c.port}/${c.dbName ?? "postgres"}`;
 }
+
+// ---- query console ----
+
+export const DB_QUERY_MAX_CHARS = 20_000;
+export const DB_QUERY_MAX_OUTPUT_BYTES = 256 * 1024;
+export const DB_QUERY_TIMEOUT_MS = 15_000;
+
+export const dbQueryRequestSchema = z.object({
+  /** SQL for Postgres, or a single command such as `GET key` for Redis. */
+  statement: z.string().trim().min(1).max(DB_QUERY_MAX_CHARS),
+  /** Postgres only. Off by default: the session is read-only unless asked. */
+  allowWrites: z.boolean().optional(),
+});
+export type DbQueryRequest = z.infer<typeof dbQueryRequestSchema>;
+
+/** Sent to the agent as the payload of `db.exec`. */
+export interface DbExecPayload {
+  containerName: string;
+  type: DatabaseType;
+  username: string | null;
+  dbName: string | null;
+  password: string;
+  /** Postgres: the SQL. */
+  statement?: string;
+  allowWrites?: boolean;
+  /** Redis: the command, already split into arguments. */
+  args?: string[];
+}
+
+/** The agent's single log line in reply to `db.exec`, JSON encoded. */
+export interface DbExecOutput {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+  elapsedMs: number;
+  truncated: boolean;
+}
+
+export type DbQueryResult =
+  | { kind: "table"; columns: string[]; rows: string[][]; truncated: boolean; elapsedMs: number }
+  | { kind: "message"; message: string; elapsedMs: number }
+  | { kind: "text"; text: string; truncated: boolean; elapsedMs: number }
+  | { kind: "error"; error: string; elapsedMs: number };

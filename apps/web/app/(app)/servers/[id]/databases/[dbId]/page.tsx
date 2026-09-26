@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import type { DatabaseAction, DatabaseSummary, ServerSummary } from "@deplyr/shared-types";
 import { DatabaseConnection } from "@/components/databases/database-connection";
+import { DatabaseConsole } from "@/components/databases/database-console";
 import { DatabaseMetrics, fmtMb } from "@/components/databases/database-metrics";
 import { DbStatusPill } from "@/components/databases/db-status-pill";
 import { LogViewer } from "@/components/logs/log-viewer";
@@ -321,6 +322,7 @@ export default function DatabaseDetailPage() {
 
         <div className="space-y-6">
           <DatabaseConnection database={database} serverIp={server?.ipAddress ?? null} />
+          <DatabaseConsole database={database} />
 
           <FlatCard className="animate-fade-up p-6" style={{ animationDelay: "130ms" }}>
             <SectionTitle icon={Settings2}>Configuration</SectionTitle>

@@ -11,7 +11,7 @@ const POLL_INTERVAL_MS = 2_000;
 /**
  * SSHes into the user's VPS, installs Docker + the Deplyr agent, and waits
  * for the agent to dial back in and authenticate. See
- * docs/PHASE1_DESIGN.md section 3 for the full registration flow — this is
+ * docs/architecture.md for the full registration flow — this is
  * the worker side of it; apps/api/src/ws/agent.ts is the other half (it
  * flips status to "connected" once the agent authenticates).
  */

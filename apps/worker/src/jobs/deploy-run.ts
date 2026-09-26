@@ -15,7 +15,7 @@ import { buildPayload, type StepContext } from "../lib/deploy-payloads";
 /**
  * Runs the full clone -> install -> write_env -> build -> start -> nginx ->
  * ssl -> health_check pipeline for one deploy, one step at a time, over the
- * agent-bridge (docs/PHASE1_DESIGN.md section 5.4). Stops at the first
+ * agent-bridge (docs/architecture.md). Stops at the first
  * failing step — no rollback in Phase 1.
  */
 export async function processDeployRun(job: Job<DeployRunJob>) {

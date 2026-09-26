@@ -11,7 +11,7 @@ import type { AppEnv } from "../types";
 
 const STATE_COOKIE = "deplyr_oauth_state";
 // One OAuth grant covers both control-plane login and GitHub repo access —
-// see docs/PHASE1_DESIGN.md section 4 (PR2).
+// see docs/architecture.md (PR2).
 const GITHUB_SCOPES = "read:user user:email repo";
 
 function requiredEnv(name: string): string {

@@ -6,7 +6,7 @@ import { getRedisConnection } from "./connection";
  * Bridges apps/api (owns the agent WebSocket connections, in-process) and
  * apps/worker (runs the deploy job that needs to send commands and wait on
  * results/logs) — two separate processes even in single-instance Phase 1.
- * See docs/PHASE1_DESIGN.md section 5.4 for why this exists and why it's
+ * See docs/architecture.md for why this exists and why it's
  * plain pub/sub rather than another BullMQ queue.
  */
 

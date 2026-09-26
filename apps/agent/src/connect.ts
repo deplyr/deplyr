@@ -14,7 +14,7 @@ const MAX_BACKOFF_MS = 30_000;
 
 /**
  * Outbound, auto-reconnecting WebSocket client to the control plane. The
- * agent always dials out (see docs/PHASE1_DESIGN.md section 3) — this file
+ * agent always dials out (see docs/architecture.md) — this file
  * owns that connection's whole lifecycle: auth handshake, heartbeats,
  * inbound command dispatch, and reconnect-with-backoff on drop.
  */

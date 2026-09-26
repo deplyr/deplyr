@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Field, FormError, inputClass } from "@/components/ui/field";
 import { CHANNEL_META, EVENT_GROUPS } from "@/components/notifications/channel-meta";
 import { cn } from "@/lib/cn";
+import { useOnOpen } from "@/lib/use-on-open";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -42,8 +43,8 @@ export function ChannelDialog({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
+  // Only when it opens — the channel list refreshes and would erase typing.
+  useOnOpen(open, () => {
     setError(null);
     setSaving(false);
     setUrl("");
@@ -57,7 +58,7 @@ export function ChannelDialog({
         .then(setProjects)
         .catch(() => setProjects([]));
     }
-  }, [open, channel, initialType]);
+  });
 
   useEffect(() => {
     if (!open) return;

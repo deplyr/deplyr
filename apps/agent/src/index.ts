@@ -3,7 +3,7 @@ import { connectToControlPlane } from "./connect";
 
 // Local-only health endpoint (bound to loopback) so the Docker container's
 // own HEALTHCHECK can confirm the process is alive. The agent never listens
-// for anything reachable from outside the box — see docs/PHASE1_DESIGN.md
+// for anything reachable from outside the box — see docs/architecture.md
 // section 3 for why it's outbound-only.
 const app = new Hono().get("/healthz", (c) => c.json({ status: "ok" }));
 

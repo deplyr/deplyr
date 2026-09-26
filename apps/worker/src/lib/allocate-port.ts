@@ -16,7 +16,7 @@ async function allocateFromRange(
   throw new Error("could not allocate a port after 50 attempts");
 }
 
-/** Every app on a box uses --network host (see docs/PHASE1_DESIGN.md
+/** Every app on a box uses --network host (see docs/architecture.md
  * section 5.1), so ports must be distinct across all of a box's projects
  * — checked globally here since Phase 1 only ever targets one box anyway. */
 export async function allocatePort(): Promise<number> {

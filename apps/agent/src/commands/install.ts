@@ -4,7 +4,7 @@ import { PKG_CACHE_ARGS, assertWorkDir } from "../lib/workdir";
 
 /** Runs the project's install command in an ephemeral container of its
  * runtime image, against the bind-mounted source — see
- * docs/PHASE1_DESIGN.md section 5.1 for why containers, not pm2. */
+ * docs/architecture.md for why containers, not pm2. */
 export async function install(
   payload: Record<string, unknown>,
   emitLog: (line: string) => void,

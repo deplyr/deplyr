@@ -18,7 +18,7 @@ import { relations } from "drizzle-orm";
 import type { ProjectSettings } from "@deplyr/shared-types";
 
 /**
- * Phase 1 schema — see docs/PHASE1_DESIGN.md section 2 for the design
+ * Phase 1 schema — see docs/architecture.md for the design
  * rationale. Anything sensitive (tokens, credentials, secret values, webhook
  * URLs) is stored as `bytea` via the shared `encryptedBytes` custom type and
  * goes through the single envelope-encryption helper in ./crypto.ts — no
@@ -148,7 +148,7 @@ export const servers = pgTable("servers", {
   dockerInstalled: boolean("docker_installed").notNull().default(false),
   agentConnectedAt: timestamp("agent_connected_at", { withTimezone: true }),
   // Latest heartbeat snapshot only — no history table in Phase 1 (see
-  // docs/PHASE1_DESIGN.md PR7 notes).
+  // docs/architecture.md PR7 notes).
   cpuPercent: integer("cpu_percent"),
   memPercent: integer("mem_percent"),
   diskPercent: integer("disk_percent"),

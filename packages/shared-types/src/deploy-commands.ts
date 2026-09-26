@@ -1,6 +1,6 @@
 /**
  * Payload shapes for each "deploy.<step>" command sent worker -> agent (via
- * the Redis bridge, see docs/PHASE1_DESIGN.md section 5.4). Internal
+ * the Redis bridge, see docs/architecture.md). Internal
  * control-plane-generated protocol, not external input, so plain
  * interfaces rather than zod schemas — kept in one place so worker
  * (constructs) and agent (destructures) share the same shape.

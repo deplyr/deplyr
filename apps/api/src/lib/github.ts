@@ -31,7 +31,7 @@ interface GithubRepo {
   updated_at: string;
 }
 
-/** First 100 repos, most recently pushed first — see docs/PHASE1_DESIGN.md PR3 notes. */
+/** First 100 repos, most recently pushed first — see docs/architecture.md PR3 notes. */
 export async function listRepos(accessToken: string): Promise<GithubRepo[]> {
   const res = await fetch(
     `${GITHUB_API}/user/repos?sort=pushed&per_page=100&affiliation=owner,collaborator`,

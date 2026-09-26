@@ -10,7 +10,7 @@ import type { Command } from "@deplyr/shared-types";
 
 /**
  * Sends one "deploy.<step>" command to an agent over the Redis bridge (see
- * docs/PHASE1_DESIGN.md section 5.4) and resolves once that agent reports
+ * docs/architecture.md) and resolves once that agent reports
  * success or failure for it — streaming any log lines it sends in the
  * meantime to `onLog`. One shared subscriber connection + a
  * requestId -> pending-request map for the whole worker process, since

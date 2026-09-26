@@ -27,7 +27,7 @@ const app = new Hono<AppEnv>();
 app.use("*", logger());
 // credentials:true + an explicit origin (not "*") — required for the
 // session cookie to travel with browser requests from the web app, which
-// runs on a different port (see docs/PHASE1_DESIGN.md).
+// runs on a different port (see docs/architecture.md).
 app.use(
   "*",
   cors({
@@ -55,7 +55,7 @@ app.route("/overview", overviewRoute);
 app.route("/instance", instanceRoute);
 
 // Agents dial out to this endpoint and stay connected — see
-// docs/PHASE1_DESIGN.md section 3.
+// docs/architecture.md
 app.get(
   "/agent/ws",
   upgradeWebSocket(() => agentWsHandler()),

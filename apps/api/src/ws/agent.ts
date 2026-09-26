@@ -13,7 +13,7 @@ import {
 
 /**
  * Agent-facing WebSocket handler, mounted at /agent/ws. Agents always dial
- * out to this endpoint (never the reverse) — see docs/PHASE1_DESIGN.md
+ * out to this endpoint (never the reverse) — see docs/architecture.md
  * section 3 for the full protocol design.
  *
  * Kept in-process (single API instance) for Phase 1 — the connection

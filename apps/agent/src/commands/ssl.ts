@@ -5,7 +5,7 @@ import { NGINX_CONF_DIR, CERT_DIR } from "../lib/paths";
 
 /**
  * Writes the operator-supplied wildcard cert (if any — see
- * docs/PHASE1_DESIGN.md section 5.3) and an HTTPS server block. Certs are
+ * docs/architecture.md) and an HTTPS server block. Certs are
  * shared across every project on this box, so writing them is idempotent;
  * only the per-project server block is new each time.
  */
