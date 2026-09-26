@@ -449,7 +449,7 @@ const sections: DocSection[] = [
           { name: "DEPLYR_CONTROL_PLANE_WS", app: "worker", purpose: <>Public <InlineCode>ws(s)://…/agent/ws</InlineCode> URL agents dial back to</> },
           { name: "DEPLYR_APP_DOMAIN", app: "worker, web", purpose: <>Base domain for deployed apps (<InlineCode>my-app.&lt;domain&gt;</InlineCode>)</> },
           { name: "DEPLYR_WILDCARD_CERT_PEM / _KEY_PEM", app: "worker", purpose: "Optional wildcard certificate for HTTPS on the free default addresses" },
-          { name: "API_URL, NEXT_PUBLIC_API_URL", app: "web", purpose: "Server-side and browser URLs of the API" },
+          { name: "API_URL, NEXT_PUBLIC_API_URL", app: "web", purpose: <>Server-side URL of the API, and the browser's path to it — <InlineCode>/api</InlineCode> on whatever address you opened Deplyr at, so IP and domain both work</> },
           { name: "DEPLYR_WEB_PORT", app: "caddy", purpose: "Host port for the dashboard — default 80; override if this box also self-hosts apps" },
         ]}
       />

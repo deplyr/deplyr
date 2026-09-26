@@ -151,7 +151,7 @@ the API and worker to get "Open in Deplyr" links in messages.
 | `DEPLYR_CONTROL_PLANE_WS` | worker | Public `ws(s)://…/agent/ws` URL agents dial back to |
 | `DEPLYR_APP_DOMAIN` | worker, web | Base domain for deployed apps (`my-app.<domain>`) |
 | `DEPLYR_WILDCARD_CERT_PEM` / `_KEY_PEM` | worker | Optional wildcard certificate for HTTPS on deployed apps |
-| `API_URL`, `NEXT_PUBLIC_API_URL` | web | Server-side and browser URLs of the API |
+| `API_URL`, `NEXT_PUBLIC_API_URL` | web | Server-side URL of the API, and the browser's path to it — `/api` on whatever address you opened Deplyr at (Caddy routes it), so the IP and any domain you add both work without a rebuild |
 | `DEPLYR_WEB_PORT` | caddy | Host port for the dashboard. Default `80` — override if this box also self-hosts apps (its own agent's nginx already owns 80/443); doing so forfeits automatic HTTPS |
 
 `infra/install.sh` generates all of these for you on first install — the only

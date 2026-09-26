@@ -1,47 +1,82 @@
+import { resolve4 } from "node:dns/promises";
+import tls from "node:tls";
 import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import { db, instanceSettings, recordAudit } from "@deplyr/db";
-import { checkHostnameFormat, updateInstanceDomainSchema, type InstanceSettingsDTO } from "@deplyr/shared-types";
+import {
+  checkHostnameFormat,
+  updateInstanceDomainSchema,
+  type InstanceDomainCheck,
+  type InstanceSettingsDTO,
+} from "@deplyr/shared-types";
+import { caddyfileFor, pushCaddyfile } from "../lib/caddy";
 import { requireAuth } from "../lib/require-auth";
 import type { AppEnv } from "../types";
 
 export const instanceRoute = new Hono<AppEnv>();
 instanceRoute.use("*", requireAuth);
 
-// Reachable over the internal Docker network only (never published to the
-// host — see infra/docker/docker-compose.prod.yml) — this is what makes
-// pushing a new domain from the dashboard possible without SSH or a
-// container rebuild: Caddy takes a full Caddyfile and reconfigures itself
-// live, no restart.
-const CADDY_ADMIN_URL = process.env.CADDY_ADMIN_URL ?? "http://caddy:2019";
 const ROW_ID = "default";
+
+const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
+
+async function lookupIps(host: string): Promise<string[]> {
+  try {
+    return await resolve4(host);
+  } catch {
+    return [];
+  }
+}
+
+/** Has Caddy got a trusted certificate for this hostname yet? Asks Caddy
+ * directly over the Docker network with the domain as SNI, so it works no
+ * matter what the public DNS or the firewall does — and a trusted, matching
+ * certificate is only ever there once Let's Encrypt has actually issued it. */
+function certificateServed(domain: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = tls.connect(
+      { host: process.env.CADDY_TLS_HOST ?? "caddy", port: 443, servername: domain, rejectUnauthorized: false, timeout: 3000 },
+      () => {
+        const san = socket.getPeerCertificate()?.subjectaltname ?? "";
+        const ok = socket.authorized && san.split(",").some((e: string) => e.trim() === `DNS:${domain}`);
+        socket.end();
+        resolve(ok);
+      },
+    );
+    socket.on("error", () => resolve(false));
+    socket.on("timeout", () => {
+      socket.destroy();
+      resolve(false);
+    });
+  });
+}
+
+async function checkDomain(domain: string, publicHost: string): Promise<InstanceDomainCheck> {
+  const [resolvedIps, expectedIps] = await Promise.all([
+    lookupIps(domain),
+    IPV4.test(publicHost) ? Promise.resolve([publicHost]) : lookupIps(publicHost),
+  ]);
+  if (resolvedIps.length === 0) return { state: "waiting_dns", resolvedIps, expectedIps };
+  if (expectedIps.length > 0 && !resolvedIps.some((ip) => expectedIps.includes(ip))) {
+    return { state: "wrong_dns", resolvedIps, expectedIps };
+  }
+  return { state: (await certificateServed(domain)) ? "active" : "issuing_cert", resolvedIps, expectedIps };
+}
 
 async function getRow() {
   const [row] = await db.select().from(instanceSettings).where(eq(instanceSettings.id, ROW_ID));
   return row ?? null;
 }
 
-/** Same shape as the static infra/docker/Caddyfile — two site blocks per
- * host (dashboard, then the API on :4000) — just built at request time so a
- * custom domain can sit alongside the bare host instead of replacing it. */
-function caddyfileFor(publicHost: string, customDomain: string | null): string {
-  // A bare IP needs an explicit http:// — Caddy otherwise self-signs it and
-  // redirects to a port that's usually closed (see infra/docker/Caddyfile).
-  const address = (host: string) => (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) ? `http://${host}` : host);
-  const blocksFor = (rawHost: string) => {
-    const host = address(rawHost);
-    return `${host} {\n\treverse_proxy web:3000\n}\n\n${host}:4000 {\n\treverse_proxy api:4000\n}\n`;
-  };
-  return customDomain ? `${blocksFor(publicHost)}\n${blocksFor(customDomain)}` : blocksFor(publicHost);
-}
-
 instanceRoute.get("/", async (c) => {
   const row = await getRow();
+  const publicHost = process.env.DEPLYR_PUBLIC_HOST ?? "";
   const body: InstanceSettingsDTO = {
-    publicHost: process.env.DEPLYR_PUBLIC_HOST ?? "",
+    publicHost,
     customDomain: row?.customDomain ?? null,
     domainStatus: row?.domainStatus ?? "none",
     domainStatusDetail: row?.domainStatusDetail ?? null,
+    check: row?.customDomain && row.domainStatus !== "error" ? await checkDomain(row.customDomain, publicHost) : null,
   };
   return c.json(body);
 });
@@ -67,11 +102,7 @@ instanceRoute.put("/domain", async (c) => {
 
   let caddyRes: Response;
   try {
-    caddyRes = await fetch(`${CADDY_ADMIN_URL}/load`, {
-      method: "POST",
-      headers: { "Content-Type": "text/caddyfile" },
-      body: caddyfileFor(publicHost, customDomain),
-    });
+    caddyRes = await pushCaddyfile(caddyfileFor(publicHost, customDomain));
   } catch {
     return c.json({ error: "Couldn't reach Caddy to apply this — is the caddy container running?" }, 502);
   }
@@ -111,6 +142,7 @@ instanceRoute.put("/domain", async (c) => {
     customDomain: row.customDomain,
     domainStatus: row.domainStatus,
     domainStatusDetail: row.domainStatusDetail,
+    check: row.customDomain ? await checkDomain(row.customDomain, publicHost) : null,
   };
   return c.json(body);
 });

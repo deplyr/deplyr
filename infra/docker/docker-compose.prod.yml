@@ -131,7 +131,10 @@ services:
       # web.Dockerfile. Re-run `up -d --build` after changing either one;
       # a plain restart reuses the old image, same bundle, same values.
       args:
-        NEXT_PUBLIC_API_URL: ${DEPLYR_PUBLIC_URL}:4000
+        # Same-origin path, not a host:port — a domain added later from Settings
+        # would otherwise be blocked as mixed content (https page → http API).
+        # Caddy routes /api/* to the api container (see the Caddyfile).
+        NEXT_PUBLIC_API_URL: /api
         NEXT_PUBLIC_APP_DOMAIN: ${DEPLYR_APP_DOMAIN}
     restart: unless-stopped
     environment:

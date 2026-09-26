@@ -15,8 +15,28 @@
 # restart. --resume on the caddy service (see docker-compose.prod.yml) is
 # what makes that survive a restart instead of resetting to this file.
 
+# Admin API on the Docker network (not the host — compose doesn't publish
+# 2019) so the api container can push config from Settings. By default it only
+# listens on localhost, unreachable from other containers, and rejects any Host
+# header it doesn't list. apps/api/src/routes/instance.ts sends this same
+# block with every config it pushes — a pushed Caddyfile replaces this whole
+# file, so leaving it out there would lock the api out after the first push.
+{
+	admin 0.0.0.0:2019 {
+		origins caddy:2019 localhost:2019 127.0.0.1:2019
+	}
+}
+
 {$DEPLYR_SITE_ADDRESS} {
-	reverse_proxy web:3000
+	# The browser calls the API at /api on whatever origin it loaded the page
+	# from (http://<ip> or https://<domain>), so nothing about the API's address
+	# is baked into the web build — see NEXT_PUBLIC_API_URL in the compose file.
+	handle_path /api/* {
+		reverse_proxy api:4000
+	}
+	handle {
+		reverse_proxy web:3000
+	}
 }
 
 {$DEPLYR_SITE_ADDRESS}:4000 {

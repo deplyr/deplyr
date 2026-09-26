@@ -128,6 +128,53 @@ export function GithubConnect({ githubLogin, oauthEnabled, onConnected }: Github
         </>
       ) : (
         <form onSubmit={saveToken} className="space-y-3">
+          <div className="rounded-xl border border-border bg-surface-hover p-4">
+            <p className="text-sm font-medium">How to create the token (about a minute)</p>
+            <ol className="mt-3 space-y-2.5 text-xs leading-relaxed text-muted">
+              <li className="flex gap-2.5">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/15 text-[11px] font-semibold text-accent">1</span>
+                <span>
+                  Open{" "}
+                  <a href={TOKEN_URL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-accent hover:underline">
+                    GitHub → New personal access token (classic) <ExternalLink className="h-3 w-3" />
+                  </a>
+                  . It opens with the note and the right scope already filled in.
+                </span>
+              </li>
+              <li className="flex gap-2.5">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/15 text-[11px] font-semibold text-accent">2</span>
+                <span>
+                  Set <strong className="text-foreground">Expiration</strong> to whatever you like (&ldquo;No expiration&rdquo; means never having to redo this).
+                </span>
+              </li>
+              <li className="flex gap-2.5">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/15 text-[11px] font-semibold text-accent">3</span>
+                <span>
+                  Under <strong className="text-foreground">Select scopes</strong>, make sure only{" "}
+                  <code className="font-mono text-foreground">repo</code> is ticked. That one box covers public <em>and</em> private repositories, yours and your
+                  organizations&apos;.
+                </span>
+              </li>
+              <li className="flex gap-2.5">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/15 text-[11px] font-semibold text-accent">4</span>
+                <span>
+                  Scroll down and click <strong className="text-foreground">Generate token</strong>, then copy it straight away — it starts with{" "}
+                  <code className="font-mono text-foreground">ghp_</code> and GitHub only shows it once.
+                </span>
+              </li>
+              <li className="flex gap-2.5">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/15 text-[11px] font-semibold text-accent">5</span>
+                <span>Paste it in the box below and press Save token.</span>
+              </li>
+            </ol>
+            <p className="mt-3 border-t border-border pt-3 text-xs leading-relaxed text-muted">
+              <strong className="text-foreground">Organization repos not showing up?</strong> On your{" "}
+              <a href="https://github.com/settings/tokens" target="_blank" rel="noreferrer" className="text-accent hover:underline">tokens page</a>, click{" "}
+              <strong className="text-foreground">Configure SSO → Authorize</strong> next to the token (needed when the org uses SSO). If the org blocks classic
+              tokens entirely, an owner has to allow them under Org → Settings → Personal access tokens.
+            </p>
+          </div>
+
           <div className="relative">
             <KeyRound
               className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
@@ -143,18 +190,6 @@ export function GithubConnect({ githubLogin, oauthEnabled, onConnected }: Github
               className="w-full rounded-xl border border-border bg-surface-hover py-2.5 pl-10 pr-3 font-mono text-sm text-foreground placeholder:text-muted/70 transition focus:border-accent/60 focus:bg-surface focus:outline-none focus:ring-4 focus:ring-accent/10"
             />
           </div>
-          <p className="text-xs leading-relaxed text-muted">
-            Needs the <code className="font-mono text-foreground">repo</code> scope (classic) or
-            read access to Contents (fine-grained).{" "}
-            <a
-              href={TOKEN_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 text-accent hover:underline"
-            >
-              Create one <ExternalLink className="h-3 w-3" />
-            </a>
-          </p>
           {error ? (
             <p className="rounded-lg border border-danger/20 bg-danger/10 px-3 py-2 text-sm text-danger">
               {error}

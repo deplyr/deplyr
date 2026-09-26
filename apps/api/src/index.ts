@@ -15,6 +15,7 @@ import { notificationsRoute } from "./routes/notifications";
 import { domainsRoute } from "./routes/domains";
 import { logsRoute } from "./routes/logs";
 import { instanceRoute } from "./routes/instance";
+import { syncCaddyOnBoot } from "./lib/caddy";
 import { agentWsHandler, startAgentCommandBridge } from "./ws/agent";
 import type { AppEnv } from "./types";
 
@@ -62,6 +63,7 @@ app.get(
 // Routes commands from apps/worker (a different process) to whichever
 // agent sockets this process holds — see section 5.4.
 startAgentCommandBridge();
+void syncCaddyOnBoot();
 
 const port = Number(process.env.PORT ?? 4000);
 console.log(`[api] listening on :${port}`);
