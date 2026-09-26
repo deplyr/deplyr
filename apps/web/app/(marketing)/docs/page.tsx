@@ -70,12 +70,12 @@ function StepList({ steps }: { steps: Array<{ title: string; body: ReactNode }> 
   return (
     <ol className="space-y-3">
       {steps.map((step, i) => (
-        <li key={step.title} className="rounded-xl border border-border bg-surface-hover p-4">
+        <li key={step.title} className="min-w-0 rounded-xl border border-border bg-surface-hover p-4">
           <div className="mb-1.5 flex items-center gap-3">
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent/15 text-xs font-semibold text-accent">{i + 1}</span>
             <h4 className="text-sm font-semibold">{step.title}</h4>
           </div>
-          <div className="space-y-2 pl-9 text-sm leading-relaxed text-muted">{step.body}</div>
+          <div className="min-w-0 space-y-2 pl-0 text-sm sm:pl-9 leading-relaxed text-muted">{step.body}</div>
         </li>
       ))}
     </ol>
@@ -110,7 +110,7 @@ function EnvTable({ rows }: { rows: Array<{ name: string; app: string; purpose: 
           <tbody className="divide-y divide-border">
             {rows.map((r) => (
               <tr key={r.name}>
-                <td className="px-4 py-2.5 align-top font-mono text-xs">{r.name}</td>
+                <td className="px-4 py-2.5 align-top break-all font-mono text-xs">{r.name}</td>
                 <td className="px-4 py-2.5 align-top text-xs text-muted">{r.app}</td>
                 <td className="px-4 py-2.5 align-top text-xs leading-relaxed text-muted">{r.purpose}</td>
               </tr>
@@ -531,7 +531,7 @@ export default function DocsPage() {
         </div>
       </nav>
 
-      <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[240px_minmax(0,1fr)]">
         {/* Table of contents */}
         <aside className="hidden lg:block">
           <nav
@@ -563,10 +563,10 @@ export default function DocsPage() {
         </aside>
 
         {/* Content */}
-        <div className="mx-auto w-full max-w-3xl space-y-6">
+        <div className="mx-auto w-full min-w-0 max-w-3xl space-y-6">
           {sections.map((s) => (
-            <section key={s.id} id={s.id} className="scroll-mt-[5.5rem] rounded-xl border border-border bg-surface p-6 sm:p-8">
-              <div className="mb-5 flex items-start gap-4">
+            <section key={s.id} id={s.id} className="scroll-mt-[5.5rem] min-w-0 rounded-xl border border-border bg-surface p-4 sm:p-8">
+              <div className="mb-5 flex items-start gap-3 sm:gap-4">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
                   <s.icon className="h-5 w-5" strokeWidth={1.5} />
                 </span>
@@ -575,7 +575,7 @@ export default function DocsPage() {
                   <p className="mt-1 text-sm leading-relaxed text-muted">{s.description}</p>
                 </div>
               </div>
-              <div className="space-y-4 text-sm leading-relaxed">{s.body}</div>
+              <div className="min-w-0 space-y-4 break-words text-sm leading-relaxed">{s.body}</div>
             </section>
           ))}
         </div>
