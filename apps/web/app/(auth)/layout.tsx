@@ -16,10 +16,10 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         <div className="absolute -left-40 -top-40 h-[34rem] w-[34rem] rounded-full bg-accent/20 blur-[140px]" />
         <div className="absolute -bottom-52 right-[-8rem] h-[36rem] w-[36rem] rounded-full bg-accent/10 blur-[150px]" />
         <div
-          className="absolute inset-0 opacity-[0.35] [mask-image:radial-gradient(ellipse_at_center,black_30%,transparent_75%)]"
+          className="absolute inset-0 opacity-[0.5] [mask-image:radial-gradient(ellipse_at_center,black_30%,transparent_75%)]"
           style={{
             backgroundImage:
-              "linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px)",
+              "linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px), linear-gradient(to bottom, hsl(var(--border)) 1px, transparent 1px)",
             backgroundSize: "44px 44px",
           }}
         />
@@ -35,7 +35,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             <span className="text-lg font-semibold tracking-tight">Deplyr</span>
           </div>
 
-          <h2 className="mt-10 font-mono text-4xl font-semibold leading-[1.1] tracking-tight">
+          <h2 className="mt-10 text-4xl font-semibold leading-[1.1] tracking-tight">
             From GitHub repo to
             <span className="block text-accent">
               live on the internet.
@@ -46,7 +46,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             SSH or an env var.
           </p>
 
-          <div className="mt-10 max-w-sm rounded-2xl border border-white/10 bg-white/[0.03] p-4 shadow-2xl shadow-black/40 backdrop-blur">
+          <div className="mt-10 max-w-sm rounded-2xl border border-border bg-surface p-4 shadow-xl">
             <div className="mb-3 flex items-center gap-2 text-xs text-muted">
               <Globe className="h-3.5 w-3.5" strokeWidth={1.75} />
               my-app.deplyr.app
@@ -62,7 +62,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
                     className={
                       done
                         ? "flex h-6 w-6 items-center justify-center rounded-full bg-success/15 text-success"
-                        : "flex h-6 w-6 items-center justify-center rounded-full border border-white/15 text-muted"
+                        : "flex h-6 w-6 items-center justify-center rounded-full border border-border text-muted"
                     }
                   >
                     <Icon className="h-3.5 w-3.5" strokeWidth={2} />

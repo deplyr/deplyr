@@ -93,8 +93,8 @@ export function NotificationsBell() {
         onClick={toggle}
         aria-label="Notifications"
         className={cn(
-          "relative flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-muted transition hover:bg-white/[0.07] hover:text-foreground",
-          open && "bg-white/[0.07] text-foreground",
+          "relative flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface-hover text-muted transition hover:bg-surface hover:text-foreground",
+          open && "bg-surface text-foreground",
         )}
       >
         <Bell className="h-4 w-4" strokeWidth={1.75} />
@@ -106,62 +106,67 @@ export function NotificationsBell() {
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-11 z-50 w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl bg-gradient-to-b from-white/20 to-white/[0.04] p-px shadow-2xl shadow-black/60 animate-fade-up">
-          <div className="rounded-[calc(1rem-1px)] bg-[#0c0c10]/95 backdrop-blur-xl">
-            <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
-              <p className="text-sm font-semibold">Notifications</p>
-              <span className="font-mono text-[10px] uppercase tracking-widest text-muted">latest</span>
-            </div>
-            {events.length === 0 && down.length === 0 ? (
-              <p className="px-4 py-10 text-center text-xs text-muted">You&apos;re all caught up.</p>
-            ) : (
-              <ul className="max-h-96 overflow-y-auto p-2">
-                {down.map((d) => (
-                  <li key={`down-${d.projectId}`}>
-                    <Link href={`/projects/${d.projectId}`} onClick={() => setOpen(false)}>
-                      <div className="flex items-start gap-3 rounded-xl border border-danger/20 bg-danger/[0.06] px-2 py-2.5 transition hover:bg-danger/10">
-                        <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-1", activityTones.danger)}>
-                          <Siren className="h-3.5 w-3.5" strokeWidth={1.75} />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{d.name} is down</p>
-                          <p className="truncate text-xs text-muted">Checked {timeAgo(d.lastCheckedAt)}</p>
-                        </div>
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-                {events.slice(0, 8).map((e) => {
-                  const Icon = activityIcons[e.kind];
-                  const item = (
-                    <div className="flex items-start gap-3 rounded-xl px-2 py-2.5 transition hover:bg-white/[0.04]">
-                      <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-1", activityTones[e.tone])}>
-                        <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
+        <div className="absolute right-0 top-11 z-50 w-[22rem] max-w-[calc(100vw-2rem)] animate-fade-up overflow-hidden rounded-xl border border-border bg-surface shadow-xl">
+          <div className="flex items-center justify-between border-b border-border bg-surface-hover px-4 py-3">
+            <p className="text-sm font-semibold">Notifications</p>
+            <span className="text-[10px] uppercase tracking-widest text-muted">latest</span>
+          </div>
+          {events.length === 0 && down.length === 0 ? (
+            <p className="px-4 py-10 text-center text-xs text-muted">You&apos;re all caught up.</p>
+          ) : (
+            <ul className="max-h-96 overflow-y-auto p-2">
+              {down.map((d) => (
+                <li key={`down-${d.projectId}`}>
+                  <Link href={`/projects/${d.projectId}`} onClick={() => setOpen(false)}>
+                    <div className="flex items-start gap-3 rounded-lg border border-danger/20 bg-danger/[0.06] px-2 py-2.5 transition hover:bg-danger/10">
+                      <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-1", activityTones.danger)}>
+                        <Siren className="h-3.5 w-3.5" strokeWidth={1.75} />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{e.title}</p>
-                        <p className="truncate text-xs text-muted">
-                          {e.detail ? `${e.detail} · ` : ""}
-                          {timeAgo(e.at)}
-                        </p>
+                        <p className="truncate text-sm font-medium">{d.name} is down</p>
+                        <p className="truncate text-xs text-muted">Checked {timeAgo(d.lastCheckedAt)}</p>
                       </div>
                     </div>
-                  );
-                  return (
-                    <li key={e.id}>
-                      {e.href ? (
-                        <Link href={e.href} onClick={() => setOpen(false)}>
-                          {item}
-                        </Link>
-                      ) : (
-                        item
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
+                  </Link>
+                </li>
+              ))}
+              {events.slice(0, 8).map((e) => {
+                const Icon = activityIcons[e.kind];
+                const item = (
+                  <div className="flex items-start gap-3 rounded-lg px-2 py-2.5 transition hover:bg-surface-hover">
+                    <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-1", activityTones[e.tone])}>
+                      <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{e.title}</p>
+                      <p className="truncate text-xs text-muted">
+                        {e.detail ? `${e.detail} · ` : ""}
+                        {timeAgo(e.at)}
+                      </p>
+                    </div>
+                  </div>
+                );
+                return (
+                  <li key={e.id}>
+                    {e.href ? (
+                      <Link href={e.href} onClick={() => setOpen(false)}>
+                        {item}
+                      </Link>
+                    ) : (
+                      item
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <Link
+            href="/activity"
+            onClick={() => setOpen(false)}
+            className="block border-t border-border bg-surface-hover px-4 py-2.5 text-center text-xs font-medium text-muted transition hover:text-foreground"
+          >
+            See all activity
+          </Link>
         </div>
       ) : null}
     </div>

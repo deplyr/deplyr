@@ -15,7 +15,7 @@ import {
 } from "@deplyr/shared-types";
 import { Button, buttonClass } from "@/components/ui/button";
 import { Field, FormError, inputClass } from "@/components/ui/field";
-import { GlassCard } from "@/components/ui/glass-card";
+import { FlatCard } from "@/components/ui/flat-card";
 import { Page, PageHeader } from "@/components/ui/page";
 import { SectionTitle } from "@/components/ui/section-title";
 import { cn } from "@/lib/cn";
@@ -59,7 +59,7 @@ function CommandField({
               type="checkbox"
               checked={value.mode === "skip"}
               onChange={(e) => onChange(e.target.checked ? { mode: "skip", text: "" } : { mode: value.text ? "custom" : "default", text: value.text })}
-              className="h-3.5 w-3.5 accent-[#22D3EE]"
+              className="h-3.5 w-3.5 accent-accent"
             />
             Skip this step
           </label>
@@ -204,7 +204,7 @@ export default function ProjectSettingsPage() {
   if (!project) {
     return (
       <Page width="narrow">
-        <div className="h-48 animate-pulse rounded-2xl bg-white/[0.04]" />
+        <div className="h-48 animate-pulse rounded-xl bg-surface-hover" />
       </Page>
     );
   }
@@ -222,7 +222,7 @@ export default function ProjectSettingsPage() {
       />
 
       {detected?.notes.length ? (
-        <GlassCard className="animate-fade-up" innerClassName="p-5">
+        <FlatCard className="animate-fade-up p-5">
           <div className="flex items-start gap-3">
             <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-accent" strokeWidth={1.75} />
             <div className="min-w-0 flex-1">
@@ -245,10 +245,10 @@ export default function ProjectSettingsPage() {
               </Button>
             ) : null}
           </div>
-        </GlassCard>
+        </FlatCard>
       ) : null}
 
-      <GlassCard className="animate-fade-up" style={{ animationDelay: "50ms" }} innerClassName="space-y-6 p-6 sm:p-8">
+      <FlatCard className="animate-fade-up space-y-6 p-6 sm:p-8" style={{ animationDelay: "50ms" }}>
         <div>
           <SectionTitle>Type</SectionTitle>
           <div className="grid gap-2.5 sm:grid-cols-2">
@@ -263,7 +263,7 @@ export default function ProjectSettingsPage() {
                   onClick={() => setFramework(f.value)}
                   className={cn(
                     "flex items-start gap-3 rounded-xl border p-3.5 text-left transition disabled:cursor-not-allowed disabled:opacity-40",
-                    active ? "border-accent/60 bg-accent/10 ring-4 ring-accent/10" : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]",
+                    active ? "border-accent/60 bg-accent/10 ring-4 ring-accent/10" : "border-border bg-surface-hover hover:bg-surface",
                   )}
                 >
                   <span className="min-w-0 flex-1">
@@ -327,10 +327,10 @@ export default function ProjectSettingsPage() {
         <Field label="Health check path" hint="Deplyr requests this after each deploy and expects a 2xx. Use /api/health if / redirects or needs a login.">
           <input value={health} onChange={(e) => setHealth(e.target.value)} className={cn(inputClass, "font-mono text-xs")} />
         </Field>
-      </GlassCard>
+      </FlatCard>
 
       {/* what will actually run */}
-      <GlassCard className="animate-fade-up" style={{ animationDelay: "90ms" }} innerClassName="p-6">
+      <FlatCard className="animate-fade-up p-6" style={{ animationDelay: "90ms" }}>
         <SectionTitle>What will run</SectionTitle>
         <dl className="space-y-2.5 font-mono text-xs">
           {isDocker ? (
@@ -351,7 +351,7 @@ export default function ProjectSettingsPage() {
         <p className="mt-4 text-xs leading-relaxed text-muted">
           Your secrets are available while building and running. The port is set for you in <code className="font-mono text-foreground">PORT</code> — make sure the app listens on it.
         </p>
-      </GlassCard>
+      </FlatCard>
 
       {error ? <FormError>{error}</FormError> : null}
 

@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import type { DefaultDomainDTO, DomainDTO } from "@deplyr/shared-types";
 import { AddDomainDialog } from "@/components/domains/add-domain-dialog";
-import { GlassCard } from "@/components/ui/glass-card";
+import { FlatCard } from "@/components/ui/flat-card";
 import { CopyButton } from "@/components/ui/copy-button";
 import { SectionTitle } from "@/components/ui/section-title";
 import { timeAgo } from "@/lib/time-ago";
@@ -38,7 +38,7 @@ const STATUS_META: Record<DomainDTO["status"], { label: string; tone: "success" 
   removing: { label: "Removing", tone: "neutral", pulse: true },
 };
 
-const toneClass = { success: "border-success/25 bg-success/10 text-success", warning: "border-warning/25 bg-warning/10 text-warning", danger: "border-danger/25 bg-danger/10 text-danger", neutral: "border-white/10 bg-white/[0.05] text-muted" };
+const toneClass = { success: "border-success/25 bg-success/10 text-success", warning: "border-warning/25 bg-warning/10 text-warning", danger: "border-danger/25 bg-danger/10 text-danger", neutral: "border-border bg-surface-hover text-muted" };
 
 function StatusPill({ status }: { status: DomainDTO["status"] }) {
   const m = STATUS_META[status];
@@ -77,7 +77,7 @@ function DomainCard({ domain, onVerify, onDelete, verifying, deleting }: { domai
   const [confirming, setConfirming] = useState(false);
 
   return (
-    <GlassCard innerClassName="p-5">
+    <FlatCard className="p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
@@ -118,7 +118,7 @@ function DomainCard({ domain, onVerify, onDelete, verifying, deleting }: { domai
         </p>
       ) : null}
 
-      <div className="mt-4 flex items-center gap-2 border-t border-white/[0.07] pt-4">
+      <div className="mt-4 flex items-center gap-2 border-t border-border pt-4">
         {domain.lastCheckedAt ? (
           <span className="mr-auto flex items-center gap-1.5 text-[11px] text-muted">
             <Clock className="h-3 w-3" strokeWidth={1.75} />
@@ -130,7 +130,7 @@ function DomainCard({ domain, onVerify, onDelete, verifying, deleting }: { domai
         {confirming ? (
           <>
             <span className="text-xs text-muted">Remove this domain?</span>
-            <button onClick={() => setConfirming(false)} className="rounded-lg px-2.5 py-1.5 text-xs text-muted transition hover:bg-white/[0.06] hover:text-foreground">
+            <button onClick={() => setConfirming(false)} className="rounded-lg px-2.5 py-1.5 text-xs text-muted transition hover:bg-surface-hover hover:text-foreground">
               Keep
             </button>
             <button onClick={onDelete} disabled={deleting} className="inline-flex items-center gap-1.5 rounded-lg bg-danger/15 px-2.5 py-1.5 text-xs font-medium text-danger transition hover:bg-danger/25">
@@ -141,7 +141,7 @@ function DomainCard({ domain, onVerify, onDelete, verifying, deleting }: { domai
         ) : (
           <>
             {domain.status === "pending_dns" || domain.status === "error" || domain.sslStatus === "error" ? (
-              <button onClick={onVerify} disabled={verifying || domain.status === "removing"} className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-muted transition hover:bg-white/[0.06] hover:text-foreground disabled:opacity-60">
+              <button onClick={onVerify} disabled={verifying || domain.status === "removing"} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted transition hover:bg-surface-hover hover:text-foreground disabled:opacity-60">
                 {verifying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.75} />}
                 {domain.status === "pending_dns" ? "Check now" : "Retry"}
               </button>
@@ -152,7 +152,7 @@ function DomainCard({ domain, onVerify, onDelete, verifying, deleting }: { domai
           </>
         )}
       </div>
-    </GlassCard>
+    </FlatCard>
   );
 }
 
@@ -192,14 +192,14 @@ export function ProjectDomains({ projectId }: { projectId: string }) {
 
   return (
     <div className="space-y-6">
-      <GlassCard className="animate-fade-up" innerClassName="p-6">
+      <FlatCard className="animate-fade-up p-6">
         <SectionTitle icon={Globe} meta="always on">
           Default address
         </SectionTitle>
         {data === null ? (
-          <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
+          <div className="h-14 animate-pulse rounded-xl bg-surface-hover" />
         ) : (
-          <div className="flex items-center gap-4 rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+          <div className="flex items-center gap-4 rounded-xl border border-border bg-surface-hover p-4">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
               {data.default.https ? <Lock className="h-4 w-4" strokeWidth={1.75} /> : <Unlock className="h-4 w-4" strokeWidth={1.75} />}
             </span>
@@ -212,28 +212,28 @@ export function ProjectDomains({ projectId }: { projectId: string }) {
                 {data.default.checkedAt ? ` · checked ${timeAgo(data.default.checkedAt)}` : ""}
               </p>
             </div>
-            <span className={cn("inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium", data.default.https ? "border-success/25 bg-success/10 text-success" : "border-white/10 bg-white/[0.05] text-muted")}>
+            <span className={cn("inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium", data.default.https ? "border-success/25 bg-success/10 text-success" : "border-border bg-surface-hover text-muted")}>
               {data.default.https ? <CheckCircle2 className="h-3 w-3" strokeWidth={2} /> : null}
               {data.default.https ? "HTTPS" : "HTTP"}
             </span>
           </div>
         )}
         <p className="mt-3 text-xs leading-relaxed text-muted">Every project gets this address free, forever. Add your own domain below if you want one.</p>
-      </GlassCard>
+      </FlatCard>
 
       <div>
         <div className="mb-3 flex items-center justify-between">
-          <p className="font-mono text-[10px] uppercase tracking-widest text-muted">Custom domains{data ? ` · ${data.domains.length}` : ""}</p>
-          <button onClick={() => setDialogOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-white/15 px-2.5 py-1.5 text-xs text-muted transition hover:border-accent/50 hover:text-accent">
+          <p className="text-[10px] uppercase tracking-widest text-muted">Custom domains{data ? ` · ${data.domains.length}` : ""}</p>
+          <button onClick={() => setDialogOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-2.5 py-1.5 text-xs text-muted transition hover:border-accent/50 hover:text-accent">
             <Plus className="h-3.5 w-3.5" strokeWidth={2} />
             Add domain
           </button>
         </div>
 
         {data === null ? (
-          <div className="h-24 animate-pulse rounded-2xl bg-white/[0.04]" />
+          <div className="h-24 animate-pulse rounded-xl bg-surface-hover" />
         ) : data.domains.length === 0 ? (
-          <GlassCard innerClassName="flex flex-col items-center px-6 py-10 text-center">
+          <FlatCard className="flex flex-col items-center px-6 py-10 text-center">
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 text-accent">
               <Globe className="h-5 w-5" strokeWidth={1.5} />
             </span>
@@ -243,7 +243,7 @@ export function ProjectDomains({ projectId }: { projectId: string }) {
               <Plus className="h-3.5 w-3.5" strokeWidth={2} />
               Add your first domain
             </button>
-          </GlassCard>
+          </FlatCard>
         ) : (
           <div className="space-y-4">
             {data.domains.map((d) => (

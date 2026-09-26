@@ -1,15 +1,26 @@
 import type { Config } from "tailwindcss";
 
 /**
- * Design tokens for the control-plane UI: dark, minimal, technical — a
- * near-black surface with a single cyan accent, system fonts (no
- * network font fetch, so builds stay reproducible offline/self-hosted).
+ * Design tokens for the control-plane UI — real light + dark, both first
+ * class (see app/globals.css for the actual HSL values; this file just
+ * wires Tailwind's color names to them so `bg-background`, `text-accent`,
+ * `bg-accent/10` etc. all resolve to whichever theme is active). Fonts are
+ * self-hosted-at-build (next/font downloads once during `next build`, ships
+ * from the same origin after — no runtime calls out, so a deployed
+ * instance works fully offline).
  */
+function hsl(variable: string) {
+  return `hsl(var(${variable}) / <alpha-value>)`;
+}
+
 const config: Config = {
   darkMode: "class",
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      borderRadius: {
+        DEFAULT: "0.625rem",
+      },
       keyframes: {
         "fade-up": {
           "0%": { opacity: "0", transform: "translateY(10px)" },
@@ -20,19 +31,24 @@ const config: Config = {
         "fade-up": "fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both",
       },
       colors: {
-        background: "#09090B",
-        surface: "#111113",
-        "surface-hover": "#18181B",
-        border: "#232327",
-        foreground: "#F4F4F5",
-        muted: "#8B8B93",
+        background: hsl("--background"),
+        surface: hsl("--surface"),
+        "surface-hover": hsl("--surface-hover"),
+        border: hsl("--border"),
+        foreground: hsl("--foreground"),
+        muted: hsl("--muted"),
         accent: {
-          DEFAULT: "#22D3EE",
-          foreground: "#052E33",
+          DEFAULT: hsl("--accent"),
+          foreground: hsl("--accent-foreground"),
         },
-        success: "#34D399",
-        warning: "#FBBF24",
-        danger: "#F87171",
+        success: hsl("--success"),
+        warning: hsl("--warning"),
+        danger: hsl("--danger"),
+        sidebar: {
+          DEFAULT: hsl("--sidebar-background"),
+          border: hsl("--sidebar-border"),
+          accent: hsl("--sidebar-accent"),
+        },
       },
       fontFamily: {
         sans: [

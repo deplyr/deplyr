@@ -103,7 +103,7 @@ function ToolButton({
       disabled={disabled}
       className={cn(
         "inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition disabled:pointer-events-none disabled:opacity-40",
-        pressed ? "border-accent/50 bg-accent/15 text-accent" : "border-white/10 text-muted hover:bg-white/[0.06] hover:text-foreground",
+        pressed ? "border-accent/50 bg-accent/15 text-accent" : "border-border text-muted hover:bg-surface-hover hover:text-foreground",
       )}
     >
       {children}
@@ -113,7 +113,7 @@ function ToolButton({
 
 const STATE_PILL: Record<ContainerState, { label: string; tone: string }> = {
   running: { label: "Running", tone: "border-success/25 bg-success/10 text-success" },
-  stopped: { label: "Stopped", tone: "border-white/10 bg-white/[0.04] text-muted" },
+  stopped: { label: "Stopped", tone: "border-border bg-surface-hover text-muted" },
   missing: { label: "Not found", tone: "border-warning/25 bg-warning/10 text-warning" },
 };
 
@@ -267,7 +267,7 @@ export function LogViewer({
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Filter lines…"
             aria-label="Filter log lines"
-            className="h-8 w-full rounded-lg border border-white/10 bg-white/[0.04] pl-9 pr-3 text-xs text-foreground placeholder:text-muted/70 transition focus:border-accent/60 focus:outline-none focus:ring-4 focus:ring-accent/10"
+            className="h-8 w-full rounded-lg border border-border bg-surface-hover pl-9 pr-3 text-xs text-foreground placeholder:text-muted/70 transition focus:border-accent/60 focus:bg-surface focus:outline-none focus:ring-4 focus:ring-accent/10"
           />
         </div>
         <ToolButton onClick={() => setProblemsOnly((v) => !v)} pressed={problemsOnly} label="Show only errors and warnings">
@@ -322,12 +322,14 @@ export function LogViewer({
       </div>
 
       {state === "stopped" && rows.length > 0 ? (
-        <p className="mb-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-muted">
+        <p className="mb-2 rounded-lg border border-border bg-surface-hover px-3 py-2 text-xs text-muted">
           This container is stopped — showing its last output.
         </p>
       ) : null}
 
-      {/* terminal */}
+      {/* terminal — deliberately dark regardless of app theme, like Vercel/Railway's
+          log panels: raw stdout/stderr and ANSI-ish log-level colors read better on
+          a fixed dark background than one that flips with light mode. */}
       <div className="relative">
         <div
           ref={scroller}

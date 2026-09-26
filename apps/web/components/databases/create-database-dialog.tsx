@@ -132,19 +132,19 @@ export function CreateDatabaseDialog({
     }
   }
 
-  // Portalled to <body>: a `fixed` element inside the glass cards' backdrop-filter
-  // ancestors is positioned relative to *them*, not the viewport, and gets clipped.
+  // Portalled to <body>: a `fixed` element inside an ancestor with its own
+  // stacking/scroll context could otherwise clip or mis-position.
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto px-4 py-[6vh]" role="dialog" aria-modal="true" aria-label="New database">
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm animate-fade-up" onClick={onClose} />
-      <div className="relative w-full max-w-xl rounded-3xl bg-gradient-to-b from-white/25 to-white/[0.04] p-px shadow-2xl shadow-black/70 animate-fade-up">
-        <form onSubmit={submit} className="rounded-[calc(1.5rem-1px)] bg-[#0c0c10]/95 p-6 backdrop-blur-xl sm:p-8">
+      <div className="relative w-full max-w-xl animate-fade-up rounded-2xl border border-border bg-surface shadow-xl">
+        <form onSubmit={submit} className="p-6 sm:p-8">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
-              <h2 className="font-mono text-xl font-semibold tracking-tight">New database</h2>
+              <h2 className="text-xl font-semibold tracking-tight">New database</h2>
               <p className="mt-1 text-sm text-muted">Runs in a container on this server, next to your apps.</p>
             </div>
-            <button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-muted transition hover:bg-white/[0.06] hover:text-foreground">
+            <button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-muted transition hover:bg-surface-hover hover:text-foreground">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -162,10 +162,10 @@ export function CreateDatabaseDialog({
                   onClick={() => setType(t)}
                   className={cn(
                     "relative flex flex-col gap-2 rounded-xl border p-4 text-left transition",
-                    active ? "border-accent/60 bg-accent/10 ring-4 ring-accent/10" : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]",
+                    active ? "border-accent/60 bg-accent/10 ring-4 ring-accent/10" : "border-border bg-surface-hover hover:bg-surface",
                   )}
                 >
-                  <span className={cn("flex h-9 w-9 items-center justify-center rounded-lg", active ? "bg-accent/20 text-accent" : "bg-white/[0.06] text-muted")}>
+                  <span className={cn("flex h-9 w-9 items-center justify-center rounded-lg", active ? "bg-accent/20 text-accent" : "bg-surface text-muted")}>
                     <Icon className="h-4 w-4" strokeWidth={1.75} />
                   </span>
                   <span>
@@ -245,7 +245,7 @@ export function CreateDatabaseDialog({
               </Field>
               <div>
                 <span className="mb-1.5 block text-sm font-medium">Persistence</span>
-                <div className="grid grid-cols-3 gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-1">
+                <div className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-surface-hover p-1">
                   {REDIS_PERSISTENCE.map((p) => (
                     <button
                       type="button"
@@ -265,7 +265,7 @@ export function CreateDatabaseDialog({
             </div>
           )}
 
-          <div className="mt-6 flex items-start gap-2.5 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3.5 text-xs leading-relaxed text-muted">
+          <div className="mt-6 flex items-start gap-2.5 rounded-xl border border-border bg-surface-hover p-3.5 text-xs leading-relaxed text-muted">
             <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" strokeWidth={1.75} />
             <span>
               <span className="font-medium text-foreground">Private by default.</span> Listens on{" "}

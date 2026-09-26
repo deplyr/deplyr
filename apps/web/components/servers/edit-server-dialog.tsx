@@ -99,14 +99,14 @@ export function EditServerDialog({
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto px-4 py-[8vh]" role="dialog" aria-modal="true" aria-label="Edit server">
       <div className="fixed inset-0 animate-fade-up bg-black/60 backdrop-blur-sm" onClick={() => !saving && onClose()} />
-      <div className="relative w-full max-w-md animate-fade-up rounded-3xl bg-gradient-to-b from-white/25 to-white/[0.04] p-px shadow-2xl shadow-black/70">
-        <form onSubmit={submit} className="rounded-[calc(1.5rem-1px)] bg-[#0c0c10]/95 p-6 backdrop-blur-xl sm:p-8">
+      <div className="relative w-full max-w-md animate-fade-up rounded-2xl border border-border bg-surface shadow-xl">
+        <form onSubmit={submit} className="p-6 sm:p-8">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
-              <h2 className="font-mono text-xl font-semibold tracking-tight">Edit server</h2>
+              <h2 className="text-xl font-semibold tracking-tight">Edit server</h2>
               <p className="mt-1 text-sm text-muted">Changing the IP or credential retries the connection.</p>
             </div>
-            <button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-muted transition hover:bg-white/[0.06] hover:text-foreground">
+            <button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-muted transition hover:bg-surface-hover hover:text-foreground">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -121,7 +121,7 @@ export function EditServerDialog({
 
             {changeCredential ? (
               <Field label="New SSH credential">
-                <div className="mb-2 grid grid-cols-2 gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-1">
+                <div className="mb-2 grid grid-cols-2 gap-1 rounded-xl border border-border bg-surface-hover p-1">
                   {(["password", "private_key"] as const).map((type) => (
                     <button
                       type="button"

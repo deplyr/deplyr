@@ -5,7 +5,7 @@ import { Check, Loader2, RotateCw, X } from "lucide-react";
 import type { ServerSummary } from "@deplyr/shared-types";
 import { useServer } from "@/components/servers/server-context";
 import { Button } from "@/components/ui/button";
-import { GlassCard } from "@/components/ui/glass-card";
+import { FlatCard } from "@/components/ui/flat-card";
 import { cn } from "@/lib/cn";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -49,20 +49,11 @@ export function InstallProgress({ server }: { server: ServerSummary }) {
   }
 
   return (
-    <GlassCard
-      className="animate-fade-up"
-      innerClassName={cn("relative overflow-hidden p-6 sm:p-8", failed && "bg-danger/[0.03]")}
-    >
-      <div
-        className={cn(
-          "pointer-events-none absolute -left-16 -top-20 h-56 w-56 rounded-full blur-[80px]",
-          failed ? "bg-danger/25" : "bg-warning/20",
-        )}
-      />
-      <div className="relative">
+    <FlatCard className={cn("animate-fade-up p-6 sm:p-8", failed && "border-danger/25 bg-danger/[0.03]")}>
+      <div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="font-mono text-lg font-semibold">
+            <h2 className="text-lg font-semibold">
               {failed ? "Setup hit a problem" : "Setting up your server"}
             </h2>
             <p className="mt-1 text-sm text-muted">
@@ -83,7 +74,7 @@ export function InstallProgress({ server }: { server: ServerSummary }) {
           )}
         </div>
 
-        <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-white/10">
+        <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-border">
           <div
             className={cn("h-full rounded-full transition-all duration-700", failed ? "bg-danger" : "bg-accent")}
             style={{ width: `${(doneCount / steps.length) * 100}%` }}
@@ -102,7 +93,7 @@ export function InstallProgress({ server }: { server: ServerSummary }) {
                   step.done && "border-success/20 bg-success/[0.04]",
                   active && !isFailed && "border-accent/40 bg-accent/[0.06]",
                   isFailed && "border-danger/30 bg-danger/[0.06]",
-                  !step.done && !active && "border-white/[0.07] opacity-60",
+                  !step.done && !active && "border-border opacity-60",
                 )}
               >
                 <span
@@ -111,7 +102,7 @@ export function InstallProgress({ server }: { server: ServerSummary }) {
                     step.done && "bg-success/15 text-success",
                     active && !isFailed && "bg-accent/15 text-accent",
                     isFailed && "bg-danger/15 text-danger",
-                    !step.done && !active && "border border-white/15 text-muted",
+                    !step.done && !active && "border border-border text-muted",
                   )}
                 >
                   {step.done ? (
@@ -135,7 +126,7 @@ export function InstallProgress({ server }: { server: ServerSummary }) {
           <div
             className={cn(
               "mt-5 rounded-xl border px-4 py-3 font-mono text-xs leading-relaxed",
-              failed ? "border-danger/25 bg-black/30 text-danger" : "border-white/[0.07] bg-black/30 text-muted",
+              failed ? "border-danger/25 bg-danger/5 text-danger" : "border-border bg-surface-hover text-muted",
             )}
           >
             <span className="mr-2 text-muted/60">›</span>
@@ -143,6 +134,6 @@ export function InstallProgress({ server }: { server: ServerSummary }) {
           </div>
         ) : null}
       </div>
-    </GlassCard>
+    </FlatCard>
   );
 }

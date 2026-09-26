@@ -114,11 +114,11 @@ export function ServerProvider({ id, children }: { id: string; children: ReactNo
   if (!server) {
     return (
       <Page>
-        <div className="h-40 animate-pulse rounded-2xl bg-white/[0.04]" />
-        <div className="h-10 animate-pulse rounded-xl bg-white/[0.04]" />
+        <div className="h-16 animate-pulse rounded-xl bg-surface-hover" />
+        <div className="h-10 animate-pulse rounded-xl bg-surface-hover" />
         <div className="grid gap-6 lg:grid-cols-3">
-          <div className="h-72 animate-pulse rounded-2xl bg-white/[0.04] lg:col-span-2" />
-          <div className="h-72 animate-pulse rounded-2xl bg-white/[0.04]" />
+          <div className="h-72 animate-pulse rounded-xl bg-surface-hover lg:col-span-2" />
+          <div className="h-72 animate-pulse rounded-xl bg-surface-hover" />
         </div>
       </Page>
     );

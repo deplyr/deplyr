@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Eye, EyeOff, KeyRound, Loader2, Lock, Network, Terminal } from "lucide-react";
 import type { DatabaseCredentials, DatabaseSummary } from "@deplyr/shared-types";
 import { CopyButton } from "@/components/ui/copy-button";
-import { GlassCard } from "@/components/ui/glass-card";
+import { FlatCard } from "@/components/ui/flat-card";
 import { SectionTitle } from "@/components/ui/section-title";
 import { ENGINE_META } from "@/lib/database-meta";
 import { cn } from "@/lib/cn";
@@ -23,8 +23,8 @@ function Row({ label, children, action }: { label: string; children: React.React
 
 function Snippet({ title, icon: Icon, code, copy }: { title: string; icon: typeof Terminal; code: string; copy: () => Promise<string> }) {
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-black/30">
-      <div className="flex items-center justify-between border-b border-white/[0.06] px-3 py-1.5">
+    <div className="rounded-xl border border-border bg-surface-hover">
+      <div className="flex items-center justify-between border-b border-border px-3 py-1.5">
         <span className="flex items-center gap-1.5 text-[11px] text-muted">
           <Icon className="h-3 w-3" strokeWidth={1.75} />
           {title}
@@ -86,10 +86,10 @@ export function DatabaseConnection({ database, serverIp }: { database: DatabaseS
   const tunnel = `ssh -N -L ${port}:127.0.0.1:${port} root@${serverIp ?? "<server-ip>"}`;
 
   return (
-    <GlassCard className="animate-fade-up" style={{ animationDelay: "100ms" }} innerClassName="p-6">
+    <FlatCard className="animate-fade-up p-6" style={{ animationDelay: "100ms" }}>
       <SectionTitle icon={Network}>Connection</SectionTitle>
 
-      <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 text-xs leading-relaxed text-muted">
+      <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-border bg-surface-hover p-3 text-xs leading-relaxed text-muted">
         <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" strokeWidth={1.75} />
         <span>
           <span className="font-medium text-foreground">Private.</span> Only reachable from this server. Apps deployed here connect
@@ -104,7 +104,7 @@ export function DatabaseConnection({ database, serverIp }: { database: DatabaseS
         </p>
       ) : null}
 
-      <div className="divide-y divide-white/[0.06]">
+      <div className="divide-y divide-border">
         <Row label="Host" action={<CopyButton value="127.0.0.1" label="host" />}>127.0.0.1</Row>
         <Row label="Port" action={<CopyButton value={String(port)} label="port" />}>{port}</Row>
         {username ? <Row label="User" action={<CopyButton value={username} label="username" />}>{username}</Row> : null}
@@ -117,7 +117,7 @@ export function DatabaseConnection({ database, serverIp }: { database: DatabaseS
                 onClick={toggleReveal}
                 disabled={loading}
                 aria-label={shown ? "Hide password" : "Reveal password"}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted transition hover:bg-white/[0.08] hover:text-foreground"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted transition hover:bg-surface-hover hover:text-foreground"
               >
                 {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : shown ? <EyeOff className="h-3.5 w-3.5" strokeWidth={1.75} /> : <Eye className="h-3.5 w-3.5" strokeWidth={1.75} />}
               </button>
@@ -147,6 +147,6 @@ export function DatabaseConnection({ database, serverIp }: { database: DatabaseS
         />
         <Snippet title="SSH tunnel, from your laptop" icon={Network} code={`${tunnel}\n# then connect to localhost:${port}`} copy={async () => tunnel} />
       </div>
-    </GlassCard>
+    </FlatCard>
   );
 }

@@ -5,7 +5,7 @@ import { ChevronRight, History } from "lucide-react";
 import { DeployStatusBadge } from "@/components/deploys/deploy-status-badge";
 import { deployDuration, stripTone } from "@/components/projects/deploy-utils";
 import { useProject } from "@/components/projects/project-context";
-import { GlassCard } from "@/components/ui/glass-card";
+import { FlatCard } from "@/components/ui/flat-card";
 import { SectionTitle } from "@/components/ui/section-title";
 import { timeAgo } from "@/lib/time-ago";
 import { cn } from "@/lib/cn";
@@ -16,7 +16,7 @@ export default function ProjectDeployments() {
   const ok = deploys.filter((d) => d.status === "success").length;
 
   return (
-    <GlassCard className="animate-fade-up" innerClassName="p-6">
+    <FlatCard className="animate-fade-up p-6">
       <SectionTitle icon={History} meta={deploys.length ? `${ok} of ${deploys.length} succeeded` : undefined}>
         Deployments
       </SectionTitle>
@@ -33,10 +33,10 @@ export default function ProjectDeployments() {
               <span key={d.id} className={cn("h-6 flex-1 rounded-sm", stripTone[d.status])} />
             ))}
           </div>
-          <ul className="divide-y divide-white/[0.06]">
+          <ul className="divide-y divide-border">
             {deploys.map((d) => (
               <li key={d.id}>
-                <Link href={`${base}/deploys/${d.id}`} className="group -mx-2 flex items-center gap-4 rounded-xl px-2 py-3.5 transition hover:bg-white/[0.03]">
+                <Link href={`${base}/deploys/${d.id}`} className="group -mx-2 flex items-center gap-4 rounded-xl px-2 py-3.5 transition hover:bg-surface-hover">
                   <DeployStatusBadge status={d.status} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-mono text-sm">{d.commitSha ? d.commitSha.slice(0, 7) : "—"}</p>
@@ -50,6 +50,6 @@ export default function ProjectDeployments() {
           </ul>
         </>
       )}
-    </GlassCard>
+    </FlatCard>
   );
 }

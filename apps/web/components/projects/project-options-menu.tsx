@@ -37,7 +37,7 @@ export function ProjectOptionsMenu({ project }: { project: ProjectSummary }) {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Project options"
-        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-muted transition hover:bg-white/[0.07] hover:text-foreground"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-surface-hover text-muted transition hover:bg-surface hover:text-foreground"
       >
         <MoreVertical className="h-4 w-4" strokeWidth={1.75} />
       </button>
@@ -45,32 +45,30 @@ export function ProjectOptionsMenu({ project }: { project: ProjectSummary }) {
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 top-12 z-40 w-52 animate-fade-up rounded-2xl bg-gradient-to-b from-white/20 to-white/[0.04] p-px shadow-2xl shadow-black/60"
+          className="absolute right-0 top-12 z-40 w-52 animate-fade-up rounded-xl border border-border bg-surface p-1.5 shadow-xl"
         >
-          <div className="rounded-[calc(1rem-1px)] bg-[#0c0c10]/95 p-1.5 backdrop-blur-xl">
-            <button
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                setEditOpen(true);
-              }}
-              className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm transition hover:bg-white/[0.06]"
-            >
-              <Pencil className="h-3.5 w-3.5 text-muted" strokeWidth={1.75} />
-              Edit project
-            </button>
-            <button
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                setDeleteOpen(true);
-              }}
-              className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm text-danger transition hover:bg-danger/10"
-            >
-              <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-              Delete project
-            </button>
-          </div>
+          <button
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              setEditOpen(true);
+            }}
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition hover:bg-surface-hover"
+          >
+            <Pencil className="h-3.5 w-3.5 text-muted" strokeWidth={1.75} />
+            Edit project
+          </button>
+          <button
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              setDeleteOpen(true);
+            }}
+            className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-danger transition hover:bg-danger/10"
+          >
+            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+            Delete project
+          </button>
         </div>
       ) : null}
 

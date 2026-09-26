@@ -70,22 +70,22 @@ export function DeleteProjectDialog({
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto px-4 py-[8vh]" role="dialog" aria-modal="true" aria-label="Delete project">
       <div className="fixed inset-0 animate-fade-up bg-black/60 backdrop-blur-sm" onClick={() => !deleting && onClose()} />
-      <div className="relative w-full max-w-md animate-fade-up rounded-3xl bg-gradient-to-b from-danger/30 to-white/[0.04] p-px shadow-2xl shadow-black/70">
-        <form onSubmit={submit} className="rounded-[calc(1.5rem-1px)] bg-[#0c0c10]/95 p-6 backdrop-blur-xl sm:p-8">
+      <div className="relative w-full max-w-md animate-fade-up rounded-2xl border border-danger/25 bg-surface shadow-xl">
+        <form onSubmit={submit} className="p-6 sm:p-8">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div className="flex items-start gap-3">
               <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-danger/10 text-danger">
                 <AlertTriangle className="h-4 w-4" strokeWidth={1.75} />
               </span>
               <div>
-                <h2 className="font-mono text-xl font-semibold tracking-tight">Delete {project.name}</h2>
+                <h2 className="text-xl font-semibold tracking-tight">Delete {project.name}</h2>
                 <p className="mt-1 text-sm text-muted">
                   Removes this project, its secrets, deploy history, database and domains from Deplyr. It does not
                   stop or remove anything running on the server itself.
                 </p>
               </div>
             </div>
-            <button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-muted transition hover:bg-white/[0.06] hover:text-foreground">
+            <button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-muted transition hover:bg-surface-hover hover:text-foreground">
               <X className="h-4 w-4" />
             </button>
           </div>

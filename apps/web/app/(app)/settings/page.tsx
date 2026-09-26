@@ -1,7 +1,7 @@
 import type { AuthUser } from "@deplyr/shared-types";
 import { Github, UserRound } from "lucide-react";
 import { GithubConnect } from "@/components/github/github-connect";
-import { GlassCard } from "@/components/ui/glass-card";
+import { FlatCard } from "@/components/ui/flat-card";
 import { Page, PageHeader } from "@/components/ui/page";
 import { SectionTitle } from "@/components/ui/section-title";
 import { FormError } from "@/components/ui/field";
@@ -21,7 +21,7 @@ export default async function SettingsPage({
     <Page width="narrow">
       <PageHeader eyebrow="Settings" title="Account" description="Your profile and connected services." />
 
-      <GlassCard className="animate-fade-up" innerClassName="p-6 sm:p-8">
+      <FlatCard className="animate-fade-up p-6 sm:p-8">
         <SectionTitle icon={UserRound}>Profile</SectionTitle>
         <div className="flex items-center gap-4">
           <span className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/15 font-mono text-xl font-semibold text-accent">
@@ -32,9 +32,9 @@ export default async function SettingsPage({
             <p className="truncate text-sm text-muted">{user?.email}</p>
           </div>
         </div>
-      </GlassCard>
+      </FlatCard>
 
-      <GlassCard className="animate-fade-up" style={{ animationDelay: "70ms" }} innerClassName="p-6 sm:p-8">
+      <FlatCard className="animate-fade-up p-6 sm:p-8" style={{ animationDelay: "70ms" }}>
         <SectionTitle icon={Github}>GitHub</SectionTitle>
         <p className="mb-5 text-sm leading-relaxed text-muted">
           Lets Deplyr read the repositories you choose to deploy.
@@ -45,7 +45,7 @@ export default async function SettingsPage({
           </div>
         ) : null}
         <GithubConnect githubLogin={user?.githubLogin ?? null} oauthEnabled={cfg.githubOAuth} />
-      </GlassCard>
+      </FlatCard>
     </Page>
   );
 }

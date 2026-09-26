@@ -1,0 +1,15 @@
+# Terminates TLS for the control plane itself (not to be confused with the
+# per-app nginx the agent manages on a *managed* server — see
+# infra/agent-install.sh). Automatic Let's Encrypt cert + renewal, keyed off
+# DEPLYR_PUBLIC_HOST from .env. Two site blocks, same hostname: the browser
+# reaches web on the default port and api on :4000, matching
+# NEXT_PUBLIC_API_URL's shape (see docker-compose.prod.yml) — Caddy issues
+# one cert and reuses it for both, since certs are per-hostname, not per-port.
+
+{$DEPLYR_PUBLIC_HOST} {
+	reverse_proxy web:3000
+}
+
+{$DEPLYR_PUBLIC_HOST}:4000 {
+	reverse_proxy api:4000
+}

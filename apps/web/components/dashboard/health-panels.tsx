@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Database, HeartPulse } from "lucide-react";
 import type { AppHealthRow, AppHealthStatus, DatabaseRow } from "@deplyr/shared-types";
-import { GlassCard } from "@/components/ui/glass-card";
+import { FlatCard } from "@/components/ui/flat-card";
 import { DbStatusPill } from "@/components/databases/db-status-pill";
 import { ENGINE_META } from "@/lib/database-meta";
 import { APP_DOMAIN } from "@/lib/app-domain";
@@ -35,7 +35,7 @@ function PanelHeader({ icon: Icon, title, meta }: { icon: typeof HeartPulse; tit
 export function AppHealthPanel({ rows }: { rows: AppHealthRow[] }) {
   const down = rows.filter((r) => r.status === "unhealthy").length;
   return (
-    <GlassCard innerClassName="p-6">
+    <FlatCard className="p-6">
       <PanelHeader
         icon={HeartPulse}
         title="App health"
@@ -51,7 +51,7 @@ export function AppHealthPanel({ rows }: { rows: AppHealthRow[] }) {
             <li key={r.projectId}>
               <Link
                 href={`/projects/${r.projectId}`}
-                className="flex items-center gap-3 rounded-xl px-2 py-2.5 transition hover:bg-white/[0.04]"
+                className="flex items-center gap-3 rounded-xl px-2 py-2.5 transition hover:bg-surface-hover"
               >
                 <span className="relative flex h-2.5 w-2.5 shrink-0">
                   {r.status === "healthy" ? (
@@ -76,18 +76,27 @@ export function AppHealthPanel({ rows }: { rows: AppHealthRow[] }) {
           ))}
         </ul>
       )}
-    </GlassCard>
+    </FlatCard>
   );
 }
 
 export function DatabasesPanel({ rows }: { rows: DatabaseRow[] }) {
   return (
-    <GlassCard innerClassName="p-6">
+    <FlatCard className="p-6">
       <PanelHeader icon={Database} title="Databases" meta={rows.length ? `${rows.length} total` : undefined} />
       {rows.length === 0 ? (
-        <p className="py-4 text-xs leading-relaxed text-muted">
-          Spin up Postgres or Redis from any server&apos;s page — Deplyr tracks their health here.
-        </p>
+        <div className="py-2">
+          <p className="text-xs leading-relaxed text-muted">
+            Spin up Postgres or Redis from any server&apos;s page — Deplyr tracks their health here.
+          </p>
+          <Link
+            href="/servers"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-2.5 py-1.5 text-xs text-muted transition hover:border-accent/50 hover:text-accent"
+          >
+            <Database className="h-3.5 w-3.5" strokeWidth={1.75} />
+            View servers
+          </Link>
+        </div>
       ) : (
         <ul className="space-y-1">
           {rows.map((d) => {
@@ -96,7 +105,7 @@ export function DatabasesPanel({ rows }: { rows: DatabaseRow[] }) {
               <li key={d.id}>
                 <Link
                   href={`/servers/${d.serverId}/databases/${d.id}`}
-                  className="-mx-2 flex items-center gap-3 rounded-xl px-2 py-2.5 transition hover:bg-white/[0.04]"
+                  className="-mx-2 flex items-center gap-3 rounded-xl px-2 py-2.5 transition hover:bg-surface-hover"
                 >
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
                     <Icon className="h-4 w-4" strokeWidth={1.75} />
@@ -115,6 +124,6 @@ export function DatabasesPanel({ rows }: { rows: DatabaseRow[] }) {
           })}
         </ul>
       )}
-    </GlassCard>
+    </FlatCard>
   );
 }

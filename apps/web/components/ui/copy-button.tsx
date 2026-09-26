@@ -27,7 +27,7 @@ export function CopyButton({ value, label, className }: { value: string | (() =>
       title={`Copy ${label ?? "value"}`}
       aria-label={`Copy ${label ?? "value"}`}
       className={cn(
-        "inline-flex h-7 w-7 items-center justify-center rounded-md text-muted transition hover:bg-white/[0.08] hover:text-foreground",
+        "inline-flex h-7 w-7 items-center justify-center rounded-md text-muted transition hover:bg-surface-hover hover:text-foreground",
         copied && "text-success",
         className,
       )}

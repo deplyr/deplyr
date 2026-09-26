@@ -9,7 +9,7 @@ import { DeployStatusBadge } from "@/components/deploys/deploy-status-badge";
 import { deployDuration, stripTone } from "@/components/projects/deploy-utils";
 import { useProject } from "@/components/projects/project-context";
 import { CopyButton } from "@/components/ui/copy-button";
-import { GlassCard } from "@/components/ui/glass-card";
+import { FlatCard } from "@/components/ui/flat-card";
 import { SectionTitle } from "@/components/ui/section-title";
 import { DEPLOY_STEP_LABELS } from "@/lib/deploy-step-labels";
 import { projectAddress } from "@/lib/app-domain";
@@ -19,32 +19,26 @@ import { cn } from "@/lib/cn";
 const FRAMEWORK_LABEL = { nextjs: "Next.js", nestjs: "NestJS", node: "Node.js", dockerfile: "Docker" } as const;
 
 type Tone = "default" | "success" | "danger" | "warning";
-const toneStyle: Record<Tone, string> = {
-  default: "bg-accent/10 text-accent",
-  success: "bg-success/10 text-success",
-  danger: "bg-danger/10 text-danger",
-  warning: "bg-warning/10 text-warning",
-};
 
+// One divided strip, four facets of it — matches the dashboard's stat row
+// rather than four separate cards with wasted gaps between them.
 function Tile({ icon: Icon, label, value, sub, tone = "default", href }: { icon: LucideIcon; label: string; value: string; sub: string; tone?: Tone; href?: string }) {
+  const valueTone = tone === "success" ? "text-success" : tone === "danger" ? "text-danger" : tone === "warning" ? "text-warning" : "text-foreground";
   const body = (
-    <GlassCard hover={Boolean(href)} innerClassName="flex h-full items-center gap-4 p-5">
-      <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl", toneStyle[tone])}>
-        <Icon className="h-5 w-5" strokeWidth={1.5} />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-xs text-muted">{label}</p>
-        <p className="mt-0.5 truncate font-sans text-xl font-semibold leading-tight">{value}</p>
-        <p className="truncate text-[11px] text-muted">{sub}</p>
+    <>
+      <div className="flex items-center gap-1.5 text-xs text-muted">
+        <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
+        {label}
       </div>
-    </GlassCard>
+      <p className={cn("mt-2 truncate text-2xl font-semibold tracking-tight", valueTone)}>{value}</p>
+      <p className="mt-1 truncate text-xs text-muted">{sub}</p>
+    </>
   );
-  return href ? (
-    <Link href={href} className="block h-full">
+  if (!href) return <div className="p-5">{body}</div>;
+  return (
+    <Link href={href} className="block p-5 transition hover:bg-surface-hover">
       {body}
     </Link>
-  ) : (
-    body
   );
 }
 
@@ -53,7 +47,7 @@ function StepPill({ step }: { step: DeployStepSummary }) {
     success: "border-success/25 bg-success/10 text-success",
     failed: "border-danger/30 bg-danger/10 text-danger",
     running: "border-warning/30 bg-warning/10 text-warning",
-    pending: "border-white/10 bg-white/[0.03] text-muted",
+    pending: "border-border bg-surface-hover text-muted",
   } as const;
   return (
     <li className={cn("flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs", styles[step.status])}>
@@ -85,22 +79,24 @@ export default function ProjectOverview() {
 
   return (
     <>
-      <section className="grid animate-fade-up grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Tile icon={Rocket} label="Status" tone={statusTile.tone} value={statusTile.value} sub={latest ? `${latest.status === "success" ? "Deployed" : "Last deploy"} ${timeAgo(latest.finishedAt ?? latest.createdAt)}` : "Hit Deploy to ship it"} href={latest ? `${base}/deploys/${latest.id}` : undefined} />
-        <Tile icon={Activity} label="Health" tone={healthTile.tone} value={healthTile.value} sub={health.lastCheckedAt ? `checked ${timeAgo(health.lastCheckedAt)}` : "checked once it's live"} />
-        <Tile icon={GitBranch} label="Last commit" value={latest?.commitSha ? latest.commitSha.slice(0, 7) : "—"} sub={latest ? `${deployDuration(latest) ? `built in ${deployDuration(latest)} · ` : ""}${timeAgo(latest.createdAt)}` : "no deploys yet"} />
-        <Tile
-          icon={Cpu}
-          label="Runtime"
-          value={project.framework ? FRAMEWORK_LABEL[project.framework] : "Not supported"}
-          sub={project.framework === "dockerfile" ? "your Dockerfile" : project.framework ? `${plan.packageManager} · ${plan.packageManager === "bun" ? "Bun" : `Node ${plan.nodeVersion}`}` : "see build settings"}
-          href={`${base}/settings`}
-        />
-      </section>
+      <FlatCard className="animate-fade-up overflow-hidden">
+        <div className="grid grid-cols-1 divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
+          <Tile icon={Rocket} label="Status" tone={statusTile.tone} value={statusTile.value} sub={latest ? `${latest.status === "success" ? "Deployed" : "Last deploy"} ${timeAgo(latest.finishedAt ?? latest.createdAt)}` : "Hit Deploy to ship it"} href={latest ? `${base}/deploys/${latest.id}` : undefined} />
+          <Tile icon={Activity} label="Health" tone={healthTile.tone} value={healthTile.value} sub={health.lastCheckedAt ? `checked ${timeAgo(health.lastCheckedAt)}` : "checked once it's live"} />
+          <Tile icon={GitBranch} label="Last commit" value={latest?.commitSha ? latest.commitSha.slice(0, 7) : "—"} sub={latest ? `${deployDuration(latest) ? `built in ${deployDuration(latest)} · ` : ""}${timeAgo(latest.createdAt)}` : "no deploys yet"} />
+          <Tile
+            icon={Cpu}
+            label="Runtime"
+            value={project.framework ? FRAMEWORK_LABEL[project.framework] : "Not supported"}
+            sub={project.framework === "dockerfile" ? "your Dockerfile" : project.framework ? `${plan.packageManager} · ${plan.packageManager === "bun" ? "Bun" : `Node ${plan.nodeVersion}`}` : "see build settings"}
+            href={`${base}/settings`}
+          />
+        </div>
+      </FlatCard>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <GlassCard className="animate-fade-up" style={{ animationDelay: "60ms" }} innerClassName="p-6">
+          <FlatCard className="animate-fade-up p-6" style={{ animationDelay: "60ms" }}>
             <SectionTitle
               icon={History}
               meta={
@@ -128,7 +124,7 @@ export default function ProjectOverview() {
                 {latest.steps.length ? <ol className="mt-4 flex flex-wrap gap-1.5">{latest.steps.map((s) => <StepPill key={s.name} step={s} />)}</ol> : null}
 
                 {deploys.length > 1 ? (
-                  <div className="mt-5 border-t border-white/[0.07] pt-4">
+                  <div className="mt-5 border-t border-border pt-4">
                     <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-muted">Recent deploys</p>
                     <div className="flex gap-1" aria-hidden>
                       {[...deploys].slice(0, 24).reverse().map((d) => (
@@ -140,7 +136,7 @@ export default function ProjectOverview() {
               </>
             ) : (
               <div className="flex flex-col items-center py-10 text-center">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10 text-accent">
+                <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10 text-accent">
                   <Rocket className="h-5 w-5" strokeWidth={1.5} />
                 </span>
                 <p className="mt-3 text-sm font-medium">Nothing deployed yet</p>
@@ -149,18 +145,18 @@ export default function ProjectOverview() {
                 </p>
               </div>
             )}
-          </GlassCard>
+          </FlatCard>
 
-          <GlassCard className="animate-fade-up" style={{ animationDelay: "100ms" }} innerClassName="p-6">
+          <FlatCard className="animate-fade-up p-6" style={{ animationDelay: "100ms" }}>
             <SectionTitle icon={ListChecks}>Recent activity</SectionTitle>
             <ActivityLog serverId={project.serverId} resourceId={project.id} limit={6} filters={false} loadMore={false} />
-          </GlassCard>
+          </FlatCard>
         </div>
 
         <div className="space-y-6">
-          <GlassCard className="animate-fade-up" style={{ animationDelay: "80ms" }} innerClassName="p-6">
+          <FlatCard className="animate-fade-up p-6" style={{ animationDelay: "80ms" }}>
             <SectionTitle>Details</SectionTitle>
-            <dl className="divide-y divide-white/[0.06]">
+            <dl className="divide-y divide-border">
               <Fact label="Repository">
                 <a href={`https://github.com/${project.githubRepo}`} target="_blank" rel="noreferrer" className="truncate font-mono text-accent hover:underline">
                   {project.githubRepo}
@@ -220,7 +216,7 @@ export default function ProjectOverview() {
               Edit build settings
               <ArrowUpRight className="h-3 w-3" strokeWidth={2} />
             </Link>
-          </GlassCard>
+          </FlatCard>
 
           {project.framework ? <DatabaseCard key={database?.id ?? "none"} projectId={project.id} initial={database} /> : null}
         </div>

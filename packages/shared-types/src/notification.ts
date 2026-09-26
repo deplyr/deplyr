@@ -72,6 +72,9 @@ export const updateChannelInputSchema = z.object({
   name: z.string().trim().min(1).max(60).optional(),
   enabled: z.boolean().optional(),
   events: z.array(notificationEventSchema).min(1, "pick at least one event").optional(),
+  // Omitted = keep the existing webhook. Format checked against the channel's
+  // own type in the route (this schema doesn't know it).
+  webhookUrl: z.string().trim().min(1).optional(),
 });
 export type UpdateChannelInput = z.infer<typeof updateChannelInputSchema>;
 

@@ -152,33 +152,63 @@ the API and worker to get "Open in Deplyr" links in messages.
 | `DEPLYR_APP_DOMAIN` | worker, web | Base domain for deployed apps (`my-app.<domain>`) |
 | `DEPLYR_WILDCARD_CERT_PEM` / `_KEY_PEM` | worker | Optional wildcard certificate for HTTPS on deployed apps |
 | `API_URL`, `NEXT_PUBLIC_API_URL` | web | Server-side and browser URLs of the API |
-| `DEPLYR_WEB_PORT` | web | Host port for the dashboard. Default `80` — override if this box also self-hosts apps (its own agent's nginx already owns 80/443) |
+| `DEPLYR_WEB_PORT` | caddy | Host port for the dashboard. Default `80` — override if this box also self-hosts apps (its own agent's nginx already owns 80/443); doing so forfeits automatic HTTPS |
 | `DEPLYR_CLOUD_MODE` | api | Set to `true` for an instance with real, independent sign-ups (skips the self-host "create the admin account" wizard). Leave unset otherwise |
 
 ## Self-hosting the control plane
 
-1. Provision a small VPS (a `t3.small` or larger, Ubuntu 22.04+) and install
-   Docker with the Compose plugin.
-2. Clone this repo onto it and create a `.env` at the repo root:
-   ```
-   POSTGRES_PASSWORD=<strong password>
-   DEPLYR_MASTER_KEY=<openssl rand -base64 32>
-   DEPLYR_SESSION_SECRET=<openssl rand -base64 32>
-   DEPLYR_PUBLIC_URL=http://<the box's public IP>
-   DEPLYR_PUBLIC_HOST=<the box's public IP, no scheme>
-   DEPLYR_APP_DOMAIN=<domain whose wildcard DNS points at your managed server>
-   # optional GitHub OAuth:
-   GITHUB_CLIENT_ID=
-   GITHUB_CLIENT_SECRET=
-   ```
-3. Bring it up:
-   ```bash
-   docker compose -f infra/docker/docker-compose.prod.yml --env-file .env up -d --build
-   ```
-4. Open `http://<the box's public IP>`. Allow inbound **80** (the dashboard) and
-   **4000** (the API; the browser talks to it, and agents dial back to it).
+Provision a small VPS (a `t3.small` or larger, Ubuntu 22.04+), then run:
 
-Registering a *managed* server happens afterwards from inside the UI.
+```bash
+curl -fsSL https://raw.githubusercontent.com/deplyr/deplyr/main/infra/install.sh | bash
+```
+
+That's it — no Docker install, no hand-written `.env`. It installs Docker if
+it's missing, clones this repo, generates `DEPLYR_MASTER_KEY` and every other
+secret, detects the box's public IP, and brings up Postgres, Redis, the API,
+the worker, the dashboard and Caddy. Open the URL it prints; first visit walks
+you through creating the admin account.
+
+**It's also how you update or redeploy later** — run the exact same command
+again on the same box. It pulls the latest code and rebuilds; your existing
+`.env` (and `DEPLYR_MASTER_KEY`) is left untouched, so nothing already
+encrypted breaks.
+
+Want a real domain (for automatic HTTPS) instead of the bare IP it
+auto-detects, or to set GitHub OAuth up front? Export the matching variable
+before piping it in:
+
+```bash
+DEPLYR_PUBLIC_HOST=deplyr.example.com \
+GITHUB_CLIENT_ID=… GITHUB_CLIENT_SECRET=… \
+  bash -c "$(curl -fsSL https://raw.githubusercontent.com/deplyr/deplyr/main/infra/install.sh)"
+```
+
+Point the domain's DNS A record at the box first if you use one. Allow
+inbound **80** (the dashboard, and the HTTPS challenge on a domain), **443**
+(HTTPS, domain only) and **4000** (the API — the browser talks to it, and
+managed-server agents dial back to it).
+
+Registering a *managed* server happens afterwards from inside the UI — see
+[How it works](#how-it-works) above for the difference. **The control plane
+box can register itself** as one of its own managed servers (so it deploys
+your apps alongside itself) — just set `DEPLYR_WEB_PORT` to something other
+than 80/443 first (the agent's own nginx needs those), re-run the install
+command to pick it up, then add that same box's IP from **Servers → Connect
+server** like any other.
+
+<details>
+<summary>Prefer to do it by hand instead of running the installer?</summary>
+
+1. Install Docker with the Compose plugin yourself.
+2. Clone this repo and create a `.env` at its root — see `infra/install.sh`
+   for the exact variables it would otherwise generate for you.
+3. `docker compose -f infra/docker/docker-compose.prod.yml --env-file .env up -d --build`
+
+Changed `DEPLYR_PUBLIC_URL` from `http://` to `https://` later? Re-run step 3
+— `NEXT_PUBLIC_API_URL` is baked into web's build, so it needs a rebuild, not
+just a restart, to pick up the new scheme.
+</details>
 
 **Running the control plane on a box that's also a managed server** (i.e. you
 register this same box as one of its own deploy targets, self-hosting apps

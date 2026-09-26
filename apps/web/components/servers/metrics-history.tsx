@@ -102,7 +102,7 @@ export function MetricsHistory({ serverId, cpuCores }: { serverId: string; cpuCo
         <RangeTabs value={range} onChange={setRange} />
         <button
           onClick={() => setTable((t) => !t)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-muted transition hover:bg-white/[0.05] hover:text-foreground"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted transition hover:bg-surface-hover hover:text-foreground"
         >
           {table ? <LineChart className="h-3.5 w-3.5" strokeWidth={1.75} /> : <Table2 className="h-3.5 w-3.5" strokeWidth={1.75} />}
           {table ? "Charts" : "Table"}
@@ -121,13 +121,13 @@ export function MetricsHistory({ serverId, cpuCores }: { serverId: string; cpuCo
       ) : history === null ? (
         <div className="grid gap-4 sm:grid-cols-2">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="h-48 animate-pulse rounded-xl bg-white/[0.04]" />
+            <div key={i} className="h-48 animate-pulse rounded-xl bg-surface-hover" />
           ))}
         </div>
       ) : table ? (
-        <div className={cn("max-h-96 overflow-auto rounded-xl border border-white/[0.07] transition-opacity", loading && "opacity-60")}>
+        <div className={cn("max-h-96 overflow-auto rounded-xl border border-border transition-opacity", loading && "opacity-60")}>
           <table className="w-full text-left text-xs">
-            <thead className="sticky top-0 bg-[#0c0c10] text-muted">
+            <thead className="sticky top-0 bg-surface text-muted">
               <tr>
                 {["Time", "CPU", "Memory", "Disk", "Load"].map((h) => (
                   <th key={h} className="px-3 py-2 font-medium">
@@ -138,7 +138,7 @@ export function MetricsHistory({ serverId, cpuCores }: { serverId: string; cpuCo
             </thead>
             <tbody className="font-mono tabular-nums">
               {[...points].reverse().map((p) => (
-                <tr key={p.t} className="border-t border-white/[0.05]">
+                <tr key={p.t} className="border-t border-border">
                   <td className="px-3 py-1.5 text-muted">
                     {new Date(p.t).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false })}
                   </td>
@@ -160,11 +160,11 @@ export function MetricsHistory({ serverId, cpuCores }: { serverId: string; cpuCo
             const latest = [...data].reverse().find((d) => d.v !== null)?.v ?? null;
             if (m.key === "load" && !s) return null; // agent too old to report load
             return (
-              <section key={m.key} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+              <section key={m.key} className="rounded-xl border border-border bg-surface-hover p-4">
                 <div className="mb-2 flex items-start justify-between gap-3">
                   <div>
                     <h3 className="text-xs text-muted">{m.title}</h3>
-                    <p className="mt-1 font-sans text-2xl font-semibold leading-none">{latest === null ? "—" : m.format(latest)}</p>
+                    <p className="mt-1 text-2xl font-semibold leading-none">{latest === null ? "—" : m.format(latest)}</p>
                   </div>
                   {s ? (
                     <p className="pt-0.5 text-right text-[11px] leading-relaxed text-muted">

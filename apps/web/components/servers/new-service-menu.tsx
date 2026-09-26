@@ -76,52 +76,50 @@ export function NewServiceMenu({ serverId, databaseCount }: { serverId: string; 
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 top-12 z-40 w-72 max-w-[calc(100vw-2rem)] animate-fade-up rounded-2xl bg-gradient-to-b from-white/20 to-white/[0.04] p-px shadow-2xl shadow-black/60"
+          className="absolute right-0 top-12 z-40 w-72 max-w-[calc(100vw-2rem)] animate-fade-up rounded-xl border border-border bg-surface p-1.5 shadow-xl"
         >
-          <div className="rounded-[calc(1rem-1px)] bg-[#0c0c10]/95 p-1.5 backdrop-blur-xl">
-            {items.map(({ icon: Icon, label, description, href, onSelect, soon }) => {
-              const body = (
-                <>
-                  <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", soon ? "bg-white/[0.04] text-muted" : "bg-accent/10 text-accent")}>
-                    <Icon className="h-4 w-4" strokeWidth={1.75} />
+          {items.map(({ icon: Icon, label, description, href, onSelect, soon }) => {
+            const body = (
+              <>
+                <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", soon ? "bg-surface-hover text-muted" : "bg-accent/10 text-accent")}>
+                  <Icon className="h-4 w-4" strokeWidth={1.75} />
+                </span>
+                <span className="min-w-0 flex-1 text-left">
+                  <span className="flex items-center gap-2 text-sm font-medium">
+                    {label}
+                    {soon ? <span className="rounded-full bg-surface-hover px-1.5 py-px text-[10px] font-medium uppercase tracking-wide text-muted">Soon</span> : null}
                   </span>
-                  <span className="min-w-0 flex-1 text-left">
-                    <span className="flex items-center gap-2 text-sm font-medium">
-                      {label}
-                      {soon ? <span className="rounded-full bg-white/[0.07] px-1.5 py-px text-[10px] font-medium uppercase tracking-wide text-muted">Soon</span> : null}
-                    </span>
-                    <span className="block text-xs leading-snug text-muted">{description}</span>
-                  </span>
-                </>
-              );
-              const cls = cn("flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 transition", soon ? "cursor-not-allowed opacity-60" : "hover:bg-white/[0.06]");
+                  <span className="block text-xs leading-snug text-muted">{description}</span>
+                </span>
+              </>
+            );
+            const cls = cn("flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 transition", soon ? "cursor-not-allowed opacity-60" : "hover:bg-surface-hover");
 
-              if (soon) {
-                return (
-                  <div key={label} role="menuitem" aria-disabled className={cls}>
-                    {body}
-                  </div>
-                );
-              }
-              return href ? (
-                <Link key={label} href={href} role="menuitem" onClick={() => setOpen(false)} className={cls}>
+            if (soon) {
+              return (
+                <div key={label} role="menuitem" aria-disabled className={cls}>
                   {body}
-                </Link>
-              ) : (
-                <button
-                  key={label}
-                  role="menuitem"
-                  onClick={() => {
-                    setOpen(false);
-                    onSelect?.();
-                  }}
-                  className={cls}
-                >
-                  {body}
-                </button>
+                </div>
               );
-            })}
-          </div>
+            }
+            return href ? (
+              <Link key={label} href={href} role="menuitem" onClick={() => setOpen(false)} className={cls}>
+                {body}
+              </Link>
+            ) : (
+              <button
+                key={label}
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  onSelect?.();
+                }}
+                className={cls}
+              >
+                {body}
+              </button>
+            );
+          })}
         </div>
       ) : null}
 

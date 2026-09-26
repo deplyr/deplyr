@@ -24,7 +24,7 @@ import { DbStatusPill } from "@/components/databases/db-status-pill";
 import { LogViewer } from "@/components/logs/log-viewer";
 import { Button } from "@/components/ui/button";
 import { FormError, inputClass } from "@/components/ui/field";
-import { GlassCard } from "@/components/ui/glass-card";
+import { FlatCard } from "@/components/ui/flat-card";
 import { Page, PageHeader } from "@/components/ui/page";
 import { SectionTitle } from "@/components/ui/section-title";
 import { ENGINE_META, isBusy } from "@/lib/database-meta";
@@ -35,9 +35,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 function Tile({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+    <div className="rounded-xl border border-border bg-surface-hover p-4">
       <p className="text-xs text-muted">{label}</p>
-      <p className="mt-2 font-sans text-2xl font-semibold leading-none">{value}</p>
+      <p className="mt-2 text-2xl font-semibold leading-none">{value}</p>
       {sub ? <p className="mt-1.5 text-[11px] text-muted">{sub}</p> : null}
     </div>
   );
@@ -139,10 +139,10 @@ export default function DatabaseDetailPage() {
   if (!database) {
     return (
       <Page>
-        <div className="h-40 animate-pulse rounded-2xl bg-white/[0.04]" />
+        <div className="h-16 animate-pulse rounded-xl bg-surface-hover" />
         <div className="grid gap-6 lg:grid-cols-3">
-          <div className="h-80 animate-pulse rounded-2xl bg-white/[0.04] lg:col-span-2" />
-          <div className="h-80 animate-pulse rounded-2xl bg-white/[0.04]" />
+          <div className="h-80 animate-pulse rounded-xl bg-surface-hover lg:col-span-2" />
+          <div className="h-80 animate-pulse rounded-xl bg-surface-hover" />
         </div>
       </Page>
     );
@@ -161,66 +161,57 @@ export default function DatabaseDetailPage() {
       <PageHeader back={{ href: `/servers/${serverId}/databases`, label: server ? `${server.name} · Databases` : "Databases" }} />
 
       {/* hero */}
-      <GlassCard className="animate-fade-up" innerClassName="relative overflow-hidden">
-        <div
-          className={cn(
-            "pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full blur-[90px]",
-            database.status === "error" || database.isUp === false ? "bg-danger/20" : running ? "bg-success/15" : "bg-white/10",
-          )}
-        />
-        <div className="pointer-events-none absolute -left-16 -top-24 h-64 w-64 rounded-full bg-accent/15 blur-[90px]" />
-        <div className="relative flex flex-wrap items-start justify-between gap-6 p-6 sm:p-8">
-          <div className="flex min-w-0 items-start gap-5">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-accent/10 text-accent shadow-lg shadow-accent/10">
-              <Icon className="h-6 w-6" strokeWidth={1.5} />
-            </span>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="truncate font-mono text-2xl font-semibold tracking-tight">{database.name}</h1>
-                <DbStatusPill database={database} />
-              </div>
-              <p className="mt-1.5 font-mono text-sm text-muted">
-                {meta.label} {database.version} · 127.0.0.1:{database.port}
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2 text-xs">
-                {database.latencyMs !== null && database.isUp ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.05] px-2.5 py-1 text-muted">
-                    <Activity className="h-3 w-3" strokeWidth={1.75} />
-                    probe {database.latencyMs} ms
-                  </span>
-                ) : null}
-                {database.lastCheckedAt ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.05] px-2.5 py-1 text-muted">
-                    <Clock className="h-3 w-3" strokeWidth={1.75} />
-                    checked {timeAgo(database.lastCheckedAt)}
-                  </span>
-                ) : null}
-              </div>
+      <div className="flex flex-wrap items-start justify-between gap-6">
+        <div className="flex min-w-0 items-start gap-4">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
+            <Icon className="h-5 w-5" strokeWidth={1.5} />
+          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="truncate text-2xl font-semibold tracking-tight">{database.name}</h1>
+              <DbStatusPill database={database} />
+            </div>
+            <p className="mt-1.5 font-mono text-sm text-muted">
+              {meta.label} {database.version} · 127.0.0.1:{database.port}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted">
+              {database.latencyMs !== null && database.isUp ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <Activity className="h-3 w-3" strokeWidth={1.75} />
+                  probe {database.latencyMs} ms
+                </span>
+              ) : null}
+              {database.lastCheckedAt ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock className="h-3 w-3" strokeWidth={1.75} />
+                  checked {timeAgo(database.lastCheckedAt)}
+                </span>
+              ) : null}
             </div>
           </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {database.status === "stopped" ? (
-              <Button onClick={() => act("start")} disabled={!canOperate || acting !== null}>
-                {acting === "start" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" strokeWidth={1.75} />}
-                Start
-              </Button>
-            ) : null}
-            {running || database.status === "error" ? (
-              <Button variant="secondary" onClick={() => act("restart")} disabled={!canOperate || acting !== null}>
-                {acting === "restart" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCw className="h-4 w-4" strokeWidth={1.75} />}
-                Restart
-              </Button>
-            ) : null}
-            {running ? (
-              <Button variant="secondary" onClick={() => act("stop")} disabled={!canOperate || acting !== null}>
-                {acting === "stop" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Square className="h-4 w-4" strokeWidth={1.75} />}
-                Stop
-              </Button>
-            ) : null}
-          </div>
         </div>
-      </GlassCard>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {database.status === "stopped" ? (
+            <Button onClick={() => act("start")} disabled={!canOperate || acting !== null}>
+              {acting === "start" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" strokeWidth={1.75} />}
+              Start
+            </Button>
+          ) : null}
+          {running || database.status === "error" ? (
+            <Button variant="secondary" onClick={() => act("restart")} disabled={!canOperate || acting !== null}>
+              {acting === "restart" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCw className="h-4 w-4" strokeWidth={1.75} />}
+              Restart
+            </Button>
+          ) : null}
+          {running ? (
+            <Button variant="secondary" onClick={() => act("stop")} disabled={!canOperate || acting !== null}>
+              {acting === "stop" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Square className="h-4 w-4" strokeWidth={1.75} />}
+              Stop
+            </Button>
+          ) : null}
+        </div>
+      </div>
 
       {actionError ? <FormError>{actionError}</FormError> : null}
 
@@ -266,7 +257,7 @@ export default function DatabaseDetailPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <GlassCard className="animate-fade-up" style={{ animationDelay: "70ms" }} innerClassName="p-6">
+          <FlatCard className="animate-fade-up p-6" style={{ animationDelay: "70ms" }}>
             <SectionTitle icon={Activity}>Performance</SectionTitle>
             <DatabaseMetrics
               databaseId={database.id}
@@ -274,17 +265,17 @@ export default function DatabaseDetailPage() {
               memoryLimitMb={database.memoryLimitMb}
               maxConnections={typeof s.maxConnections === "number" ? s.maxConnections : null}
             />
-          </GlassCard>
+          </FlatCard>
 
-          <GlassCard className="animate-fade-up" style={{ animationDelay: "115ms" }} innerClassName="p-6">
+          <FlatCard className="animate-fade-up p-6" style={{ animationDelay: "115ms" }}>
             <SectionTitle icon={ScrollText} meta="read from the container, never stored">
               Logs
             </SectionTitle>
             <LogViewer endpoint={`/databases/${database.id}/logs`} filename={database.name} />
-          </GlassCard>
+          </FlatCard>
 
           {/* danger zone */}
-          <GlassCard className="animate-fade-up" style={{ animationDelay: "160ms" }} innerClassName="p-6">
+          <FlatCard className="animate-fade-up p-6" style={{ animationDelay: "160ms" }}>
             <SectionTitle icon={Trash2}>Delete database</SectionTitle>
             <p className="text-xs leading-relaxed text-muted">
               Removes the container <span className="font-medium text-foreground">and all its data</span>. This can&apos;t be undone.
@@ -325,15 +316,15 @@ export default function DatabaseDetailPage() {
                 Server unreachable? Remove just the record
               </button>
             ) : null}
-          </GlassCard>
+          </FlatCard>
         </div>
 
         <div className="space-y-6">
           <DatabaseConnection database={database} serverIp={server?.ipAddress ?? null} />
 
-          <GlassCard className="animate-fade-up" style={{ animationDelay: "130ms" }} innerClassName="p-6">
+          <FlatCard className="animate-fade-up p-6" style={{ animationDelay: "130ms" }}>
             <SectionTitle icon={Settings2}>Configuration</SectionTitle>
-            <div className="divide-y divide-white/[0.06]">
+            <div className="divide-y divide-border">
               <ConfigRow label="Engine">
                 {meta.label} {database.version}
               </ConfigRow>
@@ -351,12 +342,12 @@ export default function DatabaseDetailPage() {
                 {new Date(database.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
               </ConfigRow>
             </div>
-            <div className="mt-4 flex items-center gap-4 border-t border-white/[0.07] pt-4 text-[11px] text-muted">
+            <div className="mt-4 flex items-center gap-4 border-t border-border pt-4 text-[11px] text-muted">
               <span className="flex items-center gap-1.5"><Container className="h-3.5 w-3.5" strokeWidth={1.75} />Docker</span>
               <span className="flex items-center gap-1.5"><HardDrive className="h-3.5 w-3.5" strokeWidth={1.75} />Persistent volume</span>
               {database.memoryLimitMb ? <span className="flex items-center gap-1.5"><MemoryStick className="h-3.5 w-3.5" strokeWidth={1.75} />Capped</span> : null}
             </div>
-          </GlassCard>
+          </FlatCard>
         </div>
       </div>
     </Page>

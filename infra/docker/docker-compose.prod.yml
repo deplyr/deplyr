@@ -4,8 +4,16 @@
 #
 #   docker compose -f infra/docker/docker-compose.prod.yml --env-file .env up -d
 #
-# then open the box's public IP on port 80. See the root README for the
-# full setup walkthrough and the required .env values.
+# then open the box's public IP (or domain) on port 80. See the root README
+# for the full setup walkthrough and the required .env values.
+#
+# caddy is the one thing bound to the host's 80/443/4000 — it fronts both
+# web and api, which aren't reachable from outside this Docker network any
+# other way. Set DEPLYR_PUBLIC_HOST to a real domain and it gets you
+# automatic HTTPS (Let's Encrypt) for free, same Caddyfile, no extra steps;
+# set it to a bare IP (no domain yet) and Caddy quietly serves plain HTTP
+# instead, since a cert can't be issued for an IP anyway — either way this
+# file doesn't change.
 #
 # Running this control plane on a box that *also* self-hosts apps (i.e.
 # this same box is registered as one of its own managed servers) needs
@@ -14,7 +22,11 @@
 # deployed app's traffic, and two things can't both bind them. If you set
 # it, also put the matching port on DEPLYR_PUBLIC_URL itself (web reads
 # that directly — see "web" below); DEPLYR_PUBLIC_URL stays bare for the
-# default, port-80 case.
+# default, port-80 case. Note automatic HTTPS specifically needs port 80
+# for its challenge, so a box in this dual-role setup won't get one —
+# that's a Let's Encrypt constraint, not something this file can work
+# around; bring your own cert via DEPLYR_WILDCARD_CERT_PEM-style config if
+# you need HTTPS there too.
 services:
   postgres:
     image: postgres:16-alpine
@@ -37,10 +49,8 @@ services:
     volumes:
       - deplyr_redis_data:/data
 
-  # Published on its own port: the browser talks to it directly (cookies
-  # aren't port-scoped, so this works fine alongside web on :80 — see
-  # docs/PHASE1_DESIGN.md), and agents on remote managed servers need to
-  # reach it too, from outside this Docker network entirely.
+  # Not published directly — caddy is the only thing reachable from outside
+  # this Docker network (see the file header), and proxies :4000 to it.
   api:
     build:
       context: ../..
@@ -60,13 +70,20 @@ services:
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
       GITHUB_OAUTH_REDIRECT_URI: ${DEPLYR_PUBLIC_URL}:4000/auth/github/callback
       WEB_URL: ${DEPLYR_PUBLIC_URL}
-    ports:
-      - "4000:4000"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_started
+    # api's own CMD runs migrations before it starts serving (see
+    # api.Dockerfile) — this only reports healthy once that's done, which
+    # is what worker and web below actually wait on: querying a schema
+    # that isn't there yet otherwise (a real gap, hit standing this up).
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://localhost:4000/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   worker:
     build:
@@ -92,29 +109,61 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      api:
+        condition: service_healthy
 
   web:
     build:
       context: ../..
       dockerfile: infra/docker/web.Dockerfile
+      # NEXT_PUBLIC_* only take effect as build args — Next.js inlines them
+      # into the client bundle here, at build time. Setting them under
+      # `environment:` below would silently do nothing (the browser would
+      # keep calling whatever was baked in, or the code's own
+      # http://localhost:4000 fallback if these were ever left out) — see
+      # web.Dockerfile. Re-run `up -d --build` after changing either one;
+      # a plain restart reuses the old image, same bundle, same values.
+      args:
+        NEXT_PUBLIC_API_URL: ${DEPLYR_PUBLIC_URL}:4000
+        NEXT_PUBLIC_APP_DOMAIN: ${DEPLYR_APP_DOMAIN}
     restart: unless-stopped
     environment:
       # Server-side (Server Components, middleware): stays on the internal
-      # Docker network, never leaves the box.
+      # Docker network, never leaves the box. Read at runtime, same as any
+      # non-NEXT_PUBLIC_ variable — no build-time trick needed for this one.
       API_URL: http://api:4000
-      # Browser-facing: must be the same public host the browser itself
-      # uses to reach this box.
-      NEXT_PUBLIC_API_URL: ${DEPLYR_PUBLIC_URL}:4000
-      NEXT_PUBLIC_APP_DOMAIN: ${DEPLYR_APP_DOMAIN}
-    ports:
-      # Default 80; override with DEPLYR_WEB_PORT in your .env if
-      # something else on this box already owns 80/443 (see the note up
-      # top). WEB_URL above is DEPLYR_PUBLIC_URL as-is — put the matching
-      # port on it yourself when you override this.
-      - "${DEPLYR_WEB_PORT:-80}:3000"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+
+  # Front door — see the file header. Automatic HTTPS for a real
+  # DEPLYR_PUBLIC_HOST, plain HTTP for a bare-IP one; either way, this is
+  # the only service published to the host.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      DEPLYR_PUBLIC_HOST: ${DEPLYR_PUBLIC_HOST}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - deplyr_caddy_data:/data
+      - deplyr_caddy_config:/config
+    ports:
+      # 80 doubles as the ACME HTTP-01 challenge port for automatic HTTPS —
+      # needed even when you're only ever visiting over :443. Override with
+      # DEPLYR_WEB_PORT if this box also self-hosts apps (see the note up
+      # top); doing that forfeits automatic HTTPS, per that same note.
+      - "${DEPLYR_WEB_PORT:-80}:80"
+      - "443:443"
+      - "4000:4000"
+    depends_on:
+      web:
+        condition: service_started
+      api:
+        condition: service_healthy
 
 volumes:
   deplyr_postgres_data:
   deplyr_redis_data:
+  deplyr_caddy_data:
+  deplyr_caddy_config:

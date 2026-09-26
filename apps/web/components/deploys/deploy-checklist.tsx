@@ -29,7 +29,7 @@ export function DeployChecklist({ steps }: { steps: DeployStepSummary[] }) {
               "overflow-hidden rounded-xl border transition-colors",
               step.status === "running" && "border-accent/40 bg-accent/[0.05]",
               step.status === "failed" && "border-danger/30 bg-danger/[0.05]",
-              step.status !== "running" && step.status !== "failed" && "border-white/[0.08] bg-white/[0.02]",
+              step.status !== "running" && step.status !== "failed" && "border-border bg-surface",
             )}
           >
             <button
@@ -55,7 +55,7 @@ export function DeployChecklist({ steps }: { steps: DeployStepSummary[] }) {
               ) : null}
             </button>
             {isOpen && step.log ? (
-              <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap border-t border-white/[0.07] bg-black/40 px-4 py-3 font-mono text-xs leading-relaxed text-muted">
+              <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap border-t border-border bg-surface-hover px-4 py-3 font-mono text-xs leading-relaxed text-muted">
                 {step.log}
               </pre>
             ) : null}

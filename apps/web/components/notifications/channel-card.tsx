@@ -4,7 +4,7 @@ import { useState } from "react";
 import { AlertCircle, Check, Loader2, Pencil, Send, Trash2 } from "lucide-react";
 import type { NotificationChannelDTO } from "@deplyr/shared-types";
 import { CHANNEL_META, EVENT_LABEL } from "@/components/notifications/channel-meta";
-import { GlassCard } from "@/components/ui/glass-card";
+import { FlatCard } from "@/components/ui/flat-card";
 import { timeAgo } from "@/lib/time-ago";
 import { cn } from "@/lib/cn";
 
@@ -64,7 +64,7 @@ export function ChannelCard({
   const last = channel.lastDelivery;
 
   return (
-    <GlassCard innerClassName={cn("flex h-full flex-col p-5 transition", !channel.enabled && "opacity-60")}>
+    <FlatCard className={cn("flex h-full flex-col p-5 transition", !channel.enabled && "opacity-60")}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl", meta.tile)}>
@@ -84,20 +84,20 @@ export function ChannelCard({
           aria-label={channel.enabled ? "Pause this channel" : "Resume this channel"}
           onClick={toggle}
           disabled={busy}
-          className={cn("relative h-6 w-10 shrink-0 rounded-full border transition", channel.enabled ? "border-accent/40 bg-accent/30" : "border-white/10 bg-white/[0.06]")}
+          className={cn("relative h-6 w-10 shrink-0 rounded-full border transition", channel.enabled ? "border-accent bg-accent" : "border-border bg-surface-hover")}
         >
           <span className={cn("absolute top-0.5 h-4.5 w-4.5 rounded-full bg-white shadow transition-all", channel.enabled ? "left-[1.15rem]" : "left-0.5")} style={{ height: "1.125rem", width: "1.125rem" }} />
         </button>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-1.5">
-        <span className="rounded-full bg-white/[0.07] px-2 py-0.5 text-[11px] text-muted">{channel.projectName ? `Only ${channel.projectName}` : "All projects"}</span>
+        <span className="rounded-full bg-surface-hover px-2 py-0.5 text-[11px] text-muted">{channel.projectName ? `Only ${channel.projectName}` : "All projects"}</span>
         {shown.map((e) => (
-          <span key={e} className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-muted">
+          <span key={e} className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">
             {EVENT_LABEL[e] ?? e}
           </span>
         ))}
-        {more > 0 ? <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] text-muted">+{more} more</span> : null}
+        {more > 0 ? <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">+{more} more</span> : null}
       </div>
 
       <div className="mt-4 flex-1">
@@ -116,11 +116,11 @@ export function ChannelCard({
         )}
       </div>
 
-      <div className="mt-4 flex items-center gap-2 border-t border-white/[0.07] pt-4">
+      <div className="mt-4 flex items-center gap-2 border-t border-border pt-4">
         {confirmDelete ? (
           <>
             <span className="mr-auto text-xs text-muted">Remove this channel?</span>
-            <button onClick={() => setConfirmDelete(false)} className="rounded-lg px-2.5 py-1.5 text-xs text-muted transition hover:bg-white/[0.06] hover:text-foreground">
+            <button onClick={() => setConfirmDelete(false)} className="rounded-lg px-2.5 py-1.5 text-xs text-muted transition hover:bg-surface-hover hover:text-foreground">
               Keep
             </button>
             <button onClick={remove} disabled={busy} className="inline-flex items-center gap-1.5 rounded-lg bg-danger/15 px-2.5 py-1.5 text-xs font-medium text-danger transition hover:bg-danger/25">
@@ -130,11 +130,11 @@ export function ChannelCard({
           </>
         ) : (
           <>
-            <button onClick={sendTest} disabled={testing} className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-xs text-muted transition hover:bg-white/[0.06] hover:text-foreground disabled:opacity-60">
+            <button onClick={sendTest} disabled={testing} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted transition hover:bg-surface-hover hover:text-foreground disabled:opacity-60">
               {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" strokeWidth={1.75} />}
               Send test
             </button>
-            <button onClick={onEdit} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted transition hover:bg-white/[0.06] hover:text-foreground">
+            <button onClick={onEdit} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted transition hover:bg-surface-hover hover:text-foreground">
               <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
               Edit
             </button>
@@ -144,6 +144,6 @@ export function ChannelCard({
           </>
         )}
       </div>
-    </GlassCard>
+    </FlatCard>
   );
 }

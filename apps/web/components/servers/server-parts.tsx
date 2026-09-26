@@ -11,7 +11,7 @@ export function formatUptime(seconds: number): string {
 export const gb = (mb: number) => (mb / 1024 >= 10 ? Math.round(mb / 1024) : (mb / 1024).toFixed(1));
 
 function usageTone(pct: number | null) {
-  if (pct === null) return "bg-white/10";
+  if (pct === null) return "bg-border";
   return pct > 90 ? "bg-danger" : pct > 75 ? "bg-warning" : "bg-accent";
 }
 
@@ -22,7 +22,7 @@ export function UsageBar({ label, value, hint }: { label: string; value: number 
         <span className="font-medium">{label}</span>
         <span className="font-mono text-muted">{value === null ? "—" : `${Math.round(value)}%`}</span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.07]">
+      <div className="h-1.5 overflow-hidden rounded-full bg-surface-hover">
         <div className={cn("h-full rounded-full transition-all duration-700", usageTone(value))} style={{ width: `${value ?? 0}%` }} />
       </div>
       <p className="mt-1 text-[11px] text-muted">{hint}</p>

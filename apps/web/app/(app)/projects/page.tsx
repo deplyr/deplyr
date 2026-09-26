@@ -56,7 +56,7 @@ export default async function ProjectsPage() {
           ))}
           <Link
             href="/projects/new"
-            className="group flex min-h-[9.5rem] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-white/15 text-muted transition hover:border-accent/50 hover:bg-accent/[0.04] hover:text-accent"
+            className="group flex min-h-[9.5rem] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border text-muted transition hover:border-accent/50 hover:bg-accent/[0.04] hover:text-accent"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-full border border-current/30 transition group-hover:scale-110">
               <Plus className="h-4 w-4" strokeWidth={1.75} />

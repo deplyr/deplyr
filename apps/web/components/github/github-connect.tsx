@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, ExternalLink, Github, KeyRound, Loader2 } from "lucide-react";
+import { CheckCircle2, ExternalLink, Github, KeyRound, Loader2, RotateCw, Unlink } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -72,19 +72,21 @@ export function GithubConnect({ githubLogin, oauthEnabled, onConnected }: Github
             Connected as <span className="font-mono font-medium">@{githubLogin}</span>
           </span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setReconnecting(true)}
             disabled={busy}
-            className="text-xs text-muted transition hover:text-foreground disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted transition hover:bg-surface-hover hover:text-foreground disabled:opacity-60"
           >
+            <RotateCw className="h-3.5 w-3.5" strokeWidth={1.75} />
             Reconnect
           </button>
           <button
             onClick={disconnect}
             disabled={busy}
-            className="text-xs text-muted transition hover:text-danger disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted transition hover:border-danger/25 hover:bg-danger/10 hover:text-danger disabled:opacity-60"
           >
+            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Unlink className="h-3.5 w-3.5" strokeWidth={1.75} />}
             Disconnect
           </button>
         </div>
@@ -104,7 +106,7 @@ export function GithubConnect({ githubLogin, oauthEnabled, onConnected }: Github
         <>
           <a
             href={`${API_URL}/auth/github/login`}
-            className="flex w-full items-center justify-center gap-2.5 rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-black transition hover:bg-white/90"
+            className="flex w-full items-center justify-center gap-2.5 rounded-xl bg-black px-4 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
           >
             <Github className="h-4 w-4" strokeWidth={2} />
             Connect with GitHub
@@ -138,7 +140,7 @@ export function GithubConnect({ githubLogin, oauthEnabled, onConnected }: Github
               placeholder="ghp_… or github_pat_…"
               value={token}
               onChange={(e) => setToken(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-2.5 pl-10 pr-3 font-mono text-sm text-foreground placeholder:text-muted/70 transition focus:border-accent/60 focus:outline-none focus:ring-4 focus:ring-accent/10"
+              className="w-full rounded-xl border border-border bg-surface-hover py-2.5 pl-10 pr-3 font-mono text-sm text-foreground placeholder:text-muted/70 transition focus:border-accent/60 focus:bg-surface focus:outline-none focus:ring-4 focus:ring-accent/10"
             />
           </div>
           <p className="text-xs leading-relaxed text-muted">

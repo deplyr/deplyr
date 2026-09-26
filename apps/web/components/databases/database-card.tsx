@@ -6,7 +6,7 @@ import { ArrowUpRight, Database as DatabaseIcon, Loader2 } from "lucide-react";
 import type { DatabaseSummary } from "@deplyr/shared-types";
 import { Button } from "@/components/ui/button";
 import { FormError } from "@/components/ui/field";
-import { GlassCard } from "@/components/ui/glass-card";
+import { FlatCard } from "@/components/ui/flat-card";
 import { Badge } from "@/components/ui/badge";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -58,7 +58,7 @@ export function DatabaseCard({
   }
 
   return (
-    <GlassCard innerClassName="p-5">
+    <FlatCard className="p-5">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 text-accent">
@@ -93,7 +93,7 @@ export function DatabaseCard({
       ) : database.status === "running" ? (
         <>
           <p className="mt-4 text-xs leading-relaxed text-muted">
-            <code className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-[11px] text-foreground">
+            <code className="rounded bg-surface-hover px-1.5 py-0.5 font-mono text-[11px] text-foreground">
               {database.connectionSecretKey}
             </code>{" "}
             was added to your secrets. Redeploy to pick it up.
@@ -111,6 +111,6 @@ export function DatabaseCard({
       )}
 
       {error ? <div className="mt-3"><FormError>{error}</FormError></div> : null}
-    </GlassCard>
+    </FlatCard>
   );
 }

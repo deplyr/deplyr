@@ -11,6 +11,7 @@ import {
 } from "@deplyr/db";
 import {
   createChannelInputSchema,
+  isValidWebhookUrl,
   notificationTypeSchema,
   updateChannelInputSchema,
   webhookHint,
@@ -127,14 +128,44 @@ notificationsRoute.patch("/channels/:id", async (c) => {
 
   const parsed = updateChannelInputSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "invalid input" }, 400);
-  const { name, enabled, events } = parsed.data;
+  const { name, enabled, events, webhookUrl } = parsed.data;
+
+  if (webhookUrl !== undefined && !isValidWebhookUrl(found.channel.type, webhookUrl)) {
+    return c.json(
+      {
+        error:
+          found.channel.type === "slack"
+            ? "That doesn't look like a Slack incoming-webhook URL (https://hooks.slack.com/services/…)"
+            : "That doesn't look like a Discord webhook URL (https://discord.com/api/webhooks/…)",
+      },
+      400,
+    );
+  }
 
   const [updated] = await db
     .update(notificationChannels)
-    .set({ ...(name !== undefined && { name }), ...(enabled !== undefined && { enabled }), ...(events !== undefined && { events }) })
+    .set({
+      ...(name !== undefined && { name }),
+      ...(enabled !== undefined && { enabled }),
+      ...(events !== undefined && { events }),
+      ...(webhookUrl !== undefined && { webhookUrl: encryptSecret(webhookUrl), hint: webhookHint(webhookUrl) }),
+    })
     .where(eq(notificationChannels.id, found.channel.id))
     .returning();
   if (!updated) return c.json({ error: "failed to update" }, 500);
+
+  // Same posture as create: prove a changed webhook still works before
+  // keeping it, otherwise revert to what was there before.
+  if (webhookUrl !== undefined) {
+    const test = await sendTestNotification(updated.id, userId);
+    if (!test.ok) {
+      await db
+        .update(notificationChannels)
+        .set({ webhookUrl: found.channel.webhookUrl, hint: found.channel.hint })
+        .where(eq(notificationChannels.id, updated.id));
+      return c.json({ error: `Couldn't send a test message: ${test.error ?? "unknown error"}` }, 400);
+    }
+  }
 
   await audit(
     userId,

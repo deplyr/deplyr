@@ -29,7 +29,7 @@ interface Item {
 const STATIC_ITEMS: Item[] = [
   { id: "a-new-project", group: "Actions", label: "New project", hint: "Deploy a GitHub repo", href: "/projects/new", icon: Plus },
   { id: "a-new-server", group: "Actions", label: "Connect a server", hint: "Register a VPS", href: "/servers/new", icon: Plus },
-  { id: "g-overview", group: "Go to", label: "Overview", href: "/", icon: LayoutDashboard },
+  { id: "g-overview", group: "Go to", label: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { id: "g-projects", group: "Go to", label: "Projects", href: "/projects", icon: Boxes },
   { id: "g-servers", group: "Go to", label: "Servers", href: "/servers", icon: Server },
   { id: "g-settings", group: "Go to", label: "Settings", href: "/settings", icon: Settings },
@@ -123,70 +123,68 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center px-4 pt-[14vh]" onKeyDown={onKeyDown}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-up" onClick={onClose} />
-      <div className="relative w-full max-w-xl rounded-2xl bg-gradient-to-b from-white/25 to-white/[0.04] p-px shadow-2xl shadow-black/70 animate-fade-up">
-        <div className="overflow-hidden rounded-[calc(1rem-1px)] bg-[#0c0c10]/95 backdrop-blur-xl">
-          <div className="flex items-center gap-3 border-b border-white/[0.07] px-4">
-            <Search className="h-4 w-4 shrink-0 text-muted" strokeWidth={1.75} />
-            <input
-              ref={inputRef}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search projects, servers, actions…"
-              className="h-14 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted/70 focus:outline-none"
-            />
-            <kbd className="rounded-md border border-white/10 px-1.5 py-0.5 font-mono text-[10px] text-muted">esc</kbd>
-          </div>
+      <div className="relative w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-surface shadow-xl animate-fade-up">
+        <div className="flex items-center gap-3 border-b border-border px-4">
+          <Search className="h-4 w-4 shrink-0 text-muted" strokeWidth={1.75} />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search projects, servers, actions…"
+            className="h-14 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted/70 focus:outline-none"
+          />
+          <kbd className="rounded-md border border-border px-1.5 py-0.5 font-mono text-[10px] text-muted">esc</kbd>
+        </div>
 
-          <ul className="max-h-[22rem] overflow-y-auto p-2">
-            {results.length === 0 ? (
-              <li className="px-4 py-10 text-center text-sm text-muted">No results for &ldquo;{query}&rdquo;</li>
-            ) : (
-              results.map((item, i) => {
-                const header = item.group !== lastGroup;
-                lastGroup = item.group;
-                const Icon = item.icon;
-                return (
-                  <li key={item.id}>
-                    {header ? (
-                      <p className="px-3 pb-1 pt-3 font-mono text-[10px] uppercase tracking-widest text-muted/70">
-                        {item.group}
-                      </p>
-                    ) : null}
-                    <button
-                      data-palette-index={i}
-                      onMouseMove={() => setActive(i)}
-                      onClick={() => go(item)}
+        <ul className="max-h-[22rem] overflow-y-auto p-2">
+          {results.length === 0 ? (
+            <li className="px-4 py-10 text-center text-sm text-muted">No results for &ldquo;{query}&rdquo;</li>
+          ) : (
+            results.map((item, i) => {
+              const header = item.group !== lastGroup;
+              lastGroup = item.group;
+              const Icon = item.icon;
+              return (
+                <li key={item.id}>
+                  {header ? (
+                    <p className="px-3 pb-1 pt-3 text-[10px] uppercase tracking-widest text-muted/70">
+                      {item.group}
+                    </p>
+                  ) : null}
+                  <button
+                    data-palette-index={i}
+                    onMouseMove={() => setActive(i)}
+                    onClick={() => go(item)}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors",
+                      i === active ? "bg-accent/10" : "hover:bg-surface-hover",
+                    )}
+                  >
+                    <span
                       className={cn(
-                        "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
-                        i === active ? "bg-accent/10" : "hover:bg-white/[0.03]",
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                        i === active ? "bg-accent/15 text-accent" : "bg-surface-hover text-muted",
                       )}
                     >
-                      <span
-                        className={cn(
-                          "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-                          i === active ? "bg-accent/15 text-accent" : "bg-white/[0.05] text-muted",
-                        )}
-                      >
-                        <Icon className="h-4 w-4" strokeWidth={1.75} />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">{item.label}</span>
-                        {item.hint ? (
-                          <span className="block truncate font-mono text-[11px] text-muted">{item.hint}</span>
-                        ) : null}
-                      </span>
-                      {i === active ? <CornerDownLeft className="h-3.5 w-3.5 text-accent" strokeWidth={1.75} /> : null}
-                    </button>
-                  </li>
-                );
-              })
-            )}
-          </ul>
+                      <Icon className="h-4 w-4" strokeWidth={1.75} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{item.label}</span>
+                      {item.hint ? (
+                        <span className="block truncate font-mono text-[11px] text-muted">{item.hint}</span>
+                      ) : null}
+                    </span>
+                    {i === active ? <CornerDownLeft className="h-3.5 w-3.5 text-accent" strokeWidth={1.75} /> : null}
+                  </button>
+                </li>
+              );
+            })
+          )}
+        </ul>
 
-          <div className="flex items-center gap-4 border-t border-white/[0.07] px-4 py-2.5 text-[11px] text-muted">
-            <span className="flex items-center gap-1.5"><kbd className="font-mono">↑↓</kbd> navigate</span>
-            <span className="flex items-center gap-1.5"><kbd className="font-mono">↵</kbd> open</span>
-          </div>
+        <div className="flex items-center gap-4 border-t border-border bg-surface-hover px-4 py-2.5 text-[11px] text-muted">
+          <span className="flex items-center gap-1.5"><kbd className="font-mono">↑↓</kbd> navigate</span>
+          <span className="flex items-center gap-1.5"><kbd className="font-mono">↵</kbd> open</span>
         </div>
       </div>
     </div>

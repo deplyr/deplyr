@@ -37,5 +37,5 @@ export const EVENT_GROUPS = ["Apps", "Deploys", "Servers", "Databases"] as const
 export const LEVEL_STYLE: Record<NotificationLevel, string> = {
   critical: "border-danger/25 bg-danger/10 text-danger",
   success: "border-success/25 bg-success/10 text-success",
-  info: "border-white/10 bg-white/[0.05] text-muted",
+  info: "border-border bg-surface-hover text-muted",
 };

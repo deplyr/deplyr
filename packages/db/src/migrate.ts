@@ -7,7 +7,13 @@ const connectionString =
 
 const migrationClient = postgres(connectionString, { max: 1 });
 
-await migrate(drizzle(migrationClient), { migrationsFolder: "./migrations" });
+// Resolved from this file's own location, not process.cwd() — "./migrations"
+// only worked when invoked from packages/db itself (`bun run db:migrate`
+// locally); running it from the api image's CMD (cwd /app) needed this to
+// still find packages/db/migrations regardless.
+const migrationsFolder = new URL("../migrations", import.meta.url).pathname;
+
+await migrate(drizzle(migrationClient), { migrationsFolder });
 await migrationClient.end();
 
 console.log("Migrations applied.");

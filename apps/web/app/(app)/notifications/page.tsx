@@ -8,7 +8,7 @@ import { ChannelDialog } from "@/components/notifications/channel-dialog";
 import { CHANNEL_META } from "@/components/notifications/channel-meta";
 import { HistoryList } from "@/components/notifications/history-list";
 import { Button } from "@/components/ui/button";
-import { GlassCard } from "@/components/ui/glass-card";
+import { FlatCard } from "@/components/ui/flat-card";
 import { Page, PageHeader } from "@/components/ui/page";
 import { cn } from "@/lib/cn";
 
@@ -57,17 +57,16 @@ export default function NotificationsPage() {
 
       {channels === null ? (
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="h-48 animate-pulse rounded-2xl bg-white/[0.04]" />
-          <div className="h-48 animate-pulse rounded-2xl bg-white/[0.04]" />
+          <div className="h-48 animate-pulse rounded-xl bg-surface-hover" />
+          <div className="h-48 animate-pulse rounded-xl bg-surface-hover" />
         </div>
       ) : empty ? (
-        <GlassCard className="animate-fade-up" innerClassName="relative overflow-hidden p-8 sm:p-10">
-          <div className="pointer-events-none absolute left-1/2 top-0 h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/20 blur-[80px]" />
-          <div className="relative mx-auto max-w-2xl text-center">
-            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-accent/20 bg-accent/10 text-accent shadow-lg shadow-accent/10">
+        <FlatCard className="animate-fade-up p-8 sm:p-10">
+          <div className="mx-auto max-w-2xl text-center">
+            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl border border-accent/20 bg-accent/10 text-accent">
               <BellRing className="h-6 w-6" strokeWidth={1.5} />
             </span>
-            <h2 className="mt-5 font-mono text-lg font-semibold">Connect a channel to get alerts</h2>
+            <h2 className="mt-5 text-lg font-semibold">Connect a channel to get alerts</h2>
             <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted">
               Pick where Deplyr should post. It takes about a minute, and we send a test message so you know it works.
             </p>
@@ -79,7 +78,7 @@ export default function NotificationsPage() {
                   <button
                     key={t}
                     onClick={() => setDialog({ open: true, type: t })}
-                    className="group flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left transition hover:border-accent/40 hover:bg-white/[0.06]"
+                    className="group flex items-center gap-4 rounded-xl border border-border bg-surface-hover p-4 text-left transition hover:border-accent/40 hover:bg-surface"
                   >
                     <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-xl", m.tile)}>
                       <Icon className="h-5 w-5" strokeWidth={1.75} />
@@ -93,7 +92,7 @@ export default function NotificationsPage() {
               })}
             </div>
           </div>
-        </GlassCard>
+        </FlatCard>
       ) : (
         <div className="grid animate-fade-up gap-4 md:grid-cols-2 xl:grid-cols-3">
           {channels.map((c) => (

@@ -18,4 +18,8 @@ COPY packages/queue packages/queue
 
 ENV NODE_ENV=production
 EXPOSE 4000
-CMD ["bun", "run", "--cwd", "apps/api", "start"]
+# Migrations are idempotent (drizzle tracks what's already applied), so
+# running them on every start is safe — and it's the only place a fresh
+# self-hosted Postgres ever gets its schema; neither this image nor the
+# README's compose walkthrough ran them any other way before this.
+CMD ["sh", "-c", "bun run --cwd packages/db migrate && bun run --cwd apps/api start"]

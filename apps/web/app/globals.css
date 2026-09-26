@@ -2,16 +2,72 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Design tokens: HSL channels (not full hsl(...) strings) so Tailwind's
+ * opacity modifiers work — `bg-accent/10` expands to
+ * `hsl(var(--accent) / 10%)`, which only works when the variable holds
+ * bare "H S% L%" channels, not a pre-wrapped color. Same variable names in
+ * :root (light, the default) and .dark; next-themes toggles the class,
+ * nothing else has to change. See tailwind.config.ts for how these map to
+ * Tailwind color names.
+ */
+:root {
+  --background: 0 0% 98%;
+  --foreground: 0 0% 4%;
+  --surface: 0 0% 100%;
+  --surface-hover: 0 0% 96%;
+  --border: 0 0% 90%;
+  --muted: 0 0% 45%;
+  --accent: 24 95% 50%;
+  --accent-foreground: 0 0% 100%;
+  --success: 158 64% 45%;
+  --warning: 38 92% 50%;
+  --danger: 0 72% 57%;
+
+  /* Sidebar gets its own, subtly distinct surface — common in this kind of
+   * app shell so the nav rail doesn't visually merge with page content. */
+  --sidebar-background: 0 0% 100%;
+  --sidebar-border: 0 0% 90%;
+  --sidebar-accent: 0 0% 95%;
+}
+
+.dark {
+  --background: 0 0% 7%;
+  --foreground: 0 0% 96%;
+  --surface: 0 0% 10%;
+  --surface-hover: 0 0% 15%;
+  --border: 0 0% 20%;
+  --muted: 0 0% 60%;
+  --accent: 24 95% 58%;
+  --accent-foreground: 0 0% 100%;
+  --success: 158 55% 50%;
+  --warning: 38 92% 55%;
+  --danger: 0 80% 66%;
+
+  --sidebar-background: 0 0% 9%;
+  --sidebar-border: 0 0% 18%;
+  --sidebar-accent: 0 0% 16%;
+}
+
 html {
+  color-scheme: light;
+  scroll-behavior: smooth;
+}
+
+html.dark {
   color-scheme: dark;
 }
 
+/* Not theme("colors.background") — with the <alpha-value> pattern above,
+ * Tailwind's theme() CSS function emits the literal placeholder unresolved
+ * outside of actual utility generation. Bare hsl(var(...)) is what those
+ * colors resolve to anyway when nothing needs an opacity modifier. */
 body {
-  background-color: theme("colors.background");
-  color: theme("colors.foreground");
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
 }
 
 ::selection {
-  background-color: theme("colors.accent.DEFAULT");
-  color: theme("colors.accent.foreground");
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
 }

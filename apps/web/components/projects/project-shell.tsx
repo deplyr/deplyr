@@ -11,7 +11,6 @@ import { useProject } from "@/components/projects/project-context";
 import { projectTone } from "@/components/projects/project-card";
 import { Badge } from "@/components/ui/badge";
 import { buttonClass } from "@/components/ui/button";
-import { GlassCard } from "@/components/ui/glass-card";
 import { NestedPageContext, Page } from "@/components/ui/page";
 import { projectAddress } from "@/lib/app-domain";
 import { cn } from "@/lib/cn";
@@ -58,98 +57,91 @@ export function ProjectShell({ children }: { children: React.ReactNode }) {
         ← {server ? server.name : "Servers"}
       </Link>
 
-      <GlassCard className="relative z-30 animate-fade-up" innerClassName="relative">
-        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[calc(1rem-1px)]">
-          <div className={cn("absolute -right-16 -top-24 h-72 w-72 rounded-full blur-[90px]", live ? "bg-success/15" : project.status === "failed" ? "bg-danger/20" : deploying ? "bg-warning/15" : "bg-white/5")} />
-          <div className="absolute -left-16 -top-24 h-64 w-64 rounded-full bg-accent/15 blur-[90px]" />
-        </div>
-
-        <div className="relative flex flex-wrap items-start justify-between gap-6 p-6 sm:p-8">
-          <div className="flex min-w-0 items-start gap-5">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-accent/10 font-mono text-2xl font-semibold text-accent shadow-lg shadow-accent/10">
-              {project.name.charAt(0).toUpperCase()}
-            </span>
-            <div className="min-w-0">
-              <h1 className="truncate font-mono text-2xl font-semibold tracking-tight">{project.name}</h1>
-              {url ? (
-                <a href={`http://${url}`} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1.5 font-mono text-sm text-accent transition hover:underline">
-                  {url}
-                  <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
-                </a>
-              ) : (
-                <p className="mt-1 text-sm text-muted">No address yet — waiting on the server.</p>
-              )}
-              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-                <Badge tone={projectTone[project.status]}>{project.status}</Badge>
-                <FrameworkBadge framework={project.framework} />
-                <HealthIndicator health={health} />
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium",
-                    project.defaultDomainHttps ? "border-success/25 bg-success/10 text-success" : "border-white/10 bg-white/[0.05] text-muted",
-                  )}
-                  title={project.defaultDomainHttps ? "HTTPS is on for the default address" : "No wildcard certificate configured — HTTP only"}
-                >
-                  {project.defaultDomainHttps ? <Lock className="h-3 w-3" strokeWidth={1.75} /> : <Unlock className="h-3 w-3" strokeWidth={1.75} />}
-                  {project.defaultDomainHttps ? "HTTPS" : "HTTP"}
-                </span>
-                <a
-                  href={`https://github.com/${project.githubRepo}/tree/${project.githubBranch}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.05] px-2.5 py-1 font-mono text-muted transition hover:text-foreground"
-                >
-                  <GitBranch className="h-3 w-3" strokeWidth={1.75} />
-                  {project.githubRepo}@{project.githubBranch}
-                </a>
-                {server ? (
-                  <Link href={`/servers/${server.id}`} className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.05] px-2.5 py-1 text-muted transition hover:text-foreground">
-                    <ServerIcon className="h-3 w-3" strokeWidth={1.75} />
-                    {server.name}
-                  </Link>
-                ) : null}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-start gap-3">
-            {live && url ? (
-              <a href={`http://${url}`} target="_blank" rel="noreferrer" className={buttonClass("secondary")}>
-                Visit
-                <ExternalLink className="h-4 w-4" strokeWidth={1.75} />
+      <div className="flex flex-wrap items-start justify-between gap-6">
+        <div className="flex min-w-0 items-start gap-4">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-xl font-semibold text-accent">
+            {project.name.charAt(0).toUpperCase()}
+          </span>
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-semibold tracking-tight">{project.name}</h1>
+            {url ? (
+              <a href={`http://${url}`} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1.5 font-mono text-sm text-accent transition hover:underline">
+                {url}
+                <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
               </a>
-            ) : null}
-            {project.framework ? (
-              <DeployButton
-                projectId={project.id}
-                disabled={deploying}
-                disabledReason={deploying ? "A deploy is already in progress." : undefined}
-                retry={project.status === "failed"}
-              />
-            ) : null}
-            <ProjectOptionsMenu project={project} />
+            ) : (
+              <p className="mt-1 text-sm text-muted">No address yet — waiting on the server.</p>
+            )}
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              <Badge tone={projectTone[project.status]}>{project.status}</Badge>
+              <FrameworkBadge framework={project.framework} />
+              <HealthIndicator health={health} />
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium",
+                  project.defaultDomainHttps ? "border-success/25 bg-success/10 text-success" : "border-border bg-surface-hover text-muted",
+                )}
+                title={project.defaultDomainHttps ? "HTTPS is on for the default address" : "No wildcard certificate configured — HTTP only"}
+              >
+                {project.defaultDomainHttps ? <Lock className="h-3 w-3" strokeWidth={1.75} /> : <Unlock className="h-3 w-3" strokeWidth={1.75} />}
+                {project.defaultDomainHttps ? "HTTPS" : "HTTP"}
+              </span>
+              <a
+                href={`https://github.com/${project.githubRepo}/tree/${project.githubBranch}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full bg-surface-hover px-2.5 py-1 font-mono text-muted transition hover:text-foreground"
+              >
+                <GitBranch className="h-3 w-3" strokeWidth={1.75} />
+                {project.githubRepo}@{project.githubBranch}
+              </a>
+              {server ? (
+                <Link href={`/servers/${server.id}`} className="inline-flex items-center gap-1.5 rounded-full bg-surface-hover px-2.5 py-1 text-muted transition hover:text-foreground">
+                  <ServerIcon className="h-3 w-3" strokeWidth={1.75} />
+                  {server.name}
+                </Link>
+              ) : null}
+            </div>
           </div>
         </div>
 
-        {deploying && latest ? (
-          <Link href={`${base}/deploys/${latest.id}`} className="relative block border-t border-white/[0.07] px-6 py-3.5 transition hover:bg-white/[0.03] sm:px-8">
-            <div className="flex items-center gap-3 text-sm">
-              <Loader2 className="h-4 w-4 animate-spin text-warning" />
-              <span className="font-medium">Deploying</span>
-              <span className="text-muted">{running ? `— ${running.name.replace(/_/g, " ")}` : ""}</span>
-              <span className="ml-auto font-mono text-xs text-muted">
-                {done} / {steps.length || 8}
-              </span>
-            </div>
-            <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-white/10">
-              <div className="h-full rounded-full bg-warning transition-all duration-700" style={{ width: `${(done / (steps.length || 8)) * 100}%` }} />
-            </div>
-          </Link>
-        ) : null}
-      </GlassCard>
+        <div className="flex flex-wrap items-start gap-3">
+          {live && url ? (
+            <a href={`http://${url}`} target="_blank" rel="noreferrer" className={buttonClass("secondary")}>
+              Visit
+              <ExternalLink className="h-4 w-4" strokeWidth={1.75} />
+            </a>
+          ) : null}
+          {project.framework ? (
+            <DeployButton
+              projectId={project.id}
+              disabled={deploying}
+              disabledReason={deploying ? "A deploy is already in progress." : undefined}
+              retry={project.status === "failed"}
+            />
+          ) : null}
+          <ProjectOptionsMenu project={project} />
+        </div>
+      </div>
 
-      <nav aria-label="Project sections" className="sticky top-[4.25rem] z-20 rounded-2xl border border-white/10 bg-[#0c0c10]/80 px-2 shadow-lg shadow-black/30 backdrop-blur-xl">
-        <ul className="flex gap-1 overflow-x-auto py-1.5">
+      {deploying && latest ? (
+        <Link href={`${base}/deploys/${latest.id}`} className="block rounded-xl border border-warning/25 bg-warning/[0.06] px-4 py-3.5 transition hover:bg-warning/10">
+          <div className="flex items-center gap-3 text-sm">
+            <Loader2 className="h-4 w-4 animate-spin text-warning" />
+            <span className="font-medium">Deploying</span>
+            <span className="text-muted">{running ? `— ${running.name.replace(/_/g, " ")}` : ""}</span>
+            <span className="ml-auto font-mono text-xs text-muted">
+              {done} / {steps.length || 8}
+            </span>
+          </div>
+          <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-border">
+            <div className="h-full rounded-full bg-warning transition-all duration-700" style={{ width: `${(done / (steps.length || 8)) * 100}%` }} />
+          </div>
+        </Link>
+      ) : null}
+
+      <nav aria-label="Project sections" className="sticky top-[4.25rem] z-20 rounded-xl border border-border bg-surface p-1.5 shadow-sm">
+        <ul className="flex gap-1 overflow-x-auto">
           {tabs.map((t) => {
             const active = isActive(t);
             const Icon = t.icon;
@@ -159,14 +151,14 @@ export function ProjectShell({ children }: { children: React.ReactNode }) {
                   href={base + t.slug}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-2 text-sm font-medium transition",
-                    active ? "bg-white/[0.08] text-foreground" : "text-muted hover:bg-white/[0.04] hover:text-foreground",
+                    "flex items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 text-sm font-medium transition",
+                    active ? "bg-surface-hover text-foreground" : "text-muted hover:bg-surface-hover hover:text-foreground",
                   )}
                 >
                   <Icon className={cn("h-4 w-4", active && "text-accent")} strokeWidth={1.75} />
                   {t.label}
                   {t.count !== undefined ? (
-                    <span className={cn("rounded-full px-1.5 py-px font-mono text-[11px]", t.attention ? "bg-warning/15 text-warning" : active ? "bg-accent/15 text-accent" : "bg-white/[0.07] text-muted")}>
+                    <span className={cn("rounded-full px-1.5 py-px font-mono text-[11px]", t.attention ? "bg-warning/15 text-warning" : active ? "bg-accent/15 text-accent" : "bg-surface-hover text-muted")}>
                       {t.count}
                     </span>
                   ) : null}

@@ -67,9 +67,9 @@ export function PageHeader({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           {eyebrow ? (
-            <p className="font-mono text-xs uppercase tracking-widest text-accent">{eyebrow}</p>
+            <p className="text-xs uppercase tracking-widest text-accent">{eyebrow}</p>
           ) : null}
-          {title ? <h1 className="mt-1.5 font-mono text-2xl font-semibold tracking-tight">{title}</h1> : null}
+          {title ? <h1 className="mt-1.5 text-2xl font-semibold tracking-tight">{title}</h1> : null}
           {description ? (
             <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted">{description}</p>
           ) : null}

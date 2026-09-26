@@ -10,5 +10,5 @@ export const stripTone = {
   success: "bg-success",
   failed: "bg-danger",
   running: "bg-warning animate-pulse",
-  queued: "bg-white/20",
+  queued: "bg-border",
 } as const;

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import {
   Activity,
-  ArrowUpRight,
   Boxes,
   CalendarDays,
   Container,
@@ -26,11 +25,13 @@ import { MetricsHistory } from "@/components/servers/metrics-history";
 import { useServer } from "@/components/servers/server-context";
 import { InfoRow, UsageBar, formatUptime, gb } from "@/components/servers/server-parts";
 import { CopyButton } from "@/components/ui/copy-button";
-import { GlassCard } from "@/components/ui/glass-card";
+import { FlatCard } from "@/components/ui/flat-card";
 import { SectionTitle } from "@/components/ui/section-title";
 import { timeAgo } from "@/lib/time-ago";
 import { cn } from "@/lib/cn";
 
+// One divided strip, three facets of it — not three separate widgets with
+// wasted gaps between them (same fix as the dashboard's stat row).
 function Glance({
   href,
   icon: Icon,
@@ -47,24 +48,20 @@ function Glance({
   tone?: "default" | "danger";
 }) {
   const body = (
-    <GlassCard hover={Boolean(href)} innerClassName="flex items-center gap-4 p-5">
-      <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl", tone === "danger" ? "bg-danger/10 text-danger" : "bg-accent/10 text-accent")}>
-        <Icon className="h-5 w-5" strokeWidth={1.5} />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-xs text-muted">{label}</p>
-        <p className="mt-0.5 font-sans text-2xl font-semibold leading-tight">{value}</p>
-        <p className={cn("truncate text-[11px]", tone === "danger" ? "text-danger" : "text-muted")}>{sub}</p>
+    <>
+      <div className="flex items-center gap-1.5 text-xs text-muted">
+        <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
+        {label}
       </div>
-      {href ? <ArrowUpRight className="h-4 w-4 shrink-0 text-muted" strokeWidth={1.75} /> : null}
-    </GlassCard>
+      <p className={cn("mt-2 text-3xl font-semibold tracking-tight", tone === "danger" ? "text-danger" : "text-foreground")}>{value}</p>
+      <p className={cn("mt-1 text-xs", tone === "danger" ? "text-danger" : "text-muted")}>{sub}</p>
+    </>
   );
-  return href ? (
-    <Link href={href} className="block">
+  if (!href) return <div className="p-5">{body}</div>;
+  return (
+    <Link href={href} className="block p-5 transition hover:bg-surface-hover">
       {body}
     </Link>
-  ) : (
-    body
   );
 }
 
@@ -86,34 +83,36 @@ export default function ServerOverviewTab() {
   return (
     <>
       {/* where to go next */}
-      <section className="grid animate-fade-up gap-4 sm:grid-cols-3">
-        <Glance
-          href={`${base}/databases`}
-          icon={Database}
-          label="Databases"
-          value={dbs ? String(dbs.total) : "—"}
-          sub={!dbs ? "loading" : dbs.total === 0 ? "none yet" : dbs.unhealthy > 0 ? `${dbs.unhealthy} need attention` : "all healthy"}
-          tone={dbs && dbs.unhealthy > 0 ? "danger" : "default"}
-        />
-        <Glance
-          href={`${base}/projects`}
-          icon={Boxes}
-          label="Projects"
-          value={projects ? String(projects.total) : "—"}
-          sub={!projects ? "loading" : projects.total === 0 ? "none yet" : `${projects.live} live`}
-        />
-        <Glance
-          icon={Timer}
-          label="Server uptime"
-          value={server.uptimeSeconds !== null ? formatUptime(server.uptimeSeconds) : "—"}
-          sub={server.loadAvg1 !== null ? `load ${server.loadAvg1.toFixed(2)}` : "not reported yet"}
-        />
-      </section>
+      <FlatCard className="animate-fade-up overflow-hidden">
+        <div className="grid grid-cols-1 divide-y divide-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          <Glance
+            href={`${base}/databases`}
+            icon={Database}
+            label="Databases"
+            value={dbs ? String(dbs.total) : "—"}
+            sub={!dbs ? "loading" : dbs.total === 0 ? "none yet" : dbs.unhealthy > 0 ? `${dbs.unhealthy} need attention` : "all healthy"}
+            tone={dbs && dbs.unhealthy > 0 ? "danger" : "default"}
+          />
+          <Glance
+            href={`${base}/projects`}
+            icon={Boxes}
+            label="Projects"
+            value={projects ? String(projects.total) : "—"}
+            sub={!projects ? "loading" : projects.total === 0 ? "none yet" : `${projects.live} live`}
+          />
+          <Glance
+            icon={Timer}
+            label="Server uptime"
+            value={server.uptimeSeconds !== null ? formatUptime(server.uptimeSeconds) : "—"}
+            sub={server.loadAvg1 !== null ? `load ${server.loadAvg1.toFixed(2)}` : "not reported yet"}
+          />
+        </div>
+      </FlatCard>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           {online ? (
-            <GlassCard className="animate-fade-up" style={{ animationDelay: "70ms" }} innerClassName="p-6">
+            <FlatCard className="animate-fade-up p-6" style={{ animationDelay: "70ms" }}>
               <SectionTitle
                 icon={Activity}
                 meta={
@@ -155,17 +154,17 @@ export default function ServerOverviewTab() {
                   </div>
                 </div>
               )}
-            </GlassCard>
+            </FlatCard>
           ) : null}
 
           {server.metricsUpdatedAt !== null ? (
-            <GlassCard className="animate-fade-up" style={{ animationDelay: "105ms" }} innerClassName="p-6">
+            <FlatCard className="animate-fade-up p-6" style={{ animationDelay: "105ms" }}>
               <SectionTitle icon={Activity}>Performance</SectionTitle>
               <MetricsHistory serverId={server.id} cpuCores={server.cpuCores} />
-            </GlassCard>
+            </FlatCard>
           ) : null}
 
-          <GlassCard className="animate-fade-up" style={{ animationDelay: "140ms" }} innerClassName="p-6">
+          <FlatCard className="animate-fade-up p-6" style={{ animationDelay: "140ms" }}>
             <SectionTitle
               icon={ListChecks}
               meta={
@@ -177,13 +176,13 @@ export default function ServerOverviewTab() {
               Recent activity
             </SectionTitle>
             <ActivityLog serverId={server.id} limit={6} filters={false} loadMore={false} />
-          </GlassCard>
+          </FlatCard>
         </div>
 
         <div className="space-y-6">
-          <GlassCard className="animate-fade-up" style={{ animationDelay: "100ms" }} innerClassName="p-6">
+          <FlatCard className="animate-fade-up p-6" style={{ animationDelay: "100ms" }}>
             <SectionTitle icon={Fingerprint}>Connection</SectionTitle>
-            <div className="divide-y divide-white/[0.06]">
+            <div className="divide-y divide-border">
               <InfoRow icon={Globe} label="IP address">
                 <span className="font-mono">{server.ipAddress}</span>
                 <CopyButton value={server.ipAddress} label="IP address" />
@@ -203,12 +202,12 @@ export default function ServerOverviewTab() {
                 <CopyButton value={server.id} label="server ID" />
               </InfoRow>
             </div>
-          </GlassCard>
+          </FlatCard>
 
           {server.cpuCores || server.memTotalMb || server.diskTotalGb || server.uptimeSeconds ? (
-            <GlassCard className="animate-fade-up" style={{ animationDelay: "140ms" }} innerClassName="p-6">
+            <FlatCard className="animate-fade-up p-6" style={{ animationDelay: "140ms" }}>
               <SectionTitle icon={Cpu}>System</SectionTitle>
-              <div className="divide-y divide-white/[0.06]">
+              <div className="divide-y divide-border">
                 {server.cpuCores ? (
                   <InfoRow icon={Cpu} label="CPU">
                     {server.cpuCores} {server.cpuCores === 1 ? "core" : "cores"}
@@ -235,15 +234,15 @@ export default function ServerOverviewTab() {
                   </InfoRow>
                 ) : null}
               </div>
-            </GlassCard>
+            </FlatCard>
           ) : null}
 
-          <GlassCard className="animate-fade-up" style={{ animationDelay: "170ms" }} innerClassName="p-6">
+          <FlatCard className="animate-fade-up p-6" style={{ animationDelay: "170ms" }}>
             <SectionTitle icon={Activity}>Health checks</SectionTitle>
             <ul className="space-y-3">
               {checks.map(({ icon: Icon, label, done }) => (
                 <li key={label} className="flex items-center gap-3 text-sm">
-                  <span className={cn("flex h-7 w-7 items-center justify-center rounded-full", done ? "bg-success/15 text-success" : "border border-white/15 text-muted")}>
+                  <span className={cn("flex h-7 w-7 items-center justify-center rounded-full", done ? "bg-success/15 text-success" : "border border-border text-muted")}>
                     <Icon className="h-3.5 w-3.5" strokeWidth={2} />
                   </span>
                   <span className={done ? "" : "text-muted"}>{label}</span>
@@ -251,7 +250,7 @@ export default function ServerOverviewTab() {
                 </li>
               ))}
             </ul>
-          </GlassCard>
+          </FlatCard>
         </div>
       </div>
     </>

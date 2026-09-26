@@ -7,7 +7,7 @@ import type { AppHealthRow, DeploySummary, OverviewSummary, ProjectSummary } fro
 import { projectTone } from "@/components/projects/project-card";
 import { Badge } from "@/components/ui/badge";
 import { buttonClass } from "@/components/ui/button";
-import { GlassCard } from "@/components/ui/glass-card";
+import { FlatCard } from "@/components/ui/flat-card";
 import { SectionTitle } from "@/components/ui/section-title";
 import { projectAddress } from "@/lib/app-domain";
 import { timeAgo } from "@/lib/time-ago";
@@ -51,13 +51,13 @@ export function ServerProjects({ serverId, serverIp, online }: { serverId: strin
   }, [serverId]);
 
   return (
-    <GlassCard className="animate-fade-up" innerClassName="p-6">
+    <FlatCard className="animate-fade-up p-6">
       <SectionTitle icon={Boxes} meta={rows?.length ? `${rows.length} total` : undefined}>
         Projects on this server
       </SectionTitle>
 
       {rows === null ? (
-        <div className="h-14 animate-pulse rounded-xl bg-white/[0.04]" />
+        <div className="h-14 animate-pulse rounded-xl bg-surface-hover" />
       ) : rows.length === 0 ? (
         <div className="flex flex-col items-center py-10 text-center">
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 text-accent">
@@ -76,10 +76,10 @@ export function ServerProjects({ serverId, serverIp, online }: { serverId: strin
         </div>
       ) : (
         <>
-          <ul className="divide-y divide-white/[0.06]">
+          <ul className="divide-y divide-border">
             {rows.map(({ project: p, lastDeploy, health }) => (
               <li key={p.id}>
-                <Link href={`/projects/${p.id}`} className="group -mx-2 flex items-center gap-4 rounded-xl px-2 py-3.5 transition hover:bg-white/[0.03]">
+                <Link href={`/projects/${p.id}`} className="group -mx-2 flex items-center gap-4 rounded-xl px-2 py-3.5 transition hover:bg-surface-hover">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 font-mono text-sm font-semibold text-accent">
                     {p.name.charAt(0).toUpperCase()}
                   </span>
@@ -131,7 +131,7 @@ export function ServerProjects({ serverId, serverIp, online }: { serverId: strin
           {online ? (
             <Link
               href={`/projects/new?server=${serverId}`}
-              className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-dashed border-white/15 px-3 py-2 text-xs text-muted transition hover:border-accent/50 hover:text-accent"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted transition hover:border-accent/50 hover:text-accent"
             >
               <Plus className="h-3.5 w-3.5" strokeWidth={2} />
               New project
@@ -139,6 +139,6 @@ export function ServerProjects({ serverId, serverIp, online }: { serverId: strin
           ) : null}
         </>
       )}
-    </GlassCard>
+    </FlatCard>
   );
 }

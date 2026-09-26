@@ -6,7 +6,7 @@ const tones = {
   success: "border-success/25 bg-success/10 text-success",
   danger: "border-danger/25 bg-danger/10 text-danger",
   warning: "border-warning/25 bg-warning/10 text-warning",
-  neutral: "border-white/10 bg-white/[0.04] text-muted",
+  neutral: "border-border bg-surface-hover text-muted",
 };
 
 export function DbStatusPill({ database }: { database: Pick<DatabaseSummary, "status" | "statusDetail" | "isUp"> }) {

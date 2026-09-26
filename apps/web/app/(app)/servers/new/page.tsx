@@ -6,7 +6,7 @@ import { Container, Loader2, Lock, ShieldCheck, Terminal, Waypoints } from "luci
 import type { ServerSummary, SshCredentialType } from "@deplyr/shared-types";
 import { Button } from "@/components/ui/button";
 import { Field, FormError, inputClass } from "@/components/ui/field";
-import { GlassCard } from "@/components/ui/glass-card";
+import { FlatCard } from "@/components/ui/flat-card";
 import { Page, PageHeader } from "@/components/ui/page";
 import { cn } from "@/lib/cn";
 
@@ -61,7 +61,7 @@ export default function NewServerPage() {
       />
 
       <div className="grid gap-6 lg:grid-cols-5">
-        <GlassCard className="animate-fade-up lg:col-span-3" innerClassName="p-6 sm:p-8">
+        <FlatCard className="animate-fade-up p-6 sm:p-8 lg:col-span-3">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid gap-5 sm:grid-cols-2">
               <Field label="Name">
@@ -86,7 +86,7 @@ export default function NewServerPage() {
 
             <div>
               <span className="mb-1.5 block text-sm font-medium">Sign in with</span>
-              <div className="grid grid-cols-2 gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-1">
+              <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-surface-hover p-1">
                 {(["password", "private_key"] as const).map((type) => (
                   <button
                     type="button"
@@ -138,12 +138,12 @@ export default function NewServerPage() {
               {submitting ? "Connecting…" : "Connect server"}
             </Button>
           </form>
-        </GlassCard>
+        </FlatCard>
 
         <aside className="animate-fade-up space-y-3 lg:col-span-2" style={{ animationDelay: "80ms" }}>
-          <p className="font-mono text-[10px] uppercase tracking-widest text-muted">What happens next</p>
+          <p className="text-[10px] uppercase tracking-widest text-muted">What happens next</p>
           {steps.map(({ icon: Icon, title, body }, i) => (
-            <div key={title} className="flex gap-3.5 rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+            <div key={title} className="flex gap-3.5 rounded-xl border border-border bg-surface-hover p-4">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
                 <Icon className="h-4 w-4" strokeWidth={1.75} />
               </span>

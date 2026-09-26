@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight, Clock, Container, Cpu, Plus, Waypoints } from "lucide-react";
 import type { ProjectSummary, ServerSummary } from "@deplyr/shared-types";
-import { GlassCard } from "@/components/ui/glass-card";
+import { FlatCard } from "@/components/ui/flat-card";
 import { RingGauge } from "@/components/dashboard/ring-gauge";
 import { ServerStatusBadge } from "@/components/servers/server-status-badge";
 import { projectAddress } from "@/lib/app-domain";
@@ -15,13 +15,6 @@ const projectDot: Record<ProjectSummary["status"], string> = {
   deploying: "bg-warning animate-pulse",
   failed: "bg-danger",
   created: "bg-muted",
-};
-
-const statusGlow: Record<ServerSummary["status"], string> = {
-  connected: "bg-success/20",
-  installing: "bg-warning/20",
-  pending: "bg-white/10",
-  error: "bg-danger/20",
 };
 
 /**
@@ -45,17 +38,11 @@ export function ServerCard({
 
   return (
     <div className="animate-fade-up" style={style}>
-      <GlassCard hover className="relative h-full" innerClassName="relative flex h-full flex-col overflow-hidden">
+      <FlatCard hover className="relative flex h-full flex-col overflow-hidden">
         <Link
           href={`/servers/${server.id}`}
           aria-label={`Open ${server.name}`}
-          className="absolute inset-0 z-0 rounded-2xl"
-        />
-        <div
-          className={cn(
-            "pointer-events-none absolute -right-12 -top-16 h-44 w-44 rounded-full blur-[60px]",
-            statusGlow[server.status],
-          )}
+          className="absolute inset-0 z-0"
         />
 
         {/* header */}
@@ -65,7 +52,7 @@ export function ServerCard({
               <Cpu className="h-5 w-5" strokeWidth={1.5} />
               <span
                 className={cn(
-                  "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#0c0c10]",
+                  "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-surface",
                   online ? "bg-success" : server.status === "error" ? "bg-danger" : "bg-warning animate-pulse",
                 )}
               />
@@ -95,9 +82,9 @@ export function ServerCard({
         )}
 
         {/* projects on this server */}
-        <div className="relative mt-5 flex-1 border-t border-white/[0.07] p-5">
+        <div className="relative mt-5 flex-1 border-t border-border p-5">
           <div className="pointer-events-none mb-2.5 flex items-center justify-between">
-            <p className="font-mono text-[10px] uppercase tracking-widest text-muted">
+            <p className="text-[10px] uppercase tracking-widest text-muted">
               Projects · {projects.length}
             </p>
             {projects.length > 0 ? (
@@ -115,9 +102,9 @@ export function ServerCard({
                 <li key={p.id} className="relative z-10">
                   <Link
                     href={`/projects/${p.id}`}
-                    className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition hover:bg-white/[0.06]"
+                    className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition hover:bg-surface-hover"
                   >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/[0.05] font-mono text-xs font-semibold text-accent">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-surface-hover font-mono text-xs font-semibold text-accent">
                       {p.name.charAt(0).toUpperCase()}
                     </span>
                     <span className="min-w-0 flex-1">
@@ -139,7 +126,7 @@ export function ServerCard({
           {online ? (
             <Link
               href={`/projects/new?server=${server.id}`}
-              className="relative z-10 mt-3 inline-flex items-center gap-1.5 rounded-lg border border-dashed border-white/15 px-2.5 py-1.5 text-xs text-muted transition hover:border-accent/50 hover:text-accent"
+              className="relative z-10 mt-3 inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-2.5 py-1.5 text-xs text-muted transition hover:border-accent/50 hover:text-accent"
             >
               <Plus className="h-3.5 w-3.5" strokeWidth={2} />
               New project
@@ -148,7 +135,7 @@ export function ServerCard({
         </div>
 
         {/* footer */}
-        <div className="pointer-events-none relative flex items-center gap-4 border-t border-white/[0.07] bg-black/20 px-5 py-3 text-[11px] text-muted">
+        <div className="pointer-events-none relative flex items-center gap-4 border-t border-border bg-surface-hover px-5 py-3 text-[11px] text-muted">
           <span className={cn("flex items-center gap-1.5", server.dockerInstalled && "text-foreground/80")}>
             <Container className="h-3.5 w-3.5" strokeWidth={1.75} />
             Docker
@@ -162,7 +149,7 @@ export function ServerCard({
             {server.agentConnectedAt ? `up ${timeAgo(server.agentConnectedAt).replace(" ago", "")}` : `added ${timeAgo(server.createdAt)}`}
           </span>
         </div>
-      </GlassCard>
+      </FlatCard>
     </div>
   );
 }

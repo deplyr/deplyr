@@ -5,7 +5,7 @@ import { cn } from "@/lib/cn";
 
 export function RangeTabs({ value, onChange }: { value: MetricsRange; onChange: (r: MetricsRange) => void }) {
   return (
-    <div role="tablist" aria-label="Time range" className="inline-flex rounded-xl border border-white/10 bg-white/[0.03] p-1">
+    <div role="tablist" aria-label="Time range" className="inline-flex rounded-xl border border-border bg-surface-hover p-1">
       {METRICS_RANGES.map((r) => (
         <button
           key={r}

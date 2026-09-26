@@ -5,7 +5,7 @@ import type { SecretSummary } from "@deplyr/shared-types";
 import { ClipboardPaste, Eye, KeyRound, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FormError } from "@/components/ui/field";
-import { GlassCard } from "@/components/ui/glass-card";
+import { FlatCard } from "@/components/ui/flat-card";
 import { PasteEnvDialog } from "@/components/secrets/paste-env-dialog";
 import { humanizeKey } from "@/lib/humanize-key";
 import type { ParsedEnvVar } from "@/lib/parse-env-paste";
@@ -14,7 +14,7 @@ import { cn } from "@/lib/cn";
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 const inputClass =
-  "w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 font-mono text-sm text-foreground placeholder:font-sans placeholder:text-muted/70 transition focus:border-accent/60 focus:bg-white/[0.06] focus:outline-none focus:ring-4 focus:ring-accent/10";
+  "w-full rounded-xl border border-border bg-surface-hover px-3.5 py-2.5 font-mono text-sm text-foreground placeholder:font-sans placeholder:text-muted/70 transition focus:border-accent/60 focus:bg-surface focus:outline-none focus:ring-4 focus:ring-accent/10";
 
 export function SecretsForm({
   projectId,
@@ -108,7 +108,7 @@ export function SecretsForm({
   if (secretsState.length === 0) {
     return (
       <>
-        <GlassCard innerClassName="flex flex-col items-center px-6 py-14 text-center">
+        <FlatCard className="flex flex-col items-center px-6 py-14 text-center">
           <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10 text-accent">
             <KeyRound className="h-5 w-5" strokeWidth={1.5} />
           </span>
@@ -121,14 +121,14 @@ export function SecretsForm({
             <ClipboardPaste className="h-4 w-4" strokeWidth={1.75} />
             Paste .env
           </Button>
-        </GlassCard>
+        </FlatCard>
         <PasteEnvDialog open={pasteOpen} onClose={() => setPasteOpen(false)} onImport={handleImport} />
       </>
     );
   }
 
   return (
-    <GlassCard innerClassName="space-y-5 p-6 sm:p-8">
+    <FlatCard className="space-y-5 p-6 sm:p-8">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-muted">{secretsState.length} variable{secretsState.length === 1 ? "" : "s"}</p>
         <Button type="button" variant="secondary" onClick={() => setPasteOpen(true)}>
@@ -187,7 +187,7 @@ export function SecretsForm({
 
       {error ? <FormError>{error}</FormError> : null}
 
-      <div className="flex items-center gap-3 border-t border-white/[0.07] pt-5">
+      <div className="flex items-center gap-3 border-t border-border pt-5">
         <Button type="button" onClick={handleSave} disabled={saving}>
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
           {saving ? "Saving…" : "Save changes"}
@@ -196,6 +196,6 @@ export function SecretsForm({
       </div>
 
       <PasteEnvDialog open={pasteOpen} onClose={() => setPasteOpen(false)} onImport={handleImport} />
-    </GlassCard>
+    </FlatCard>
   );
 }

@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { ArrowRight, CheckCircle2, Loader2, XCircle } from "lucide-react";
 import type { DeploySummary } from "@deplyr/shared-types";
 import { DeployChecklist } from "@/components/deploys/deploy-checklist";
-import { GlassCard } from "@/components/ui/glass-card";
+import { FlatCard } from "@/components/ui/flat-card";
 import { Page, PageHeader } from "@/components/ui/page";
 import { cn } from "@/lib/cn";
 
@@ -58,7 +58,7 @@ export default function DeployDetailPage() {
   if (!deploy) {
     return (
       <Page width="narrow">
-        <div className="h-64 animate-pulse rounded-2xl bg-white/[0.04]" />
+        <div className="h-48 animate-pulse rounded-xl bg-surface-hover" />
       </Page>
     );
   }
@@ -72,44 +72,36 @@ export default function DeployDetailPage() {
     <Page width="narrow">
       <PageHeader back={{ href: `/projects/${id}`, label: "Back to project" }} />
 
-      <GlassCard className="animate-fade-up" innerClassName="relative overflow-hidden">
-        <div
-          className={cn(
-            "pointer-events-none absolute -left-16 -top-20 h-64 w-64 rounded-full blur-[80px]",
-            ok ? "bg-success/25" : failed ? "bg-danger/25" : "bg-accent/20",
-          )}
-        />
-        <div className="relative p-6 sm:p-8">
-          <div className="flex items-center gap-4">
-            <span
-              className={cn(
-                "flex h-12 w-12 items-center justify-center rounded-2xl",
-                ok ? "bg-success/15 text-success" : failed ? "bg-danger/15 text-danger" : "bg-accent/15 text-accent",
-              )}
-            >
-              {ok ? <CheckCircle2 className="h-6 w-6" /> : failed ? <XCircle className="h-6 w-6" /> : <Loader2 className="h-6 w-6 animate-spin" />}
-            </span>
-            <div>
-              <h1 className="font-mono text-2xl font-semibold tracking-tight">
-                {ok ? "Your app is live" : failed ? "Deploy failed" : "Deploying…"}
-              </h1>
-              <p className="mt-1 text-sm text-muted">
-                {ok
-                  ? "Everything passed. Nice."
-                  : failed
-                    ? "Open the failed step below to see what went wrong."
-                    : `${done} of ${total} steps done`}
-              </p>
-            </div>
-          </div>
-          <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-white/10">
-            <div
-              className={cn("h-full rounded-full transition-all duration-700", failed ? "bg-danger" : ok ? "bg-success" : "bg-accent")}
-              style={{ width: `${(done / total) * 100}%` }}
-            />
+      <FlatCard className="animate-fade-up p-6 sm:p-8">
+        <div className="flex items-center gap-4">
+          <span
+            className={cn(
+              "flex h-12 w-12 items-center justify-center rounded-xl",
+              ok ? "bg-success/15 text-success" : failed ? "bg-danger/15 text-danger" : "bg-accent/15 text-accent",
+            )}
+          >
+            {ok ? <CheckCircle2 className="h-6 w-6" /> : failed ? <XCircle className="h-6 w-6" /> : <Loader2 className="h-6 w-6 animate-spin" />}
+          </span>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {ok ? "Your app is live" : failed ? "Deploy failed" : "Deploying…"}
+            </h1>
+            <p className="mt-1 text-sm text-muted">
+              {ok
+                ? "Everything passed. Nice."
+                : failed
+                  ? "Open the failed step below to see what went wrong."
+                  : `${done} of ${total} steps done`}
+            </p>
           </div>
         </div>
-      </GlassCard>
+        <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-border">
+          <div
+            className={cn("h-full rounded-full transition-all duration-700", failed ? "bg-danger" : ok ? "bg-success" : "bg-accent")}
+            style={{ width: `${(done / total) * 100}%` }}
+          />
+        </div>
+      </FlatCard>
 
       <div className="animate-fade-up" style={{ animationDelay: "70ms" }}>
         <DeployChecklist steps={deploy.steps} />

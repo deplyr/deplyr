@@ -87,7 +87,7 @@ export function ChannelDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
           editing
-            ? { name, events: [...events] }
+            ? { name, events: [...events], ...(url.trim() ? { webhookUrl: url.trim() } : {}) }
             : { type, name, webhookUrl: url, events: [...events], projectId: projectId || null },
         ),
       });
@@ -108,14 +108,14 @@ export function ChannelDialog({
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto px-4 py-[5vh]" role="dialog" aria-modal="true" aria-label={editing ? "Edit channel" : "Connect a channel"}>
       <div className="fixed inset-0 animate-fade-up bg-black/60 backdrop-blur-sm" onClick={() => !saving && onClose()} />
-      <div className="relative w-full max-w-xl animate-fade-up rounded-3xl bg-gradient-to-b from-white/25 to-white/[0.04] p-px shadow-2xl shadow-black/70">
-        <form onSubmit={submit} className="rounded-[calc(1.5rem-1px)] bg-[#0c0c10]/95 p-6 backdrop-blur-xl sm:p-8">
+      <div className="relative w-full max-w-xl animate-fade-up rounded-2xl border border-border bg-surface shadow-xl">
+        <form onSubmit={submit} className="p-6 sm:p-8">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
-              <h2 className="font-mono text-xl font-semibold tracking-tight">{editing ? `Edit ${channel!.name}` : "Connect a channel"}</h2>
+              <h2 className="text-xl font-semibold tracking-tight">{editing ? `Edit ${channel!.name}` : "Connect a channel"}</h2>
               <p className="mt-1 text-sm text-muted">{editing ? "Change what this channel hears about." : "Deplyr will send a test message to check it works."}</p>
             </div>
-            <button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-muted transition hover:bg-white/[0.06] hover:text-foreground">
+            <button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-muted transition hover:bg-surface-hover hover:text-foreground">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -131,7 +131,7 @@ export function ChannelDialog({
                     type="button"
                     key={t}
                     onClick={() => setType(t)}
-                    className={cn("relative flex flex-col gap-2 rounded-xl border p-4 text-left transition", active ? "border-accent/60 bg-accent/10 ring-4 ring-accent/10" : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]")}
+                    className={cn("relative flex flex-col gap-2 rounded-xl border p-4 text-left transition", active ? "border-accent/60 bg-accent/10 ring-4 ring-accent/10" : "border-border bg-surface-hover hover:bg-surface")}
                   >
                     <span className={cn("flex h-9 w-9 items-center justify-center rounded-lg", m.tile)}>
                       <Icon className="h-4 w-4" strokeWidth={1.75} />
@@ -152,12 +152,21 @@ export function ChannelDialog({
               <input required value={name} onChange={(e) => setName(e.target.value)} placeholder={`${meta.label} alerts`} maxLength={60} className={inputClass} />
             </Field>
 
+            <Field label="Webhook URL" hint={editing ? `Leave blank to keep the current one${channel?.hint ? ` (${channel.hint})` : ""}.` : undefined}>
+              <input
+                required={!editing}
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder={editing ? "Leave blank to keep the current webhook" : meta.placeholder}
+                spellCheck={false}
+                autoComplete="off"
+                className={cn(inputClass, "font-mono text-xs")}
+              />
+            </Field>
+
             {!editing ? (
               <>
-                <Field label="Webhook URL">
-                  <input required value={url} onChange={(e) => setUrl(e.target.value)} placeholder={meta.placeholder} spellCheck={false} autoComplete="off" className={cn(inputClass, "font-mono text-xs")} />
-                </Field>
-                <ol className="space-y-1.5 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3.5 text-xs leading-relaxed text-muted">
+                <ol className="space-y-1.5 rounded-xl border border-border bg-surface-hover p-3.5 text-xs leading-relaxed text-muted">
                   <li className="mb-1 flex items-center gap-1.5 font-medium text-foreground">
                     How to get a {meta.label} webhook
                     <ExternalLink className="h-3 w-3 text-muted" strokeWidth={1.75} />
@@ -193,10 +202,10 @@ export function ChannelDialog({
               <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
                 {EVENT_GROUPS.map((group) => (
                   <fieldset key={group}>
-                    <legend className="mb-1 font-mono text-[10px] uppercase tracking-widest text-muted">{group}</legend>
+                    <legend className="mb-1 text-[10px] uppercase tracking-widest text-muted">{group}</legend>
                     {NOTIFICATION_EVENTS.filter((e) => e.group === group).map((e) => (
-                      <label key={e.id} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-1 py-1.5 text-sm transition hover:bg-white/[0.04]">
-                        <input type="checkbox" checked={events.has(e.id)} onChange={() => toggle(e.id)} className="h-4 w-4 accent-[#22D3EE]" />
+                      <label key={e.id} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-1 py-1.5 text-sm transition hover:bg-surface-hover">
+                        <input type="checkbox" checked={events.has(e.id)} onChange={() => toggle(e.id)} className="h-4 w-4 accent-accent" />
                         <span className={cn(events.has(e.id) ? "" : "text-muted")}>{e.label}</span>
                       </label>
                     ))}

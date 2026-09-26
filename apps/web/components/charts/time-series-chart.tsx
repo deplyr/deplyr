@@ -23,10 +23,14 @@ interface Props {
   height?: number;
 }
 
-const SERIES = "#22D3EE"; // single-series accent — see tailwind.config.ts `accent`
-const SURFACE = "#0c0c10"; // card surface: dots wear a 2px ring in this colour
-const GRID = "rgba(255,255,255,0.07)";
-const AXIS_TEXT = "#8B8B93";
+// CSS custom properties, not literal colours — same trick as ring-gauge.tsx —
+// so the chart tracks the live theme instead of assuming a dark surface.
+const SERIES = "hsl(var(--accent))";
+const SURFACE = "hsl(var(--surface-hover))"; // dots wear a 2px ring in this colour, matching the card they sit in
+const GRID = "hsl(var(--border))";
+const AXIS_TEXT = "hsl(var(--muted))";
+const HAIRLINE = "hsl(var(--foreground) / 0.15)";
+const CROSSHAIR = "hsl(var(--foreground) / 0.25)";
 const PAD = { top: 10, right: 14, bottom: 24, left: 38 };
 const CHAR_W = 6.2; // ≈ width of one 10px axis digit
 
@@ -170,7 +174,7 @@ export function TimeSeriesChart({ data, domain, ticks, format, label, windowMs, 
 
           {reference ? (
             <g>
-              <line x1={padLeft} x2={width - PAD.right} y1={y(reference.value)} y2={y(reference.value)} stroke="rgba(255,255,255,0.22)" strokeWidth={1} />
+              <line x1={padLeft} x2={width - PAD.right} y1={y(reference.value)} y2={y(reference.value)} stroke={HAIRLINE} strokeWidth={1} />
               {/* near the top edge the label would clip, so tuck it under the line */}
               <text
                 x={width - PAD.right - 4}
@@ -199,7 +203,7 @@ export function TimeSeriesChart({ data, domain, ticks, format, label, windowMs, 
           {/* end dot, or the hovered point + crosshair */}
           {active && active.v !== null ? (
             <g pointerEvents="none">
-              <line x1={x(active.t)} x2={x(active.t)} y1={PAD.top} y2={PAD.top + plotH} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
+              <line x1={x(active.t)} x2={x(active.t)} y1={PAD.top} y2={PAD.top + plotH} stroke={CROSSHAIR} strokeWidth={1} />
               <circle cx={x(active.t)} cy={y(active.v)} r={4} fill={SERIES} stroke={SURFACE} strokeWidth={2} />
             </g>
           ) : last ? (
@@ -210,7 +214,7 @@ export function TimeSeriesChart({ data, domain, ticks, format, label, windowMs, 
 
       {active && active.v !== null ? (
         <div
-          className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 whitespace-nowrap rounded-lg border border-white/15 bg-[#15151a]/95 px-2.5 py-1.5 shadow-xl backdrop-blur"
+          className="pointer-events-none absolute top-0 z-10 -translate-x-1/2 whitespace-nowrap rounded-lg border border-border bg-surface px-2.5 py-1.5 shadow-xl"
           style={{ left: tipLeft }}
         >
           <p className="text-[11px] text-muted">{formatFull(active.t, windowMs)}</p>

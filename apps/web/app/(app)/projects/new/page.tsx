@@ -14,7 +14,7 @@ import type {
 import { Button, buttonClass } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, FormError, inputClass } from "@/components/ui/field";
-import { GlassCard } from "@/components/ui/glass-card";
+import { FlatCard } from "@/components/ui/flat-card";
 import { Page, PageHeader } from "@/components/ui/page";
 import { timeAgo } from "@/lib/time-ago";
 import { cn } from "@/lib/cn";
@@ -170,7 +170,7 @@ export default function NewProjectPage() {
       />
 
       <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-5">
-        <GlassCard className="animate-fade-up lg:col-span-3" innerClassName="space-y-8 p-6 sm:p-8">
+        <FlatCard className="animate-fade-up space-y-8 p-6 sm:p-8 lg:col-span-3">
           <section>
             <StepLabel n={1}>Choose a server</StepLabel>
             {servers === null ? (
@@ -188,10 +188,10 @@ export default function NewProjectPage() {
                         "flex items-center gap-3 rounded-xl border p-3.5 text-left transition",
                         active
                           ? "border-accent/60 bg-accent/10 ring-4 ring-accent/10"
-                          : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]",
+                          : "border-border bg-surface-hover hover:bg-surface",
                       )}
                     >
-                      <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", active ? "bg-accent/20 text-accent" : "bg-white/[0.05] text-muted")}>
+                      <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", active ? "bg-accent/20 text-accent" : "bg-surface text-muted")}>
                         <ServerIcon className="h-4 w-4" strokeWidth={1.75} />
                       </span>
                       <span className="min-w-0 flex-1">
@@ -233,7 +233,7 @@ export default function NewProjectPage() {
                   />
                 </div>
                 {repos ? (
-                  <ul className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-white/10 bg-black/20 p-1.5">
+                  <ul className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-border bg-surface-hover p-1.5">
                     {filteredRepos.length === 0 ? (
                       <li className="px-3 py-3 text-sm text-muted">No repos match.</li>
                     ) : (
@@ -242,7 +242,7 @@ export default function NewProjectPage() {
                           <button
                             type="button"
                             onClick={() => setSelectedRepo(repo)}
-                            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-white/[0.05]"
+                            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition hover:bg-surface"
                           >
                             <Github className="h-4 w-4 shrink-0 text-muted" strokeWidth={1.75} />
                             <span className="min-w-0 flex-1 truncate font-mono text-xs">{repo.fullName}</span>
@@ -295,35 +295,32 @@ export default function NewProjectPage() {
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {submitting ? "Creating…" : "Create project"}
           </Button>
-        </GlassCard>
+        </FlatCard>
 
         {/* live preview */}
         <aside className="animate-fade-up lg:col-span-2" style={{ animationDelay: "80ms" }}>
           <div className="lg:sticky lg:top-24">
-            <p className="mb-3 font-mono text-[10px] uppercase tracking-widest text-muted">Preview</p>
-            <GlassCard innerClassName="relative overflow-hidden p-6">
-              <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-accent/20 blur-3xl" />
-              <div className="relative">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 font-mono text-lg font-semibold text-accent">
-                  {(name || "?").charAt(0).toUpperCase()}
-                </span>
-                <p className="mt-4 truncate text-base font-semibold">{name || "Your project"}</p>
-                <p className="mt-1 flex items-center gap-1.5 truncate font-mono text-xs text-accent/80">
-                  <Globe className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
-                  {projectAddress(slug, chosenServer?.ipAddress) ?? "address assigned on first deploy"}
-                </p>
-                <dl className="mt-5 space-y-3 border-t border-white/[0.07] pt-5 text-xs">
-                  <div className="flex items-center justify-between gap-3">
-                    <dt className="flex items-center gap-1.5 text-muted"><GitBranch className="h-3.5 w-3.5" strokeWidth={1.75} />Source</dt>
-                    <dd className="truncate font-mono">{selectedRepo ? `${selectedRepo.fullName}@${branch}` : "—"}</dd>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <dt className="flex items-center gap-1.5 text-muted"><ServerIcon className="h-3.5 w-3.5" strokeWidth={1.75} />Server</dt>
-                    <dd className="truncate">{chosenServer?.name ?? "—"}</dd>
-                  </div>
-                </dl>
-              </div>
-            </GlassCard>
+            <p className="mb-3 text-[10px] uppercase tracking-widest text-muted">Preview</p>
+            <FlatCard className="p-6">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 font-mono text-lg font-semibold text-accent">
+                {(name || "?").charAt(0).toUpperCase()}
+              </span>
+              <p className="mt-4 truncate text-base font-semibold">{name || "Your project"}</p>
+              <p className="mt-1 flex items-center gap-1.5 truncate font-mono text-xs text-accent/80">
+                <Globe className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+                {projectAddress(slug, chosenServer?.ipAddress) ?? "address assigned on first deploy"}
+              </p>
+              <dl className="mt-5 space-y-3 border-t border-border pt-5 text-xs">
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="flex items-center gap-1.5 text-muted"><GitBranch className="h-3.5 w-3.5" strokeWidth={1.75} />Source</dt>
+                  <dd className="truncate font-mono">{selectedRepo ? `${selectedRepo.fullName}@${branch}` : "—"}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="flex items-center gap-1.5 text-muted"><ServerIcon className="h-3.5 w-3.5" strokeWidth={1.75} />Server</dt>
+                  <dd className="truncate">{chosenServer?.name ?? "—"}</dd>
+                </div>
+              </dl>
+            </FlatCard>
             <p className="mt-4 text-xs leading-relaxed text-muted">
               After creating, you&apos;ll add secrets, an optional database, and hit Deploy.
             </p>
