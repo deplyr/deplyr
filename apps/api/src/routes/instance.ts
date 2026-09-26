@@ -25,7 +25,13 @@ async function getRow() {
  * host (dashboard, then the API on :4000) — just built at request time so a
  * custom domain can sit alongside the bare host instead of replacing it. */
 function caddyfileFor(publicHost: string, customDomain: string | null): string {
-  const blocksFor = (host: string) => `${host} {\n\treverse_proxy web:3000\n}\n\n${host}:4000 {\n\treverse_proxy api:4000\n}\n`;
+  // A bare IP needs an explicit http:// — Caddy otherwise self-signs it and
+  // redirects to a port that's usually closed (see infra/docker/Caddyfile).
+  const address = (host: string) => (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) ? `http://${host}` : host);
+  const blocksFor = (rawHost: string) => {
+    const host = address(rawHost);
+    return `${host} {\n\treverse_proxy web:3000\n}\n\n${host}:4000 {\n\treverse_proxy api:4000\n}\n`;
+  };
   return customDomain ? `${blocksFor(publicHost)}\n${blocksFor(customDomain)}` : blocksFor(publicHost);
 }
 

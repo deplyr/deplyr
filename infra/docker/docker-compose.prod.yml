@@ -11,9 +11,9 @@
 # web and api, which aren't reachable from outside this Docker network any
 # other way. Set DEPLYR_PUBLIC_HOST to a real domain and it gets you
 # automatic HTTPS (Let's Encrypt) for free, same Caddyfile, no extra steps;
-# set it to a bare IP (no domain yet) and Caddy quietly serves plain HTTP
-# instead, since a cert can't be issued for an IP anyway — either way this
-# file doesn't change.
+# set it to a bare IP (no domain yet) and DEPLYR_SITE_ADDRESS becomes
+# http://<ip>, which serves plain HTTP — Caddy would otherwise self-sign an
+# IP and redirect to it. Either way this file doesn't change.
 #
 # Running this control plane on a box that *also* self-hosts apps (i.e.
 # this same box is registered as one of its own managed servers) needs
@@ -156,7 +156,9 @@ services:
     # time, before anything's ever been pushed.
     command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile", "--resume"]
     environment:
-      DEPLYR_PUBLIC_HOST: ${DEPLYR_PUBLIC_HOST}
+      # http://<ip> for a bare IP, plain hostname for a domain — see Caddyfile.
+      # Falls back to the bare host for an .env from before this existed.
+      DEPLYR_SITE_ADDRESS: ${DEPLYR_SITE_ADDRESS:-${DEPLYR_PUBLIC_HOST}}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - deplyr_caddy_data:/data

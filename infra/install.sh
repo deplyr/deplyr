@@ -118,8 +118,9 @@ if [ ! -f "$ENV_FILE" ]; then
   # compose file's own notes) — DEPLYR_PUBLIC_HOST wins either way for
   # DEPLYR_PUBLIC_URL's scheme if it looks like a domain, not an IP.
   case "$PUBLIC_HOST" in
-    *[a-zA-Z]*) DEFAULT_SCHEME="https" ;;
-    *) DEFAULT_SCHEME="http" ;;
+    *[a-zA-Z]*) DEFAULT_SCHEME="https"; SITE_ADDRESS="$PUBLIC_HOST" ;;
+    # http:// explicitly: Caddy otherwise self-signs an IP and redirects to it.
+    *) DEFAULT_SCHEME="http"; SITE_ADDRESS="http://$PUBLIC_HOST" ;;
   esac
 
   cat > "$ENV_FILE" <<EOF
@@ -128,6 +129,7 @@ DEPLYR_MASTER_KEY=$(openssl rand -base64 32)
 DEPLYR_SESSION_SECRET=$(openssl rand -base64 32)
 DEPLYR_PUBLIC_URL=${DEPLYR_PUBLIC_URL:-$DEFAULT_SCHEME://$PUBLIC_HOST}
 DEPLYR_PUBLIC_HOST=$PUBLIC_HOST
+DEPLYR_SITE_ADDRESS=$SITE_ADDRESS
 DEPLYR_APP_DOMAIN=${DEPLYR_APP_DOMAIN:-}
 DEPLYR_WEB_PORT=${DEPLYR_WEB_PORT:-80}
 DEPLYR_CLOUD_MODE=${DEPLYR_CLOUD_MODE:-}
@@ -138,6 +140,15 @@ EOF
   echo -e "${GREEN}Wrote $ENV_FILE${NC} — back up DEPLYR_MASTER_KEY somewhere safe, it can't be recovered if it's lost."
 else
   echo -e "${ORANGE}Found existing $ENV_FILE${NC} — reusing it as-is (secrets untouched)."
+  # An .env from before DEPLYR_SITE_ADDRESS existed: add it, otherwise a
+  # bare-IP install keeps Caddy's IP auto-HTTPS redirect (see the compose file).
+  if ! grep -q '^DEPLYR_SITE_ADDRESS=' "$ENV_FILE"; then
+    HOST=$(grep '^DEPLYR_PUBLIC_HOST=' "$ENV_FILE" | cut -d= -f2-)
+    case "$HOST" in
+      *[a-zA-Z]*) echo "DEPLYR_SITE_ADDRESS=$HOST" >> "$ENV_FILE" ;;
+      *) echo "DEPLYR_SITE_ADDRESS=http://$HOST" >> "$ENV_FILE" ;;
+    esac
+  fi
 fi
 
 # ---------------------------------------------------------------------------
