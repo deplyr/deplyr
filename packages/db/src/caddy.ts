@@ -38,7 +38,12 @@ export async function localApps(): Promise<CaddyApp[]> {
   const rows = await db
     .select({ subdomain: projects.subdomain, appPort: projects.appPort })
     .from(projects)
-    .where(and(eq(projects.serverId, localId), isNotNull(projects.appPort)));
+    .where(and(eq(projects.serverId, localId), isNotNull(projects.appPort)))
+    // Stable order: the config is rebuilt from these rows on every deploy, and rows
+    // change position in the table whenever they're updated. Without this, the same
+    // apps came out in a different order and Caddy saw a "changed" config each time -
+    // a real reload that briefly drops connections such as the agent's.
+    .orderBy(projects.subdomain);
   const apps: CaddyApp[] = [];
   for (const r of rows) {
     const addr = localAppAddress(r.subdomain, publicHost, process.env.DEPLYR_APP_DOMAIN || null);
@@ -50,7 +55,8 @@ export async function localApps(): Promise<CaddyApp[]> {
     .select({ hostname: domains.hostname, appPort: projects.appPort })
     .from(domains)
     .innerJoin(projects, eq(domains.projectId, projects.id))
-    .where(and(eq(projects.serverId, localId), isNotNull(projects.appPort), inArray(domains.status, ["provisioning", "active"])));
+    .where(and(eq(projects.serverId, localId), isNotNull(projects.appPort), inArray(domains.status, ["provisioning", "active"])))
+    .orderBy(domains.hostname);
   for (const d of custom) if (d.appPort) apps.push({ host: d.hostname, https: true, port: d.appPort });
   return apps;
 }
