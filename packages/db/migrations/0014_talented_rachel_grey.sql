@@ -1,0 +1,1 @@
+ALTER TABLE "instance_settings" ADD COLUMN "public_host" text;

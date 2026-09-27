@@ -1,6 +1,6 @@
 import type { Job } from "bullmq";
 import { and, eq, sql } from "drizzle-orm";
-import { db, deploys, deploySteps, projects, servers, secrets, users, decryptSecret, recordAudit, notify, syncCaddy } from "@deplyr/db";
+import { db, deploys, deploySteps, projects, servers, secrets, users, decryptSecret, recordAudit, notify, syncCaddy, resolvePublicHost } from "@deplyr/db";
 import type { DeployRunJob } from "@deplyr/queue";
 import {
   DEPLOY_STEP_NAMES,
@@ -225,7 +225,7 @@ async function runLocalStep(
   port: number,
   onLog: (line: string) => Promise<void> | void,
 ): Promise<string> {
-  const publicHost = process.env.DEPLYR_PUBLIC_HOST ?? "";
+  const publicHost = (await resolvePublicHost()) ?? "";
   const addr = localAppAddress(slug, publicHost, process.env.DEPLYR_APP_DOMAIN || null);
 
   if (step === "nginx") {

@@ -419,6 +419,11 @@ export const domains = pgTable(
 // address, set from the dashboard instead of an env var + manual rebuild.
 export const instanceSettings = pgTable("instance_settings", {
   id: text("id").primaryKey().default("default"),
+  // Overrides DEPLYR_PUBLIC_HOST (a static env var, wrong the moment a
+  // cloud box's public IP changes — e.g. an EC2 instance stopped and
+  // restarted without an Elastic IP) — null falls back to the env var, same
+  // pattern as customDomain falling back to no custom domain.
+  publicHost: text("public_host"),
   customDomain: text("custom_domain"),
   // Reuses domain_ssl_status's shape (none/provisioning/active/error) — no
   // "pending_dns" step here, since this domain isn't verified against a DNS

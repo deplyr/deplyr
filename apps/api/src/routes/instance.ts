@@ -2,10 +2,12 @@ import { resolve4 } from "node:dns/promises";
 import tls from "node:tls";
 import { Hono } from "hono";
 import { eq } from "drizzle-orm";
-import { buildCaddyfile, db, instanceSettings, pushCaddyfile, recordAudit } from "@deplyr/db";
+import { buildCaddyfile, db, instanceSettings, pushCaddyfile, recordAudit, resolvePublicHost } from "@deplyr/db";
 import {
   checkHostnameFormat,
+  checkPublicHostFormat,
   updateInstanceDomainSchema,
+  updateInstanceHostSchema,
   type InstanceDomainCheck,
   type InstanceSettingsDTO,
 } from "@deplyr/shared-types";
@@ -69,13 +71,74 @@ async function getRow() {
 
 instanceRoute.get("/", async (c) => {
   const row = await getRow();
-  const publicHost = process.env.DEPLYR_PUBLIC_HOST ?? "";
+  const publicHost = (await resolvePublicHost()) ?? "";
   const body: InstanceSettingsDTO = {
     publicHost,
+    publicHostIsOverridden: Boolean(row?.publicHost),
+    envPublicHost: process.env.DEPLYR_PUBLIC_HOST ?? null,
     customDomain: row?.customDomain ?? null,
     domainStatus: row?.domainStatus ?? "none",
     domainStatusDetail: row?.domainStatusDetail ?? null,
     check: row?.customDomain && row.domainStatus !== "error" ? await checkDomain(row.customDomain, publicHost) : null,
+  };
+  return c.json(body);
+});
+
+// Overrides DEPLYR_PUBLIC_HOST — the one thing that used to need SSH +
+// editing .env + a container restart to fix, e.g. after a cloud box's public
+// IP changes on reboot (no Elastic/static IP). Pushes the new Caddy config
+// immediately: the bare-host site block, every app's sslip.io fallback
+// address, and the instance's own custom-domain DNS check all key off this.
+instanceRoute.put("/host", async (c) => {
+  const userId = c.get("userId") as string;
+  const parsed = updateInstanceHostSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "invalid input" }, 400);
+
+  const raw = parsed.data.host?.trim();
+  let publicHost: string | null = null;
+  if (raw) {
+    const check = checkPublicHostFormat(raw);
+    if (!check.ok) return c.json({ error: check.error }, 400);
+    publicHost = check.normalized!;
+  } else if (!process.env.DEPLYR_PUBLIC_HOST) {
+    // Nothing to fall back to — clearing the override would leave the
+    // instance with no address to serve Caddy's bare-host block from.
+    return c.json({ error: "DEPLYR_PUBLIC_HOST isn't set on this instance — an address is required" }, 400);
+  }
+
+  await db
+    .insert(instanceSettings)
+    .values({ id: ROW_ID, publicHost })
+    .onConflictDoUpdate({ target: instanceSettings.id, set: { publicHost, updatedAt: new Date() } });
+
+  try {
+    const res = await pushCaddyfile(await buildCaddyfile());
+    if (!res.ok) {
+      const detail = (await res.text().catch(() => "")).trim().slice(0, 500) || "Caddy rejected this configuration.";
+      return c.json({ error: detail }, 400);
+    }
+  } catch {
+    return c.json({ error: "Couldn't reach Caddy to apply this — is the caddy container running?" }, 502);
+  }
+
+  await recordAudit({
+    ownerId: userId,
+    action: "instance.host.update",
+    status: "success",
+    summary: publicHost ? `Set this instance's address to ${publicHost}` : "Reset this instance's address to DEPLYR_PUBLIC_HOST",
+    resourceName: publicHost ?? process.env.DEPLYR_PUBLIC_HOST ?? "",
+  });
+
+  const row = await getRow();
+  const effectiveHost = (await resolvePublicHost()) ?? "";
+  const body: InstanceSettingsDTO = {
+    publicHost: effectiveHost,
+    publicHostIsOverridden: Boolean(row?.publicHost),
+    envPublicHost: process.env.DEPLYR_PUBLIC_HOST ?? null,
+    customDomain: row?.customDomain ?? null,
+    domainStatus: row?.domainStatus ?? "none",
+    domainStatusDetail: row?.domainStatusDetail ?? null,
+    check: row?.customDomain && row.domainStatus !== "error" ? await checkDomain(row.customDomain, effectiveHost) : null,
   };
   return c.json(body);
 });
@@ -85,7 +148,7 @@ instanceRoute.put("/domain", async (c) => {
   const parsed = updateInstanceDomainSchema.safeParse(await c.req.json().catch(() => null));
   if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? "invalid input" }, 400);
 
-  const publicHost = process.env.DEPLYR_PUBLIC_HOST;
+  const publicHost = await resolvePublicHost();
   if (!publicHost) return c.json({ error: "DEPLYR_PUBLIC_HOST isn't set on this instance" }, 500);
 
   const raw = parsed.data.hostname?.trim();
@@ -138,6 +201,8 @@ instanceRoute.put("/domain", async (c) => {
 
   const body: InstanceSettingsDTO = {
     publicHost,
+    publicHostIsOverridden: Boolean(row.publicHost),
+    envPublicHost: process.env.DEPLYR_PUBLIC_HOST ?? null,
     customDomain: row.customDomain,
     domainStatus: row.domainStatus,
     domainStatusDetail: row.domainStatusDetail,

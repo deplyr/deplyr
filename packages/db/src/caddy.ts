@@ -21,6 +21,18 @@ const ADMIN_BLOCK = `{\n\tadmin 0.0.0.0:2019 {\n\t\torigins caddy:2019 localhost
 // redirects to a port that's usually closed (see infra/docker/Caddyfile).
 const address = (host: string) => (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) ? `http://${host}` : host);
 
+/**
+ * What this instance answers to when nothing else is configured. Settings'
+ * "Instance address" card can override DEPLYR_PUBLIC_HOST — that env var is
+ * only right until the box's own public IP changes (a cloud instance
+ * stopped and restarted without a static/Elastic IP gets a new one), and
+ * fixing that used to mean SSH + editing .env + a rebuild.
+ */
+export async function resolvePublicHost(): Promise<string | null> {
+  const [row] = await db.select({ publicHost: instanceSettings.publicHost }).from(instanceSettings).where(eq(instanceSettings.id, "default"));
+  return row?.publicHost || process.env.DEPLYR_PUBLIC_HOST || null;
+}
+
 /** One app on the box Deplyr runs on, and where its container listens. The
  * app runs with host networking, so from Caddy's container it's reached via
  * the host gateway (host.docker.internal — see the compose file). */
@@ -33,7 +45,7 @@ export interface CaddyApp {
 /** Apps deployed to the local server, with the hostname each is served at. */
 export async function localApps(): Promise<CaddyApp[]> {
   const localId = process.env.DEPLYR_LOCAL_SERVER_ID;
-  const publicHost = process.env.DEPLYR_PUBLIC_HOST;
+  const publicHost = await resolvePublicHost();
   if (!localId || !publicHost) return [];
   const rows = await db
     .select({ subdomain: projects.subdomain, appPort: projects.appPort })
@@ -101,7 +113,7 @@ export function caddyfileText(publicHost: string, customDomain: string | null, a
 /** `customDomain` overrides what's stored — Settings pushes the new value
  * before it saves it. Omit it to use what's saved. */
 export async function buildCaddyfile(opts: { customDomain?: string | null } = {}): Promise<string> {
-  const publicHost = process.env.DEPLYR_PUBLIC_HOST;
+  const publicHost = await resolvePublicHost();
   if (!publicHost) throw new Error("DEPLYR_PUBLIC_HOST isn't set");
   let customDomain = opts.customDomain;
   if (customDomain === undefined) {

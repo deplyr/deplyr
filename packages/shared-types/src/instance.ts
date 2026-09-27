@@ -8,6 +8,12 @@ export const updateInstanceDomainSchema = z.object({
 });
 export type UpdateInstanceDomainInput = z.infer<typeof updateInstanceDomainSchema>;
 
+// Empty/omitted clears the override and falls back to DEPLYR_PUBLIC_HOST.
+export const updateInstanceHostSchema = z.object({
+  host: z.string().trim().max(253).optional(),
+});
+export type UpdateInstanceHostInput = z.infer<typeof updateInstanceHostSchema>;
+
 /** Where a just-added domain is in going live. Worked out fresh on every
  * read (DNS lookup + a TLS handshake with Caddy), not stored — it changes
  * on its own as DNS propagates and the certificate gets issued. */
@@ -34,8 +40,14 @@ export interface InstanceDomainCheck {
  * already up. See packages/db/src/schema.ts's instanceSettings for the
  * stored half of this. */
 export interface InstanceSettingsDTO {
-  /** Always reachable, in addition to any custom domain below. */
+  /** Always reachable, in addition to any custom domain below. Effective
+   * value — the Settings override if one's set, else DEPLYR_PUBLIC_HOST. */
   publicHost: string;
+  /** Whether `publicHost` above came from Settings rather than the env var. */
+  publicHostIsOverridden: boolean;
+  /** What DEPLYR_PUBLIC_HOST itself is set to, for the "reset" case — null
+   * when it's unset (a fresh instance, or local dev). */
+  envPublicHost: string | null;
   customDomain: string | null;
   domainStatus: DomainSslStatus;
   domainStatusDetail: string | null;
@@ -44,6 +56,37 @@ export interface InstanceSettingsDTO {
 }
 
 const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
+const HOSTNAME_LABEL = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/i;
+
+export interface PublicHostCheck {
+  ok: boolean;
+  error?: string;
+  normalized?: string;
+}
+
+/**
+ * What this instance answers to when nothing else is configured — almost
+ * always a bare IP (the common case for a self-hosted box with no domain
+ * yet), sometimes a hostname. Deliberately more permissive than a project's
+ * custom domain check (checkHostnameFormat, which rejects bare IPs and
+ * single labels outright): this is the operator's own infrastructure, not
+ * something to guard against collisions on.
+ */
+export function checkPublicHostFormat(input: string): PublicHostCheck {
+  const trimmed = input.trim().toLowerCase().replace(/\.$/, "");
+  if (!trimmed) return { ok: false, error: "Enter an address." };
+  if (trimmed.length > 253) return { ok: false, error: "That's too long to be a valid address." };
+  if (IPV4.test(trimmed)) {
+    if (trimmed.split(".").some((octet) => Number(octet) > 255)) {
+      return { ok: false, error: "That doesn't look like a valid IP address." };
+    }
+    return { ok: true, normalized: trimmed };
+  }
+  if (!trimmed.split(".").every((label) => HOSTNAME_LABEL.test(label))) {
+    return { ok: false, error: "That doesn't look like a valid address." };
+  }
+  return { ok: true, normalized: trimmed };
+}
 
 /**
  * The hostname an app on the box Deplyr itself runs on is served at. Caddy is

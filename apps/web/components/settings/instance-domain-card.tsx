@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { AlertTriangle, Check, ExternalLink, Globe, Loader2 } from "lucide-react";
+import { AlertTriangle, Check, ExternalLink, Globe, Loader2, Pencil } from "lucide-react";
 import type { InstanceDomainCheck, InstanceSettingsDTO } from "@deplyr/shared-types";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
@@ -135,6 +135,11 @@ export function InstanceDomainCard() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [editingHost, setEditingHost] = useState(false);
+  const [hostInput, setHostInput] = useState("");
+  const [hostSaving, setHostSaving] = useState(false);
+  const [hostError, setHostError] = useState<string | null>(null);
+
   const refresh = useCallback(async (first = false) => {
     try {
       const res = await fetch(`${API_URL}/instance`, { credentials: "include" });
@@ -190,6 +195,35 @@ export function InstanceDomainCard() {
     put(hostname.trim());
   }
 
+  async function putHost(next: string) {
+    setHostError(null);
+    setHostSaving(true);
+    try {
+      const res = await fetch(`${API_URL}/instance/host`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ host: next }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        setHostError(body?.error ?? "Couldn't apply that.");
+        return;
+      }
+      setData(body);
+      setEditingHost(false);
+    } catch {
+      setHostError("Couldn't reach the server.");
+    } finally {
+      setHostSaving(false);
+    }
+  }
+
+  function saveHost(e: FormEvent) {
+    e.preventDefault();
+    putHost(hostInput.trim());
+  }
+
   if (!data) {
     return (
       <>
@@ -213,19 +247,93 @@ export function InstanceDomainCard() {
         automatically.
       </p>
 
-      {data.publicHost ? (
+      {editingHost ? (
+        <form onSubmit={saveHost} className="rounded-xl border border-border bg-surface-hover p-3">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              autoFocus
+              value={hostInput}
+              onChange={(e) => setHostInput(e.target.value)}
+              placeholder={data.envPublicHost ?? "1.2.3.4 or deplyr.example.com"}
+              spellCheck={false}
+              autoComplete="off"
+              className={cn(inputClass, "font-mono text-xs")}
+            />
+            <div className="flex shrink-0 gap-2">
+              <Button type="submit" variant="secondary" disabled={hostSaving}>
+                {hostSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Save
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={hostSaving}
+                onClick={() => {
+                  setEditingHost(false);
+                  setHostError(null);
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+          <p className="mt-2 text-xs leading-relaxed text-muted">
+            Change this if the box's public IP changed (e.g. a cloud instance restarted without a static/Elastic IP) — every
+            app's fallback address and this instance's own bare-address route are derived from it.
+            {data.publicHostIsOverridden && data.envPublicHost ? (
+              <>
+                {" "}
+                <button
+                  type="button"
+                  onClick={() => putHost("")}
+                  disabled={hostSaving}
+                  className="text-accent hover:underline disabled:opacity-60"
+                >
+                  Reset to {data.envPublicHost}
+                </button>
+              </>
+            ) : null}
+          </p>
+          {hostError ? <FormError>{hostError}</FormError> : null}
+        </form>
+      ) : data.publicHost ? (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-hover px-4 py-3">
           <span className="min-w-0 truncate font-mono text-sm">{data.publicHost}</span>
           <div className="flex shrink-0 items-center gap-1">
             <span className="mr-1 text-xs text-muted">always on</span>
             <CopyButton value={data.publicHost} label="instance address" />
+            <button
+              type="button"
+              onClick={() => {
+                setHostInput(data.publicHost);
+                setHostError(null);
+                setEditingHost(true);
+              }}
+              aria-label="Edit instance address"
+              className="rounded-lg p-1.5 text-muted transition hover:bg-surface hover:text-foreground"
+            >
+              <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
+            </button>
           </div>
         </div>
       ) : (
-        <p className="rounded-xl border border-border bg-surface-hover px-4 py-3 text-sm text-muted">
-          <code className="font-mono text-foreground">DEPLYR_PUBLIC_HOST</code> isn't set on this instance — expected in
-          local dev, but a real self-hosted deploy sets this automatically (see infra/install.sh).
-        </p>
+        <div className="rounded-xl border border-border bg-surface-hover px-4 py-3 text-sm text-muted">
+          <p>
+            <code className="font-mono text-foreground">DEPLYR_PUBLIC_HOST</code> isn't set on this instance — expected in
+            local dev, but a real self-hosted deploy sets this automatically (see infra/install.sh).
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setHostInput("");
+              setHostError(null);
+              setEditingHost(true);
+            }}
+            className="mt-2 text-xs font-medium text-accent hover:underline"
+          >
+            Set it now
+          </button>
+        </div>
       )}
 
       {data.publicHost ? (
