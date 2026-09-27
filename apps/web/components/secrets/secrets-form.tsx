@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { SecretSummary } from "@deplyr/shared-types";
-import { ClipboardPaste, Eye, KeyRound, Loader2 } from "lucide-react";
+import { ClipboardPaste, Eye, KeyRound, Loader2, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FormError } from "@/components/ui/field";
 import { FlatCard } from "@/components/ui/flat-card";
@@ -31,6 +31,20 @@ export function SecretsForm({
   const [justSaved, setJustSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pasteOpen, setPasteOpen] = useState(false);
+  const [newRows, setNewRows] = useState<{ id: string; key: string; value: string }[]>([]);
+
+  function handleAddVariable() {
+    setJustSaved(false);
+    setNewRows((rows) => [...rows, { id: crypto.randomUUID(), key: "", value: "" }]);
+  }
+
+  function handleNewRowChange(id: string, field: "key" | "value", val: string) {
+    setNewRows((rows) => rows.map((r) => (r.id === id ? { ...r, [field]: val } : r)));
+  }
+
+  function handleRemoveNewRow(id: string) {
+    setNewRows((rows) => rows.filter((r) => r.id !== id));
+  }
 
   function handleImport(vars: ParsedEnvVar[]) {
     setJustSaved(false);
@@ -74,7 +88,13 @@ export function SecretsForm({
   }
 
   async function handleSave() {
-    const changed = Object.entries(values);
+    const manualEntries = newRows
+      .map((r) => ({ key: r.key.trim(), value: r.value }))
+      .filter((r) => r.key.length > 0);
+    const changed = [
+      ...Object.entries(values),
+      ...manualEntries.map(({ key, value }) => [key, value] as const),
+    ];
     if (changed.length === 0) return;
     setSaving(true);
     setError(null);
@@ -96,16 +116,32 @@ export function SecretsForm({
     }
 
     const changedKeys = new Set(changed.map(([key]) => key));
-    setSecretsState((prev) =>
-      prev.map((s) =>
+    setSecretsState((prev) => {
+      const existingKeys = new Set(prev.map((s) => s.key));
+      const additions = manualEntries
+        .filter((m) => !existingKeys.has(m.key))
+        .map((m) => ({ key: m.key, source: "user" as const, hasValue: true }));
+      const updated = prev.map((s) =>
         changedKeys.has(s.key) ? { ...s, hasValue: (values[s.key] ?? "").length > 0 } : s,
-      ),
-    );
+      );
+      return [...updated, ...additions].sort((a, b) => a.key.localeCompare(b.key));
+    });
+    setValues((v) => {
+      const next = { ...v };
+      for (const { key, value } of manualEntries) next[key] = value;
+      return next;
+    });
+    setRevealed((r) => {
+      const next = new Set(r);
+      for (const { key } of manualEntries) next.add(key);
+      return next;
+    });
+    setNewRows([]);
     setSaving(false);
     setJustSaved(true);
   }
 
-  if (secretsState.length === 0) {
+  if (secretsState.length === 0 && newRows.length === 0) {
     return (
       <>
         <FlatCard className="flex flex-col items-center px-6 py-14 text-center">
@@ -115,12 +151,18 @@ export function SecretsForm({
           <p className="mt-4 text-sm font-medium">No secrets detected</p>
           <p className="mt-1.5 max-w-sm text-xs leading-relaxed text-muted">
             Deplyr looks for a <code className="font-mono text-foreground">.env.example</code> file in
-            your repo when the project is created. Paste one in instead:
+            your repo when the project is created. Paste one in, or add a variable:
           </p>
-          <Button type="button" variant="secondary" onClick={() => setPasteOpen(true)} className="mt-5">
-            <ClipboardPaste className="h-4 w-4" strokeWidth={1.75} />
-            Paste .env
-          </Button>
+          <div className="mt-5 flex items-center gap-3">
+            <Button type="button" variant="secondary" onClick={handleAddVariable}>
+              <Plus className="h-4 w-4" strokeWidth={1.75} />
+              Add variable
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => setPasteOpen(true)}>
+              <ClipboardPaste className="h-4 w-4" strokeWidth={1.75} />
+              Paste .env
+            </Button>
+          </div>
         </FlatCard>
         <PasteEnvDialog open={pasteOpen} onClose={() => setPasteOpen(false)} onImport={handleImport} />
       </>
@@ -130,11 +172,19 @@ export function SecretsForm({
   return (
     <FlatCard className="space-y-5 p-6 sm:p-8">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-muted">{secretsState.length} variable{secretsState.length === 1 ? "" : "s"}</p>
-        <Button type="button" variant="secondary" onClick={() => setPasteOpen(true)}>
-          <ClipboardPaste className="h-4 w-4" strokeWidth={1.75} />
-          Paste .env
-        </Button>
+        <p className="text-xs text-muted">
+          {secretsState.length + newRows.length} variable{secretsState.length + newRows.length === 1 ? "" : "s"}
+        </p>
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="secondary" onClick={handleAddVariable}>
+            <Plus className="h-4 w-4" strokeWidth={1.75} />
+            Add variable
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => setPasteOpen(true)}>
+            <ClipboardPaste className="h-4 w-4" strokeWidth={1.75} />
+            Paste .env
+          </Button>
+        </div>
       </div>
 
       {secretsState.map((secret) => {
@@ -184,6 +234,40 @@ export function SecretsForm({
           </div>
         );
       })}
+
+      {newRows.map((row) => (
+        <div key={row.id}>
+          <div className="mb-1.5 flex items-baseline justify-between">
+            <input
+              type="text"
+              value={row.key}
+              onChange={(e) =>
+                handleNewRowChange(row.id, "key", e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, "_"))
+              }
+              placeholder="KEY_NAME"
+              autoFocus
+              className="rounded-lg border border-border bg-surface-hover px-2 py-1 font-mono text-[11px] text-foreground placeholder:text-muted/70 focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/10"
+            />
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={row.value}
+              onChange={(e) => handleNewRowChange(row.id, "value", e.target.value)}
+              placeholder="Value"
+              className={inputClass}
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => handleRemoveNewRow(row.id)}
+              aria-label="Remove variable"
+            >
+              <X className="h-4 w-4" strokeWidth={1.75} />
+            </Button>
+          </div>
+        </div>
+      ))}
 
       {error ? <FormError>{error}</FormError> : null}
 
