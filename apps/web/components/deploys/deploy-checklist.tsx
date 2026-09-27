@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, X, Loader2, Circle, ChevronDown, ChevronRight } from "lucide-react";
+import { Check, X, Loader2, Circle, MinusCircle, ChevronDown, ChevronRight } from "lucide-react";
 import type { DeployStepSummary } from "@deplyr/shared-types";
 import { DEPLOY_STEP_LABELS } from "@/lib/deploy-step-labels";
 import { cn } from "@/lib/cn";
@@ -75,6 +75,9 @@ function StepIcon({ status }: { status: DeployStepSummary["status"] }) {
   }
   if (status === "running") {
     return <Loader2 className="h-4 w-4 shrink-0 animate-spin text-accent" strokeWidth={2} />;
+  }
+  if (status === "cancelled") {
+    return <MinusCircle className="h-4 w-4 shrink-0 text-muted" strokeWidth={1.75} />;
   }
   return <Circle className="h-4 w-4 shrink-0 text-muted" strokeWidth={1.75} />;
 }

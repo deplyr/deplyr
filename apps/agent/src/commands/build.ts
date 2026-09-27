@@ -14,6 +14,11 @@ export async function build(
     // deliberately not passed in: they reach the container at run time via
     // --env-file, never through the build context or a layer.
     await runProcess(["docker", "build", "-t", p.imageTag, "-f", `${p.workDir}/${p.dockerfile}`, p.workDir], emitLog);
+    // Re-tagging leaves the previous image behind as a dangling <none>
+    // layer set — over repeated deploys these fill the disk. Prune only
+    // dangling images so in-use/tagged images (including other projects')
+    // are never touched.
+    await runProcess(["docker", "image", "prune", "-f"], emitLog);
     return;
   }
 

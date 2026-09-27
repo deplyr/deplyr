@@ -126,14 +126,21 @@ serversRoute.patch("/:id", async (c) => {
     .where(and(eq(servers.id, c.req.param("id")), eq(servers.userId, userId)));
   if (!existing) return c.json({ error: "not found" }, 404);
 
-  const retrying = input.ipAddress !== undefined || input.credential !== undefined;
+  // The local server (the box Deplyr itself runs on) is never reached over
+  // SSH — its agent is already connected over the loopback address
+  // regardless of what its ipAddress says. Changing that field here is just
+  // correcting the address used for health checks and app links (e.g. after
+  // the underlying instance got a new public IP), not "reconnecting"
+  // anything, so it skips the SSH-install retry path entirely.
+  const isLocal = Boolean(process.env.DEPLYR_LOCAL_SERVER_ID) && existing.id === process.env.DEPLYR_LOCAL_SERVER_ID;
+  const retrying = !isLocal && (input.ipAddress !== undefined || input.credential !== undefined);
 
   const [updated] = await db
     .update(servers)
     .set({
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.ipAddress !== undefined ? { ipAddress: input.ipAddress } : {}),
-      ...(input.credential !== undefined
+      ...(input.credential !== undefined && !isLocal
         ? {
             sshCredential: encryptSecret(input.credential),
             sshCredentialType: input.credentialType ?? existing.sshCredentialType,

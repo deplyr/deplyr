@@ -22,6 +22,7 @@ export const deployStepStatusSchema = z.enum([
   "running",
   "success",
   "failed",
+  "cancelled",
 ]);
 export type DeployStepStatus = z.infer<typeof deployStepStatusSchema>;
 
@@ -30,6 +31,7 @@ export const deployStatusSchema = z.enum([
   "running",
   "success",
   "failed",
+  "cancelled",
 ]);
 export type DeployStatus = z.infer<typeof deployStatusSchema>;
 

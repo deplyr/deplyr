@@ -9,6 +9,7 @@ export function deployDuration(d: Pick<DeploySummary, "startedAt" | "finishedAt"
 export const stripTone = {
   success: "bg-success",
   failed: "bg-danger",
+  cancelled: "bg-border",
   running: "bg-warning animate-pulse",
   queued: "bg-border",
 } as const;

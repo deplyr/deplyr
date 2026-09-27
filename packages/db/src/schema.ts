@@ -76,6 +76,7 @@ export const deployStatusEnum = pgEnum("deploy_status", [
   "running",
   "success",
   "failed",
+  "cancelled",
 ]);
 
 export const deployStepNameEnum = pgEnum("deploy_step_name", [
@@ -94,6 +95,7 @@ export const deployStepStatusEnum = pgEnum("deploy_step_status", [
   "running",
   "success",
   "failed",
+  "cancelled",
 ]);
 
 export const channelTypeEnum = pgEnum("channel_type", ["slack", "discord"]);

@@ -60,7 +60,10 @@ export function EditServerDialog({
   if (!open) return null;
 
   const ipChanged = ipAddress.trim() !== server.ipAddress;
-  const retrying = ipChanged || changeCredential;
+  // The local server's agent is already connected over loopback — an IP
+  // change here just fixes the address used for health checks and app
+  // links, not a connection to retry.
+  const retrying = !server.isLocal && (ipChanged || changeCredential);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -106,7 +109,11 @@ export function EditServerDialog({
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
               <h2 className="text-xl font-semibold tracking-tight">Edit server</h2>
-              <p className="mt-1 text-sm text-muted">Changing the IP or credential retries the connection.</p>
+              <p className="mt-1 text-sm text-muted">
+                {server.isLocal
+                  ? "This is the box Deplyr runs on — its agent is always connected. Update the address if the instance's public IP changed."
+                  : "Changing the IP or credential retries the connection."}
+              </p>
             </div>
             <button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-muted transition hover:bg-surface-hover hover:text-foreground">
               <X className="h-4 w-4" />
@@ -121,7 +128,7 @@ export function EditServerDialog({
               <input required value={ipAddress} onChange={(e) => setIpAddress(e.target.value)} className={cn(inputClass, "font-mono")} />
             </Field>
 
-            {changeCredential ? (
+            {server.isLocal ? null : changeCredential ? (
               <Field label="New SSH credential">
                 <div className="mb-2 grid grid-cols-2 gap-1 rounded-xl border border-border bg-surface-hover p-1">
                   {(["password", "private_key"] as const).map((type) => (

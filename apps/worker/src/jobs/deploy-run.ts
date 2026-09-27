@@ -128,12 +128,21 @@ export async function processDeployRun(job: Job<DeployRunJob>) {
     env,
   };
 
-  await db
+  const started = await db
     .update(deploys)
     .set({ status: "running", startedAt: new Date() })
-    .where(eq(deploys.id, deploy.id));
+    .where(and(eq(deploys.id, deploy.id), eq(deploys.status, "queued")))
+    .returning({ id: deploys.id });
+  // Cancelled between being queued and the worker picking it up — nothing
+  // left to do.
+  if (started.length === 0) return;
 
   for (const stepName of DEPLOY_STEP_NAMES) {
+    const [current] = await db.select({ status: deploys.status }).from(deploys).where(eq(deploys.id, deploy.id));
+    // The cancel endpoint already flipped this row and its running step —
+    // stop here instead of starting (or overwriting) more steps.
+    if (current?.status !== "running") return;
+
     await db
       .update(deploySteps)
       .set({ status: "running", startedAt: new Date() })
@@ -152,6 +161,12 @@ export async function processDeployRun(job: Job<DeployRunJob>) {
               payload: buildPayload(stepName, ctx),
               onLog,
             });
+
+      // Cancelled while the step above was in flight — the cancel endpoint
+      // already marked this row and its step; don't stomp on that.
+      const [midStep] = await db.select({ status: deploys.status }).from(deploys).where(eq(deploys.id, deploy.id));
+      if (midStep?.status !== "running") return;
+
       await db
         .update(deploySteps)
         .set({ status: "success", finishedAt: new Date() })
@@ -167,6 +182,11 @@ export async function processDeployRun(job: Job<DeployRunJob>) {
           .where(eq(projects.id, project.id));
       }
     } catch (err) {
+      // Same race as above: a cancel that landed while this step was
+      // failing on its own already recorded the outcome that matters.
+      const [midStep] = await db.select({ status: deploys.status }).from(deploys).where(eq(deploys.id, deploy.id));
+      if (midStep?.status !== "running") return;
+
       const message = err instanceof Error ? err.message : String(err);
       await appendStepLog(deploy.id, stepName, `error: ${message}`);
       await db

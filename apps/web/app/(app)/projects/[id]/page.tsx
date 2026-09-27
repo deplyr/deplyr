@@ -46,6 +46,7 @@ function StepPill({ step }: { step: DeployStepSummary }) {
   const styles = {
     success: "border-success/25 bg-success/10 text-success",
     failed: "border-danger/30 bg-danger/10 text-danger",
+    cancelled: "border-border bg-surface-hover text-muted",
     running: "border-warning/30 bg-warning/10 text-warning",
     pending: "border-border bg-surface-hover text-muted",
   } as const;

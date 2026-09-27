@@ -468,7 +468,9 @@ projectsRoute.post("/:id/deploys", async (c) => {
     .set({ status: "deploying", updatedAt: new Date() })
     .where(eq(projects.id, project.id));
 
-  await deployRunQueue().add("deploy", { deployId: deploy.id });
+  // jobId is the deploy's own id so a later cancel can look this job up and
+  // remove it if the worker hasn't picked it up yet.
+  await deployRunQueue().add("deploy", { deployId: deploy.id }, { jobId: deploy.id });
 
   await recordAudit({
     ownerId: c.get("userId"),

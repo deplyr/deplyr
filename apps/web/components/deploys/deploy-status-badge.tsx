@@ -9,6 +9,7 @@ const STATUS_CONFIG: Record<
   running: { label: "Running", tone: "warning" },
   success: { label: "Live", tone: "success" },
   failed: { label: "Failed", tone: "danger" },
+  cancelled: { label: "Stopped", tone: "neutral" },
 };
 
 export function DeployStatusBadge({ status }: { status: DeployStatus }) {

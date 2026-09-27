@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { ArrowRight, CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { ArrowRight, CheckCircle2, Loader2, Square, XCircle } from "lucide-react";
 import type { DeploySummary } from "@deplyr/shared-types";
 import { DeployChecklist } from "@/components/deploys/deploy-checklist";
+import { Button } from "@/components/ui/button";
 import { FlatCard } from "@/components/ui/flat-card";
 import { Page, PageHeader } from "@/components/ui/page";
 import { cn } from "@/lib/cn";
@@ -16,6 +17,7 @@ export default function DeployDetailPage() {
   const { id, deployId } = useParams<{ id: string; deployId: string }>();
   const [deploy, setDeploy] = useState<DeploySummary | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [stopping, setStopping] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,6 +49,19 @@ export default function DeployDetailPage() {
     };
   }, [deployId]);
 
+  async function handleStop() {
+    setStopping(true);
+    const res = await fetch(`${API_URL}/deploys/${deployId}/cancel`, {
+      method: "POST",
+      credentials: "include",
+    });
+    if (res.ok) {
+      const data: DeploySummary = await res.json();
+      setDeploy(data);
+    }
+    setStopping(false);
+  }
+
   if (notFound) {
     return (
       <Page width="narrow">
@@ -67,37 +82,55 @@ export default function DeployDetailPage() {
   const total = deploy.steps.length || 1;
   const ok = deploy.status === "success";
   const failed = deploy.status === "failed";
+  const stopped = deploy.status === "cancelled";
+  const inProgress = deploy.status === "queued" || deploy.status === "running";
 
   return (
     <Page width="narrow">
       <PageHeader back={{ href: `/projects/${id}`, label: "Back to project" }} />
 
       <FlatCard className="animate-fade-up p-6 sm:p-8">
-        <div className="flex items-center gap-4">
-          <span
-            className={cn(
-              "flex h-12 w-12 items-center justify-center rounded-xl",
-              ok ? "bg-success/15 text-success" : failed ? "bg-danger/15 text-danger" : "bg-accent/15 text-accent",
-            )}
-          >
-            {ok ? <CheckCircle2 className="h-6 w-6" /> : failed ? <XCircle className="h-6 w-6" /> : <Loader2 className="h-6 w-6 animate-spin" />}
-          </span>
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {ok ? "Your app is live" : failed ? "Deploy failed" : "Deploying…"}
-            </h1>
-            <p className="mt-1 text-sm text-muted">
-              {ok
-                ? "Everything passed. Nice."
-                : failed
-                  ? "Open the failed step below to see what went wrong."
-                  : `${done} of ${total} steps done`}
-            </p>
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <span
+              className={cn(
+                "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl",
+                ok ? "bg-success/15 text-success" : failed || stopped ? "bg-danger/15 text-danger" : "bg-accent/15 text-accent",
+              )}
+            >
+              {ok ? (
+                <CheckCircle2 className="h-6 w-6" />
+              ) : failed || stopped ? (
+                <XCircle className="h-6 w-6" />
+              ) : (
+                <Loader2 className="h-6 w-6 animate-spin" />
+              )}
+            </span>
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">
+                {ok ? "Your app is live" : failed ? "Deploy failed" : stopped ? "Deploy stopped" : "Deploying…"}
+              </h1>
+              <p className="mt-1 text-sm text-muted">
+                {ok
+                  ? "Everything passed. Nice."
+                  : failed
+                    ? "Open the failed step below to see what went wrong."
+                    : stopped
+                      ? "You stopped this deploy. The project's previous build is still running."
+                      : `${done} of ${total} steps done`}
+              </p>
+            </div>
           </div>
+          {inProgress ? (
+            <Button variant="danger" onClick={handleStop} disabled={stopping} className="shrink-0">
+              <Square className="h-4 w-4" strokeWidth={1.75} />
+              {stopping ? "Stopping…" : "Stop"}
+            </Button>
+          ) : null}
         </div>
         <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-border">
           <div
-            className={cn("h-full rounded-full transition-all duration-700", failed ? "bg-danger" : ok ? "bg-success" : "bg-accent")}
+            className={cn("h-full rounded-full transition-all duration-700", failed || stopped ? "bg-danger" : ok ? "bg-success" : "bg-accent")}
             style={{ width: `${(done / total) * 100}%` }}
           />
         </div>
